@@ -1,0 +1,175 @@
+body {
+    font-family: Arial, sans-serif;
+    max-width: 980px;
+    margin: 32px auto;
+    padding: 0 16px;
+    background: #fafafa;
+}
+
+h1 {
+    margin: 0 0 16px;
+}
+
+h2 {
+    margin: 0 0 10px;
+}
+
+.section {
+    margin-bottom: 22px;
+    padding: 16px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    background: #fff;
+}
+
+.section.dashed {
+    border-style: dashed;
+}
+
+.subSection {
+    margin: 8px 0 14px;
+    padding: 10px;
+    border: 1px solid #eee;
+    border-radius: 10px;
+    background: #fcfcfc;
+}
+
+.muted {
+    opacity: 0.85;
+}
+
+.tiny {
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+form label {
+    display: block;
+    margin-bottom: 10px;
+}
+
+input,
+textarea,
+select {
+    display: block;
+    width: 100%;
+    padding: 8px;
+    margin-top: 6px;
+    margin-bottom: 10px;
+    box-sizing: border-box;
+    border: 1px solid #cfcfcf;
+    border-radius: 8px;
+    background: #fff;
+}
+
+textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.btn {
+    cursor: pointer;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid #cfcfcf;
+    background: #f2f2f2;
+    width: 100%;
+}
+
+.btn:hover {
+    background: #ededed;
+}
+
+.btnSmall {
+    width: auto;
+    padding: 8px 10px;
+}
+
+.btnGhost {
+    background: #fff;
+}
+
+.btnGhost:hover {
+    background: #f7f7f7;
+}
+
+.btnRow {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin: 6px 0 8px;
+}
+
+.flexRow {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+}
+
+.panel {
+    min-width: 280px;
+}
+
+.panel.grow {
+    flex: 1;
+    min-width: 320px;
+}
+
+.inlineHeader {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.chipRow {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.companyChip {
+    width: auto;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid #cfcfcf;
+    background: #fff;
+    cursor: pointer;
+}
+
+.companyChip:hover {
+    background: #f7f7f7;
+}
+
+ul {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
+}
+
+li {
+    padding: 8px 6px;
+    border-bottom: 1px solid #eee;
+}
+
+.route-controls {
+    display: inline-flex;
+    gap: 6px;
+    margin-left: 10px;
+}
+
+.route-controls button {
+    width: auto;
+    padding: 4px 8px;
+    border-radius: 8px;
+}
+
+/* Latitude + Longitude side-by-side */
+.row2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}

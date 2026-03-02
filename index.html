@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Free Map Router</title>
+        <link rel="stylesheet" href="styles.css" />
+    </head>
+    <body>
+        <h1>Free Map Router</h1>
+
+        <!-- CSV / Bulk Import -->
+        <section id="importZone" class="section dashed">
+            <h2>Import Jobs</h2>
+            <p class="muted">
+                Drag & drop a CSV file anywhere in this box, or use the file
+                picker.
+            </p>
+
+            <div class="flexRow">
+                <div class="panel">
+                    <label>
+                        Upload CSV (Inspectoria export)
+                        <input type="file" id="csvFile" accept=".csv,text/csv" />
+                    </label>
+                    <div class="btnRow">
+                        <button id="importCsvBtn" type="button" class="btn">
+                            Import CSV
+                        </button>
+                    </div>
+                    <p class="tiny muted">
+                        Uses Client as Company, MappingAddress fields for
+                        address (fallbacks to Address/City/State/Zip), and
+                        Latitude/Longitude if present.
+                    </p>
+                    <p id="dropHint" class="tiny muted"></p>
+                </div>
+
+                <div class="panel grow">
+                    <label>
+                        Or paste CSV text here
+                        <textarea
+                            id="csvText"
+                            rows="6"
+                            placeholder="Paste CSV content here..."
+                        ></textarea>
+                    </label>
+                    <div class="btnRow">
+                        <button id="importCsvTextBtn" type="button" class="btn">
+                            Import Pasted CSV
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Job Entry Form -->
+        <section class="section">
+            <h2>Add / Edit Job</h2>
+            <form id="jobForm">
+                <label>
+                    Company *
+                    <input type="text" id="company" required />
+                </label>
+
+                <!-- Company Quick Picks (Manual Top 10) -->
+                <div class="subSection">
+                    <div class="inlineHeader">
+                        <strong class="tiny muted">Top Companies:</strong>
+                        <div id="companyPicks" class="chipRow"></div>
+                    </div>
+
+                    <div class="btnRow">
+                        <button
+                            id="addCompanyPickBtn"
+                            type="button"
+                            class="btn btnSmall"
+                        >
+                            Add current company to Top 10
+                        </button>
+                        <button
+                            id="clearCompanyPicksBtn"
+                            type="button"
+                            class="btn btnSmall btnGhost"
+                        >
+                            Clear Top 10
+                        </button>
+                    </div>
+
+                    <p class="tiny muted">
+                        Manual list. Click a company chip to fill the Company
+                        field.
+                    </p>
+                </div>
+
+                <label>
+                    Address *
+                    <input
+                        type="text"
+                        id="address"
+                        required
+                        list="addressSuggestions"
+                        autocomplete="off"
+                    />
+                    <datalist id="addressSuggestions"></datalist>
+                </label>
+                <p class="tiny muted" style="margin-top: -6px">
+                    Suggestions come from your saved jobs (offline).
+                </p>
+
+                <!-- Latitude + Longitude side-by-side -->
+                <div class="row2">
+                    <label>
+                        Latitude (optional)
+                        <input type="number" id="latitude" step="any" />
+                    </label>
+
+                    <label>
+                        Longitude (optional)
+                        <input type="number" id="longitude" step="any" />
+                    </label>
+                </div>
+
+                <label>
+                    Notes (optional)
+                    <textarea id="notes"></textarea>
+                </label>
+
+                <button type="submit" class="btn">Save Job</button>
+            </form>
+        </section>
+
+        <!-- Filter -->
+        <section class="section">
+            <h2>Filter by Company</h2>
+            <select id="companyFilter">
+                <option value="">All Companies</option>
+            </select>
+            <button id="clearFilter" type="button" class="btn btnGhost">
+                Clear Filter
+            </button>
+        </section>
+
+        <!-- Job List -->
+        <section class="section">
+            <h2>Jobs</h2>
+            <ul id="jobList"></ul>
+        </section>
+
+        <!-- Route Builder -->
+        <section class="section">
+            <h2>Route Builder</h2>
+            <div class="btnRow">
+                <button id="optimizeRoute" type="button" class="btn btnSmall">
+                    Optimize Route
+                </button>
+                <button id="exportRoute" type="button" class="btn btnSmall">
+                    Open in Google Maps
+                </button>
+            </div>
+            <ul id="routeList"></ul>
+        </section>
+
+        <script src="app.js"></script>
+    </body>
+</html>
