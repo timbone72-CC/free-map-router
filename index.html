@@ -264,6 +264,33 @@
             <p id="backupStatus" class="tiny muted">
                 Save the downloaded backup file in Google Drive.
             </p>
+            <h3>Google Drive</h3>
+            <div class="btnRow">
+                <button
+                    id="connectGoogleDrive"
+                    type="button"
+                    class="btn btnSmall"
+                >
+                    Connect Google Drive
+                </button>
+                <button
+                    id="saveGoogleDrive"
+                    type="button"
+                    class="btn btnSmall"
+                >
+                    Save to Drive
+                </button>
+                <button
+                    id="restoreGoogleDrive"
+                    type="button"
+                    class="btn btnSmall"
+                >
+                    Restore from Drive
+                </button>
+            </div>
+            <p id="googleDriveStatus" class="tiny muted">
+                Google Drive is not connected.
+            </p>
         </section>
         </main>
 
@@ -286,8 +313,10 @@
         <script src="geocoder.js?v=2.0.0"></script>
         <script src="settings.js?v=1.0.0"></script>
         <script src="backup.js?v=1.0.0"></script>
+        <script src="https://accounts.google.com/gsi/client" async></script>
+        <script src="google-drive.js?v=1.0.0"></script>
         <script src="routing.js?v=1.3.0"></script>
         <script src="vendor/leaflet.js?v=1.9.4"></script>
-        <script src="app.js?v=3.2.0"></script>
+        <script src="app.js?v=3.3.0"></script>
     </body>
 </html>
