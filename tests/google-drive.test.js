@@ -5,11 +5,14 @@ const {
     CLIENT_ID,
     DRIVE_BACKUP_NAME,
     DRIVE_FOLDER_NAME,
+    DRIVE_INBOX_NAME,
     DRIVE_SCOPE,
     currentDriveToken,
+    ensureAddressInbox,
     ensureBackupFolder,
     findBackupFolder,
     findBackupFile,
+    findAddressInbox,
     loadBackupFromDrive,
     saveBackupToDrive,
 } = require("../google-drive.js");
@@ -19,6 +22,7 @@ test("Google Drive connection uses the limited drive.file permission", () => {
     assert.match(CLIENT_ID, /\.apps\.googleusercontent\.com$/);
     assert.equal(DRIVE_FOLDER_NAME, "Free Map Router");
     assert.equal(DRIVE_BACKUP_NAME, "Free Map Router Backup.json");
+    assert.equal(DRIVE_INBOX_NAME, "Free Map Router Address Inbox.json");
 });
 
 test("Drive token is not exposed before the user connects", () => {
@@ -55,6 +59,43 @@ test("backup search stays inside the app folder", async () => {
     const request = new URL(requestedUrl);
     assert.match(request.searchParams.get("q"), /Free Map Router Backup\.json/);
     assert.match(request.searchParams.get("q"), /'folder-1' in parents/);
+});
+
+test("address inbox search stays inside the app folder", async () => {
+    let requestedUrl = "";
+    await findAddressInbox("token", "folder-1", async (url) => {
+        requestedUrl = url;
+        return { ok: true, json: async () => ({ files: [] }) };
+    });
+
+    const request = new URL(requestedUrl);
+    assert.match(request.searchParams.get("q"), /Address Inbox\.json/);
+    assert.match(request.searchParams.get("q"), /'folder-1' in parents/);
+});
+
+test("missing address inbox is created for the live workbook", async () => {
+    let count = 0;
+    const inbox = await ensureAddressInbox("token", async (url, options) => {
+        count++;
+        if (count === 1) {
+            return {
+                ok: true,
+                json: async () => ({ files: [{ id: "folder-1" }] }),
+            };
+        }
+        if (count === 2) {
+            return { ok: true, json: async () => ({ files: [] }) };
+        }
+        assert.equal(options.method, "POST");
+        assert.match(options.body, /Free Map Router Address Inbox\.json/);
+        assert.match(
+            options.body,
+            /InspectorADE Repeat Job Predictor - LIVE/,
+        );
+        assert.match(options.body, /"addresses": \[\]/);
+        return { ok: true, json: async () => ({ id: "inbox-1" }) };
+    });
+    assert.equal(inbox.id, "inbox-1");
 });
 
 test("missing app folder is created", async () => {
