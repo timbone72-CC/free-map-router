@@ -14,6 +14,31 @@ h2 {
     margin: 0 0 10px;
 }
 
+.appHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.appHeader h1 {
+    margin: 0;
+}
+
+.pageMenuLabel {
+    min-width: 230px;
+    font-weight: bold;
+}
+
+.pageMenuLabel select {
+    margin-bottom: 0;
+}
+
+.appPage[hidden] {
+    display: none;
+}
+
 .section {
     margin-bottom: 22px;
     padding: 16px;
@@ -172,4 +197,19 @@ li {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 12px;
+}
+
+@media (max-width: 600px) {
+    body {
+        margin-top: 18px;
+    }
+
+    .appHeader {
+        display: block;
+    }
+
+    .pageMenuLabel {
+        display: block;
+        margin-top: 14px;
+    }
 }
