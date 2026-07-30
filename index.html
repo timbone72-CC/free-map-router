@@ -37,6 +37,24 @@
                         autocomplete="street-address"
                     />
                 </label>
+                <div class="btnRow">
+                    <button
+                        id="findHomeLocation"
+                        type="button"
+                        class="btn btnSmall"
+                    >
+                        Find Home Location (Free)
+                    </button>
+                </div>
+                <p id="homeLocationStatus" class="tiny muted">
+                    Find home, then click the exact property on the map.
+                </p>
+                <div
+                    id="homeLocationMap"
+                    class="locationMap"
+                    aria-label="Home location pin map"
+                    hidden
+                ></div>
                 <button type="submit" class="btn">Save Home Address</button>
                 <p id="homeStatus" class="tiny muted">
                     Required before building a round trip.
@@ -157,6 +175,7 @@
                 </p>
                 <div
                     id="locationMap"
+                    class="locationMap"
                     aria-label="Location pin map"
                     hidden
                 ></div>
@@ -203,6 +222,6 @@
         <script src="contract.js?v=2.1.0"></script>
         <script src="geocoder.js?v=1.0.0"></script>
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-        <script src="app.js?v=2.4.0"></script>
+        <script src="app.js?v=2.5.0"></script>
     </body>
 </html>
