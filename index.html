@@ -245,6 +245,25 @@
                     GitHub or placed in a route link.
                 </p>
             </form>
+            <hr />
+            <h3>Backup</h3>
+            <div class="btnRow">
+                <button id="downloadBackup" type="button" class="btn btnSmall">
+                    Download Backup
+                </button>
+                <button id="restoreBackup" type="button" class="btn btnSmall">
+                    Restore Backup
+                </button>
+                <input
+                    id="backupFile"
+                    type="file"
+                    accept=".json,application/json"
+                    hidden
+                />
+            </div>
+            <p id="backupStatus" class="tiny muted">
+                Save the downloaded backup file in Google Drive.
+            </p>
         </section>
         </main>
 
@@ -266,8 +285,9 @@
         <script src="contract.js?v=2.1.0"></script>
         <script src="geocoder.js?v=2.0.0"></script>
         <script src="settings.js?v=1.0.0"></script>
+        <script src="backup.js?v=1.0.0"></script>
         <script src="routing.js?v=1.3.0"></script>
         <script src="vendor/leaflet.js?v=1.9.4"></script>
-        <script src="app.js?v=3.1.0"></script>
+        <script src="app.js?v=3.2.0"></script>
     </body>
 </html>
