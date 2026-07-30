@@ -14,6 +14,7 @@
     const CLIENT_ID =
         "170117881136-v1k2p78ukleac3ep22b9rc3mpnsut4i8.apps.googleusercontent.com";
     const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
+    const DRIVE_FOLDER_NAME = "Free Map Router";
     const DRIVE_BACKUP_NAME = "Free Map Router Backup.json";
     let tokenClient = null;
     let accessToken = "";
@@ -28,14 +29,69 @@
         return response;
     }
 
-    async function findBackupFile(token, fetchFn = globalThis.fetch) {
+    async function findBackupFolder(token, fetchFn = globalThis.fetch) {
         const url = new URL("https://www.googleapis.com/drive/v3/files");
         url.searchParams.set(
             "q",
-            `name = '${DRIVE_BACKUP_NAME}' and trashed = false`,
+            `name = '${DRIVE_FOLDER_NAME}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
         );
         url.searchParams.set("spaces", "drive");
-        url.searchParams.set("fields", "files(id,name,modifiedTime)");
+        url.searchParams.set("fields", "files(id,name)");
+        url.searchParams.set("pageSize", "1");
+
+        const response = await fetchFn(url.toString(), {
+            headers: authorizationHeaders(token),
+        });
+        requireSuccessfulResponse(
+            response,
+            "Google Drive could not find the app folder.",
+        );
+        const data = await response.json();
+        return Array.isArray(data?.files) ? data.files[0] || null : null;
+    }
+
+    async function createBackupFolder(token, fetchFn = globalThis.fetch) {
+        const response = await fetchFn(
+            "https://www.googleapis.com/drive/v3/files?fields=id,name",
+            {
+                method: "POST",
+                headers: {
+                    ...authorizationHeaders(token),
+                    "Content-Type": "application/json; charset=UTF-8",
+                },
+                body: JSON.stringify({
+                    name: DRIVE_FOLDER_NAME,
+                    mimeType: "application/vnd.google-apps.folder",
+                    appProperties: { app: "free-map-router" },
+                }),
+            },
+        );
+        requireSuccessfulResponse(
+            response,
+            "Google Drive could not create the app folder.",
+        );
+        return response.json();
+    }
+
+    async function ensureBackupFolder(token, fetchFn = globalThis.fetch) {
+        return (
+            (await findBackupFolder(token, fetchFn)) ||
+            createBackupFolder(token, fetchFn)
+        );
+    }
+
+    async function findBackupFile(
+        token,
+        folderId,
+        fetchFn = globalThis.fetch,
+    ) {
+        const url = new URL("https://www.googleapis.com/drive/v3/files");
+        url.searchParams.set(
+            "q",
+            `name = '${DRIVE_BACKUP_NAME}' and '${folderId}' in parents and trashed = false`,
+        );
+        url.searchParams.set("spaces", "drive");
+        url.searchParams.set("fields", "files(id,name,modifiedTime,parents)");
         url.searchParams.set("orderBy", "modifiedTime desc");
         url.searchParams.set("pageSize", "1");
 
@@ -50,11 +106,12 @@
         return Array.isArray(data?.files) ? data.files[0] || null : null;
     }
 
-    async function createDriveBackup(token, contents, fetchFn) {
+    async function createDriveBackup(token, folderId, contents, fetchFn) {
         const boundary = `fmr_${Date.now().toString(16)}`;
         const metadata = {
             name: DRIVE_BACKUP_NAME,
             mimeType: "application/json",
+            parents: [folderId],
             appProperties: { app: "free-map-router" },
         };
         const body = [
@@ -113,17 +170,22 @@
         fetchFn = globalThis.fetch,
     ) {
         const contents = JSON.stringify(backup, null, 2);
-        const existing = await findBackupFile(token, fetchFn);
+        const folder = await ensureBackupFolder(token, fetchFn);
+        const existing = await findBackupFile(token, folder.id, fetchFn);
         return existing
             ? updateDriveBackup(token, existing.id, contents, fetchFn)
-            : createDriveBackup(token, contents, fetchFn);
+            : createDriveBackup(token, folder.id, contents, fetchFn);
     }
 
     async function loadBackupFromDrive(
         token,
         fetchFn = globalThis.fetch,
     ) {
-        const existing = await findBackupFile(token, fetchFn);
+        const folder = await findBackupFolder(token, fetchFn);
+        if (!folder) {
+            throw new Error("The Free Map Router folder was not found.");
+        }
+        const existing = await findBackupFile(token, folder.id, fetchFn);
         if (!existing) {
             throw new Error("No Free Map Router backup was found in Google Drive.");
         }
@@ -184,7 +246,10 @@
     return {
         CLIENT_ID,
         DRIVE_BACKUP_NAME,
+        DRIVE_FOLDER_NAME,
         DRIVE_SCOPE,
+        ensureBackupFolder,
+        findBackupFolder,
         findBackupFile,
         loadBackupFromDrive,
         requestDriveToken,
