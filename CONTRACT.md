@@ -61,6 +61,9 @@ that route in Google Maps.
 8. The app creates and owns one Google Drive folder named **Free Map Router**.
    Its cloud backup is saved inside that folder and is not dependent on another
    application's filing rules.
+9. After the user connects Google Drive, changes save automatically while that
+   short-lived Google connection remains active. If it expires, the app must
+   say that reconnection is required and must not claim the change was saved.
 
 ## 5. Route rules
 
