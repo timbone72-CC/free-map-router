@@ -41,3 +41,8 @@ test("pin maps default to free USGS aerial imagery with a Roads option", () => {
     assert.match(app, /Roads:\s*roads/);
     assert.match(app, /aerial\.addTo\(map\)/);
 });
+
+test("saved coordinates stay hidden from readable route labels", () => {
+    assert.doesNotMatch(app, /const coords\s*=/);
+    assert.match(app, /return `\$\{label\}\$\{addr\}\$\{notes\}`/);
+});
