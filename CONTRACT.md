@@ -36,6 +36,8 @@ that route in Google Maps.
    verified and saves them with the address.
 9. A manually verified pin must remain protected from later imports and
    automatic lookups.
+10. Pin placement provides free **Aerial** and **Roads** views, with Aerial
+    shown first so the user can identify the physical property.
 
 ## 4. Page and menu rules
 
