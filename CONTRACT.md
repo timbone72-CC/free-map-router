@@ -55,6 +55,9 @@ that route in Google Maps.
 6. Settings provides a downloadable backup and restore. The backup contains
    Home, saved addresses, pins, and the selected route, but never the Geoapify
    key.
+7. Google Drive backup uses the limited `drive.file` permission and may access
+   only files created or selected for this app. It must never request access to
+   every file in Google Drive.
 
 ## 5. Route rules
 
