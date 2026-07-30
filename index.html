@@ -11,7 +11,7 @@
 
         <!-- CSV / Bulk Import -->
         <section id="importZone" class="section dashed">
-            <h2>Import Jobs</h2>
+            <h2>Import Addresses</h2>
             <p class="muted">
                 Drag & drop a CSV file anywhere in this box, or use the file
                 picker.
@@ -29,9 +29,9 @@
                         </button>
                     </div>
                     <p class="tiny muted">
-                        Uses Client as Company, MappingAddress fields for
-                        address (fallbacks to Address/City/State/Zip), and
-                        Latitude/Longitude if present.
+                        Uses MappingAddress fields for the address (with
+                        fallbacks to Address/City/State/Zip) and coordinates
+                        when present. Client is kept only as an optional label.
                     </p>
                     <p id="dropHint" class="tiny muted"></p>
                 </div>
@@ -54,45 +54,10 @@
             </div>
         </section>
 
-        <!-- Job Entry Form -->
+        <!-- Stop Entry Form -->
         <section class="section">
-            <h2>Add / Edit Job</h2>
+            <h2>Add / Edit Address</h2>
             <form id="jobForm">
-                <label>
-                    Company *
-                    <input type="text" id="company" required />
-                </label>
-
-                <!-- Company Quick Picks (Manual Top 10) -->
-                <div class="subSection">
-                    <div class="inlineHeader">
-                        <strong class="tiny muted">Top Companies:</strong>
-                        <div id="companyPicks" class="chipRow"></div>
-                    </div>
-
-                    <div class="btnRow">
-                        <button
-                            id="addCompanyPickBtn"
-                            type="button"
-                            class="btn btnSmall"
-                        >
-                            Add current company to Top 10
-                        </button>
-                        <button
-                            id="clearCompanyPicksBtn"
-                            type="button"
-                            class="btn btnSmall btnGhost"
-                        >
-                            Clear Top 10
-                        </button>
-                    </div>
-
-                    <p class="tiny muted">
-                        Manual list. Click a company chip to fill the Company
-                        field.
-                    </p>
-                </div>
-
                 <label>
                     Address *
                     <input
@@ -105,8 +70,16 @@
                     <datalist id="addressSuggestions"></datalist>
                 </label>
                 <p class="tiny muted" style="margin-top: -6px">
-                    Suggestions come from your saved jobs (offline).
+                    Suggestions come from your saved addresses.
                 </p>
+                <label>
+                    Label (optional)
+                    <input
+                        type="text"
+                        id="label"
+                        placeholder="Anything that helps you recognize this stop"
+                    />
+                </label>
 
                 <!-- Latitude + Longitude side-by-side -->
                 <div class="row2">
@@ -126,24 +99,13 @@
                     <textarea id="notes"></textarea>
                 </label>
 
-                <button type="submit" class="btn">Save Job</button>
+                <button type="submit" class="btn">Save Address</button>
             </form>
         </section>
 
-        <!-- Filter -->
+        <!-- Address List -->
         <section class="section">
-            <h2>Filter by Company</h2>
-            <select id="companyFilter">
-                <option value="">All Companies</option>
-            </select>
-            <button id="clearFilter" type="button" class="btn btnGhost">
-                Clear Filter
-            </button>
-        </section>
-
-        <!-- Job List -->
-        <section class="section">
-            <h2>Jobs</h2>
+            <h2>Addresses</h2>
             <ul id="jobList"></ul>
         </section>
 
@@ -161,6 +123,7 @@
             <ul id="routeList"></ul>
         </section>
 
+        <script src="contract.js"></script>
         <script src="app.js"></script>
     </body>
 </html>
