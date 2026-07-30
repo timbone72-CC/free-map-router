@@ -1,43 +1,72 @@
 # Free Map Router Contract
 
-These rules are required behavior. A change is incomplete when it violates a
-rule or removes its regression test.
+This contract protects behavior the user has approved. It does not require
+features that have not been built.
 
-## Address identity
+## 1. App purpose
+
+Free Map Router stores addresses for one driver, builds one route, and opens
+that route in Google Maps.
+
+## 2. Address rules
 
 1. Address is the only required stop field.
-2. A stop may be added without a company, client, job number, or label.
-3. Company or client information must never affect address identity, duplicate
-   detection, route order, saved-pin lookup, or optimization.
-4. Optional labels and notes are display information only.
+2. Any valid address may be added, regardless of company or source.
+3. Company, client, label, and notes are optional display information. They
+   never determine duplicates, saved locations, route order, or optimization.
+4. One normalized physical address represents one saved stop.
 
-## Location memory
+## 3. Saved-data rules
 
-1. One physical address owns one remembered location record.
-2. A location may store latitude, longitude, Google Place ID, and pin status.
-3. A manually verified pin overrides an automatic geocode.
-4. A later import must not replace a manual pin with a lower-confidence pin.
+1. Stops and the home address remain saved in the current browser until the
+   user deletes or replaces them.
+2. Home is stored separately from stops and is never imported or counted as a
+   stop.
+3. Existing legacy address data remains available as a recovery copy during
+   migration.
+4. A complete valid coordinate pair may be saved with an address. Partial or
+   invalid coordinates are rejected.
+5. A later import must not overwrite a manually saved coordinate pair with a
+   less reliable location.
 
-## Saved-data safety
+## 4. Page and menu rules
 
-1. Existing `fmr_v1_jobs` browser data must remain untouched as a recovery copy.
-2. Version 1 records migrate into the version 2 address-first schema.
-3. Migration de-duplicates by normalized physical address, never by company.
-4. Invalid or partial coordinate pairs are not treated as verified locations.
+1. The app uses a visible **Go to** dropdown menu.
+2. The menu contains these four understandable pages:
+   **Home**, **Addresses**, **Import Addresses**, and **Build Route**.
+3. Only the selected page is shown. The app must not return to one long page
+   requiring the user to scroll through every feature.
+4. Existing pages may not be renamed, removed, combined, or reordered without
+   the user's approval.
 
-## Route boundaries
+## 5. Route rules
 
-1. The app plans for one driver and one vehicle.
-2. Home is stored separately from route stops and is never imported or counted
-   as a job address.
-3. The route begins and ends at the saved Elk City home location.
-4. Stops have no appointment windows unless this contract is deliberately
-   revised.
-5. Optimization must eventually use road travel time, not straight-line
-   distance.
+1. A saved home address is required to build a round trip.
+2. Every round trip starts and finishes at the saved home address.
+3. Home is not included in the stop count.
+4. Optimization may change stop order, but it must not add, remove, or silently
+   replace selected stops.
+5. Stops have no appointment windows unless the user approves that feature.
 
-## Cost boundary
+## 6. Change control
 
-1. Paid mapping calls must be server-side and protected from public access.
-2. Google Cloud quotas and budget alerts must cap expected mapping expense at
-   no more than $20 per month.
+1. A live-tested change confirmed by the user as **Works** becomes protected.
+2. Protected behavior may not be removed, weakened, bypassed, or silently
+   replaced without the user's approval.
+3. Only files and behavior required for the requested change may be modified.
+4. New features, fields, pages, services, paid APIs, or workflow changes require
+   approval before implementation.
+5. A change is incomplete if relevant regression tests fail or if it violates
+   this contract.
+
+## 7. Required regression checks
+
+Tests must continue to protect:
+
+- address-only stop creation;
+- company-independent address identity;
+- safe legacy migration;
+- valid coordinate pairs and manual-coordinate priority;
+- home stored separately from stops;
+- round trips starting and finishing at home; and
+- the four-page dropdown menu with only one selected page visible.
