@@ -407,13 +407,9 @@ function getFilteredJobs() {
 function formatJobLine(job) {
     const label = job.label ? `${job.label} — ` : "";
     const addr = job.address || "";
-    const coords =
-        job.latitude != null && job.longitude != null
-            ? ` (${job.latitude}, ${job.longitude})`
-            : "";
     const notesRaw = String(job.notes || "").trim();
     const notes = notesRaw ? ` | Notes: ${notesRaw}` : "";
-    return `${label}${addr}${coords}${notes}`;
+    return `${label}${addr}${notes}`;
 }
 
 function renderJobsList() {
@@ -935,7 +931,7 @@ function exportToGoogleMaps() {
     const url = buildGoogleMapsDirectionsUrl(home, selected);
     if (!url) {
         alert(
-            "Verify the Home location and every selected address before opening Google Maps.",
+            "Every route item needs a readable address or a valid corrected pin.",
         );
         return;
     }
