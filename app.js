@@ -755,6 +755,11 @@ function showHomeLocationMap(latitude, longitude) {
             draggable: true,
             autoPan: true,
             title: "Drag to correct the home location",
+            icon: globalThis.L.divIcon({
+                className: "manualPinIcon",
+                iconSize: [24, 24],
+                iconAnchor: [12, 12],
+            }),
         }).addTo(homeLocationMap);
 
         homeLocationMarker.on("dragend", () => {
@@ -842,6 +847,11 @@ function showLocationMap(latitude, longitude) {
             draggable: true,
             autoPan: true,
             title: "Drag to correct this location",
+            icon: globalThis.L.divIcon({
+                className: "manualPinIcon",
+                iconSize: [24, 24],
+                iconAnchor: [12, 12],
+            }),
         }).addTo(locationMap);
 
         locationMarker.on("dragend", () => {
