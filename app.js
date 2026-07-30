@@ -279,6 +279,9 @@ let jobs = initialRead.stops;
 let home = readHome(localStorage);
 let routeIds = [];
 let editingJobId = null;
+let formPinStatus = "unverified";
+let locationMap = null;
+let locationMarker = null;
 
 // ============================================================================
 // SECTION 6 — DOM
@@ -313,6 +316,7 @@ const els = {
     findLocation: document.getElementById("findLocation"),
     locationPreview: document.getElementById("locationPreview"),
     locationStatus: document.getElementById("locationStatus"),
+    locationMap: document.getElementById("locationMap"),
 
     // lists
     jobList: document.getElementById("jobList"),
@@ -654,6 +658,7 @@ function refreshAddressSuggestions() {
 // ============================================================================
 function resetForm() {
     editingJobId = null;
+    formPinStatus = "unverified";
     if (els.jobForm) els.jobForm.reset();
     if (els.locationPreview) {
         els.locationPreview.hidden = true;
@@ -663,6 +668,7 @@ function resetForm() {
         els.locationStatus.textContent =
             "Check the found location before saving the address.";
     }
+    if (els.locationMap) els.locationMap.hidden = true;
     if (els.address) els.address.focus();
     refreshAddressSuggestions();
 }
@@ -681,9 +687,66 @@ function startEditJob(jobId) {
         els.longitude.value =
             job.longitude != null ? String(job.longitude) : "";
     if (els.notes) els.notes.value = job.notes || "";
+    formPinStatus = job.pinStatus || "unverified";
+
+    if (job.latitude != null && job.longitude != null) {
+        showLocationMap(job.latitude, job.longitude);
+    } else if (els.locationMap) {
+        els.locationMap.hidden = true;
+    }
 
     if (els.address) els.address.focus();
     refreshAddressSuggestions();
+}
+
+function updateLocationPreview(latitude, longitude) {
+    if (!els.locationPreview) return;
+    els.locationPreview.href = mapUrl(latitude, longitude);
+    els.locationPreview.hidden = false;
+}
+
+function showLocationMap(latitude, longitude) {
+    if (!els.locationMap || !globalThis.L) return;
+
+    els.locationMap.hidden = false;
+
+    if (!locationMap) {
+        locationMap = globalThis.L.map(els.locationMap).setView(
+            [latitude, longitude],
+            19,
+        );
+        globalThis.L.tileLayer(
+            "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+            {
+                maxZoom: 19,
+                attribution:
+                    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',
+            },
+        ).addTo(locationMap);
+
+        locationMarker = globalThis.L.marker([latitude, longitude], {
+            draggable: true,
+            autoPan: true,
+            title: "Drag to correct this location",
+        }).addTo(locationMap);
+
+        locationMarker.on("dragend", () => {
+            const corrected = locationMarker.getLatLng();
+            els.latitude.value = corrected.lat.toFixed(7);
+            els.longitude.value = corrected.lng.toFixed(7);
+            formPinStatus = "manual";
+            updateLocationPreview(corrected.lat, corrected.lng);
+            if (els.locationStatus) {
+                els.locationStatus.textContent =
+                    "Manual pin ready. Save Address to remember it.";
+            }
+        });
+    } else {
+        locationMap.setView([latitude, longitude], 19);
+        locationMarker.setLatLng([latitude, longitude]);
+    }
+
+    setTimeout(() => locationMap.invalidateSize(), 0);
 }
 
 async function findFormLocation() {
@@ -704,14 +767,10 @@ async function findFormLocation() {
         });
         els.latitude.value = String(result.latitude);
         els.longitude.value = String(result.longitude);
+        formPinStatus = "geocoded";
+        showLocationMap(result.latitude, result.longitude);
 
-        if (els.locationPreview) {
-            els.locationPreview.href = mapUrl(
-                result.latitude,
-                result.longitude,
-            );
-            els.locationPreview.hidden = false;
-        }
+        updateLocationPreview(result.latitude, result.longitude);
         if (els.locationStatus) {
             els.locationStatus.textContent = result.cached
                 ? "Saved lookup found. View it on the map before saving."
@@ -863,6 +922,10 @@ if (els.jobForm) {
             latitude: latProvided && lonProvided ? lat : null,
             longitude: latProvided && lonProvided ? lon : null,
             notes: notes || "",
+            pinStatus:
+                latProvided && lonProvided
+                    ? formPinStatus
+                    : "unverified",
         });
 
         if (editingJobId) {
@@ -886,11 +949,19 @@ if (els.address) {
             els.locationPreview.hidden = true;
             els.locationPreview.removeAttribute("href");
         }
+        if (els.locationMap) els.locationMap.hidden = true;
+        formPinStatus = "unverified";
     });
 }
 
 if (els.findLocation) {
     els.findLocation.addEventListener("click", findFormLocation);
+}
+
+for (const coordinateInput of [els.latitude, els.longitude]) {
+    coordinateInput?.addEventListener("change", () => {
+        formPinStatus = "manual";
+    });
 }
 
 // Optimize / Export buttons
