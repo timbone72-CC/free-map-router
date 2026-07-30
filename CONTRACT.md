@@ -58,6 +58,9 @@ that route in Google Maps.
 7. Google Drive backup uses the limited `drive.file` permission and may access
    only files created or selected for this app. It must never request access to
    every file in Google Drive.
+8. The app creates and owns one Google Drive folder named **Free Map Router**.
+   Its cloud backup is saved inside that folder and is not dependent on another
+   application's filing rules.
 
 ## 5. Route rules
 
