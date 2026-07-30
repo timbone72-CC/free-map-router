@@ -7,9 +7,21 @@
         <link rel="stylesheet" href="styles.css" />
     </head>
     <body>
-        <h1>Free Map Router</h1>
+        <header class="appHeader">
+            <h1>Free Map Router</h1>
+            <label class="pageMenuLabel" for="pageMenu">
+                Go to
+                <select id="pageMenu">
+                    <option value="home">Home</option>
+                    <option value="addresses">Addresses</option>
+                    <option value="import">Import Addresses</option>
+                    <option value="route">Build Route</option>
+                </select>
+            </label>
+        </header>
 
-        <section class="section">
+        <main>
+        <section class="section appPage" data-page="home">
             <h2>Home / Route Base</h2>
             <form id="homeForm">
                 <label>
@@ -29,7 +41,12 @@
         </section>
 
         <!-- CSV / Bulk Import -->
-        <section id="importZone" class="section dashed">
+        <section
+            id="importZone"
+            class="section dashed appPage"
+            data-page="import"
+            hidden
+        >
             <h2>Import Addresses</h2>
             <p class="muted">
                 Drag & drop a CSV file anywhere in this box, or use the file
@@ -74,7 +91,7 @@
         </section>
 
         <!-- Stop Entry Form -->
-        <section class="section">
+        <section class="section appPage" data-page="addresses" hidden>
             <h2>Add / Edit Address</h2>
             <form id="jobForm">
                 <label>
@@ -123,13 +140,13 @@
         </section>
 
         <!-- Address List -->
-        <section class="section">
+        <section class="section appPage" data-page="addresses" hidden>
             <h2>Addresses</h2>
             <ul id="jobList"></ul>
         </section>
 
         <!-- Route Builder -->
-        <section class="section">
+        <section class="section appPage" data-page="route" hidden>
             <h2>Route Builder</h2>
             <div class="btnRow">
                 <button id="optimizeRoute" type="button" class="btn btnSmall">
@@ -141,8 +158,9 @@
             </div>
             <ul id="routeList"></ul>
         </section>
+        </main>
 
         <script src="contract.js?v=2.1.0"></script>
-        <script src="app.js?v=2.1.0"></script>
+        <script src="app.js?v=2.2.0"></script>
     </body>
 </html>
