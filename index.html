@@ -9,6 +9,25 @@
     <body>
         <h1>Free Map Router</h1>
 
+        <section class="section">
+            <h2>Home / Route Base</h2>
+            <form id="homeForm">
+                <label>
+                    Home address *
+                    <input
+                        type="text"
+                        id="homeAddress"
+                        required
+                        autocomplete="street-address"
+                    />
+                </label>
+                <button type="submit" class="btn">Save Home Address</button>
+                <p id="homeStatus" class="tiny muted">
+                    Required before building a round trip.
+                </p>
+            </form>
+        </section>
+
         <!-- CSV / Bulk Import -->
         <section id="importZone" class="section dashed">
             <h2>Import Addresses</h2>
@@ -123,7 +142,7 @@
             <ul id="routeList"></ul>
         </section>
 
-        <script src="contract.js?v=2.0.0"></script>
-        <script src="app.js?v=2.0.0"></script>
+        <script src="contract.js?v=2.1.0"></script>
+        <script src="app.js?v=2.1.0"></script>
     </body>
 </html>

@@ -13,6 +13,7 @@
 
     const SCHEMA_VERSION = 2;
     const STOPS_STORAGE_KEY = "fmr_v2_stops";
+    const HOME_STORAGE_KEY = "fmr_v2_home";
     const LEGACY_JOBS_STORAGE_KEY = "fmr_v1_jobs";
     const MIGRATION_MARKER_KEY = "fmr_v2_migration_complete";
     const PIN_STATUSES = new Set(["unverified", "geocoded", "manual"]);
@@ -98,6 +99,26 @@
         };
     }
 
+    function normalizeHome(raw) {
+        const normalized = normalizeStop(
+            {
+                ...raw,
+                id: "home",
+                label: "Home",
+            },
+            { idFactory: () => "home" },
+        );
+
+        return normalized
+            ? {
+                  ...normalized,
+                  id: "home",
+                  label: "Home",
+                  role: "home",
+              }
+            : null;
+    }
+
     function mergeStops(existing, incoming) {
         const existingHasPin =
             existing.latitude !== null && existing.longitude !== null;
@@ -178,17 +199,56 @@
         return normalized;
     }
 
+    function readHome(storage) {
+        const raw = safeParse(storage.getItem(HOME_STORAGE_KEY), null);
+        return normalizeHome(raw);
+    }
+
+    function writeHome(storage, home) {
+        const normalized = normalizeHome(home);
+
+        if (!normalized) {
+            throw new Error("Home address is required.");
+        }
+
+        storage.setItem(HOME_STORAGE_KEY, JSON.stringify(normalized));
+        return normalized;
+    }
+
+    function buildRoundTrip(home, stops) {
+        const normalizedHome = normalizeHome(home);
+        if (!normalizedHome) return [];
+
+        const normalizedStops = normalizeStopList(stops).filter(
+            (stop) => stop.addressKey !== normalizedHome.addressKey,
+        );
+
+        return [
+            { ...normalizedHome, routeRole: "start" },
+            ...normalizedStops.map((stop) => ({
+                ...stop,
+                routeRole: "stop",
+            })),
+            { ...normalizedHome, routeRole: "finish" },
+        ];
+    }
+
     return Object.freeze({
         SCHEMA_VERSION,
         STOPS_STORAGE_KEY,
+        HOME_STORAGE_KEY,
         LEGACY_JOBS_STORAGE_KEY,
         MIGRATION_MARKER_KEY,
         normalizeAddress,
         addressKey,
         normalizeCoordinates,
         normalizeStop,
+        normalizeHome,
         normalizeStopList,
         readStops,
         writeStops,
+        readHome,
+        writeHome,
+        buildRoundTrip,
     });
 });
