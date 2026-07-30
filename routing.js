@@ -100,6 +100,17 @@
     }
 
     function coordinatePoint(location) {
+        if (
+            location?.latitude === null ||
+            location?.latitude === undefined ||
+            location?.latitude === "" ||
+            location?.longitude === null ||
+            location?.longitude === undefined ||
+            location?.longitude === ""
+        ) {
+            return "";
+        }
+
         const latitude = Number(location?.latitude);
         const longitude = Number(location?.longitude);
         if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
