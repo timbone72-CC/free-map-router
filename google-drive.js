@@ -16,6 +16,7 @@
     const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
     const DRIVE_FOLDER_NAME = "Free Map Router";
     const DRIVE_BACKUP_NAME = "Free Map Router Backup.json";
+    const DRIVE_INBOX_NAME = "Free Map Router Address Inbox.json";
     let tokenClient = null;
     let accessToken = "";
     let tokenExpiresAt = 0;
@@ -106,6 +107,31 @@
         return Array.isArray(data?.files) ? data.files[0] || null : null;
     }
 
+    async function findAddressInbox(
+        token,
+        folderId,
+        fetchFn = globalThis.fetch,
+    ) {
+        const url = new URL("https://www.googleapis.com/drive/v3/files");
+        url.searchParams.set(
+            "q",
+            `name = '${DRIVE_INBOX_NAME}' and '${folderId}' in parents and trashed = false`,
+        );
+        url.searchParams.set("spaces", "drive");
+        url.searchParams.set("fields", "files(id,name,modifiedTime,parents)");
+        url.searchParams.set("pageSize", "1");
+
+        const response = await fetchFn(url.toString(), {
+            headers: authorizationHeaders(token),
+        });
+        requireSuccessfulResponse(
+            response,
+            "Google Drive could not find the address inbox.",
+        );
+        const data = await response.json();
+        return Array.isArray(data?.files) ? data.files[0] || null : null;
+    }
+
     async function createDriveBackup(token, folderId, contents, fetchFn) {
         const boundary = `fmr_${Date.now().toString(16)}`;
         const metadata = {
@@ -143,6 +169,60 @@
             "Google Drive could not create the backup.",
         );
         return response.json();
+    }
+
+    async function createAddressInbox(token, folderId, fetchFn) {
+        const boundary = `fmr_inbox_${Date.now().toString(16)}`;
+        const metadata = {
+            name: DRIVE_INBOX_NAME,
+            mimeType: "application/json",
+            parents: [folderId],
+            appProperties: { app: "free-map-router", role: "address-inbox" },
+        };
+        const inbox = {
+            app: "free-map-router",
+            inboxVersion: 1,
+            source: "InspectorADE Repeat Job Predictor - LIVE",
+            updatedAt: null,
+            addresses: [],
+        };
+        const body = [
+            `--${boundary}`,
+            "Content-Type: application/json; charset=UTF-8",
+            "",
+            JSON.stringify(metadata),
+            `--${boundary}`,
+            "Content-Type: application/json; charset=UTF-8",
+            "",
+            JSON.stringify(inbox, null, 2),
+            `--${boundary}--`,
+            "",
+        ].join("\r\n");
+
+        const response = await fetchFn(
+            "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,modifiedTime",
+            {
+                method: "POST",
+                headers: {
+                    ...authorizationHeaders(token),
+                    "Content-Type": `multipart/related; boundary=${boundary}`,
+                },
+                body,
+            },
+        );
+        requireSuccessfulResponse(
+            response,
+            "Google Drive could not create the address inbox.",
+        );
+        return response.json();
+    }
+
+    async function ensureAddressInbox(token, fetchFn = globalThis.fetch) {
+        const folder = await ensureBackupFolder(token, fetchFn);
+        return (
+            (await findAddressInbox(token, folder.id, fetchFn)) ||
+            createAddressInbox(token, folder.id, fetchFn)
+        );
     }
 
     async function updateDriveBackup(token, fileId, contents, fetchFn) {
@@ -251,8 +331,11 @@
         CLIENT_ID,
         DRIVE_BACKUP_NAME,
         DRIVE_FOLDER_NAME,
+        DRIVE_INBOX_NAME,
         DRIVE_SCOPE,
+        ensureAddressInbox,
         ensureBackupFolder,
+        findAddressInbox,
         findBackupFolder,
         findBackupFile,
         loadBackupFromDrive,
