@@ -28,6 +28,10 @@ that route in Google Maps.
    invalid coordinates are rejected.
 5. A later import must not overwrite a manually saved coordinate pair with a
    less reliable location.
+6. Free address lookup is started only by the user, caches successful results,
+   shows OpenStreetMap attribution, and is limited to one outside request per
+   second.
+7. A found location is not silently treated as manually verified.
 
 ## 4. Page and menu rules
 
