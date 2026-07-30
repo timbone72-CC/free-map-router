@@ -1,6 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
+    buildGoogleMapsDirectionsUrl,
     improveWithTwoOpt,
     optimizeRoundTripOrder,
     roundTripMiles,
@@ -54,4 +55,30 @@ test("the second pass removes a crossing and shortens the round trip", () => {
         improved.map((stop) => stop.id).sort(),
         crossing.map((stop) => stop.id).sort(),
     );
+});
+
+test("Google Maps export uses exact saved pins instead of address text", () => {
+    const home = {
+        address: "Home address text",
+        latitude: 35.1,
+        longitude: -99.1,
+    };
+    const stop = {
+        address: "Stop address text",
+        latitude: 35.2,
+        longitude: -99.2,
+    };
+
+    const url = buildGoogleMapsDirectionsUrl(home, [stop]);
+
+    assert.match(url, /origin=35\.1%2C-99\.1/);
+    assert.match(url, /waypoints=35\.2%2C-99\.2/);
+    assert.doesNotMatch(url, /address/);
+});
+
+test("Google Maps export refuses an unverified route point", () => {
+    const home = { latitude: 35.1, longitude: -99.1 };
+    const unverified = { address: "No saved pin" };
+
+    assert.equal(buildGoogleMapsDirectionsUrl(home, [unverified]), "");
 });
