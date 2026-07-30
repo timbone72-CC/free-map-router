@@ -222,7 +222,7 @@ li {
     text-align: center;
 }
 
-#locationMap {
+.locationMap {
     width: 100%;
     height: 360px;
     margin: 10px 0 16px;
@@ -230,6 +230,6 @@ li {
     border-radius: 10px;
 }
 
-#locationMap[hidden] {
+.locationMap[hidden] {
     display: none;
 }
