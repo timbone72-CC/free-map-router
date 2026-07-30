@@ -282,6 +282,11 @@ let editingJobId = null;
 let formPinStatus = "unverified";
 let locationMap = null;
 let locationMarker = null;
+let homeLocationMap = null;
+let homeLocationMarker = null;
+let homeDraftLatitude = null;
+let homeDraftLongitude = null;
+let homeDraftPinStatus = "unverified";
 
 // ============================================================================
 // SECTION 6 — DOM
@@ -295,6 +300,9 @@ const els = {
     homeForm: document.getElementById("homeForm"),
     homeAddress: document.getElementById("homeAddress"),
     homeStatus: document.getElementById("homeStatus"),
+    findHomeLocation: document.getElementById("findHomeLocation"),
+    homeLocationStatus: document.getElementById("homeLocationStatus"),
+    homeLocationMap: document.getElementById("homeLocationMap"),
 
     // import
     csvFile: document.getElementById("csvFile"),
@@ -612,6 +620,14 @@ function renderHome() {
             ? `Saved privately in this browser: ${home.address}`
             : "Required before building a round trip.";
     }
+
+    homeDraftLatitude = home?.latitude ?? null;
+    homeDraftLongitude = home?.longitude ?? null;
+    homeDraftPinStatus = home?.pinStatus || "unverified";
+
+    if (homeDraftLatitude != null && homeDraftLongitude != null) {
+        showHomeLocationMap(homeDraftLatitude, homeDraftLongitude);
+    }
 }
 
 function renderAll() {
@@ -703,6 +719,92 @@ function updateLocationPreview(latitude, longitude) {
     if (!els.locationPreview) return;
     els.locationPreview.href = mapUrl(latitude, longitude);
     els.locationPreview.hidden = false;
+}
+
+function setHomeManualPin(latitude, longitude) {
+    homeLocationMarker.setLatLng([latitude, longitude]);
+    homeDraftLatitude = Number(latitude);
+    homeDraftLongitude = Number(longitude);
+    homeDraftPinStatus = "manual";
+    if (els.homeLocationStatus) {
+        els.homeLocationStatus.textContent =
+            "Manual home pin ready. Save Home Address to remember it.";
+    }
+}
+
+function showHomeLocationMap(latitude, longitude) {
+    if (!els.homeLocationMap || !globalThis.L) return;
+
+    els.homeLocationMap.hidden = false;
+
+    if (!homeLocationMap) {
+        homeLocationMap = globalThis.L.map(els.homeLocationMap).setView(
+            [latitude, longitude],
+            19,
+        );
+        globalThis.L.tileLayer(
+            "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+            {
+                maxZoom: 19,
+                attribution:
+                    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',
+            },
+        ).addTo(homeLocationMap);
+
+        homeLocationMarker = globalThis.L.marker([latitude, longitude], {
+            draggable: true,
+            autoPan: true,
+            title: "Drag to correct the home location",
+        }).addTo(homeLocationMap);
+
+        homeLocationMarker.on("dragend", () => {
+            const corrected = homeLocationMarker.getLatLng();
+            setHomeManualPin(corrected.lat, corrected.lng);
+        });
+
+        homeLocationMap.on("click", (event) => {
+            setHomeManualPin(event.latlng.lat, event.latlng.lng);
+        });
+    } else {
+        homeLocationMap.setView([latitude, longitude], 19);
+        homeLocationMarker.setLatLng([latitude, longitude]);
+    }
+
+    setTimeout(() => homeLocationMap.invalidateSize(), 0);
+}
+
+async function findHomeFormLocation() {
+    const address = normalizeAddress(els.homeAddress?.value);
+    if (!address) {
+        alert("Enter the home address first.");
+        return;
+    }
+
+    els.findHomeLocation.disabled = true;
+    if (els.homeLocationStatus) {
+        els.homeLocationStatus.textContent = "Finding home…";
+    }
+
+    try {
+        const result = await findAddress(address, {
+            storage: localStorage,
+        });
+        homeDraftLatitude = result.latitude;
+        homeDraftLongitude = result.longitude;
+        homeDraftPinStatus = "geocoded";
+        showHomeLocationMap(result.latitude, result.longitude);
+        if (els.homeLocationStatus) {
+            els.homeLocationStatus.textContent =
+                "Home found. Click the exact property to move the pin.";
+        }
+    } catch (error) {
+        if (els.homeLocationStatus) {
+            els.homeLocationStatus.textContent =
+                error?.message || "The home location could not be found.";
+        }
+    } finally {
+        els.findHomeLocation.disabled = false;
+    }
 }
 
 function setManualPin(latitude, longitude) {
@@ -888,9 +990,29 @@ if (els.homeForm) {
         home = writeHome(localStorage, {
             ...(samePhysicalHome ? home : {}),
             address,
+            latitude: homeDraftLatitude,
+            longitude: homeDraftLongitude,
+            pinStatus: homeDraftPinStatus,
         });
         renderAll();
     });
+}
+
+if (els.homeAddress) {
+    els.homeAddress.addEventListener("input", () => {
+        homeDraftLatitude = null;
+        homeDraftLongitude = null;
+        homeDraftPinStatus = "unverified";
+        if (els.homeLocationMap) els.homeLocationMap.hidden = true;
+        if (els.homeLocationStatus) {
+            els.homeLocationStatus.textContent =
+                "Find home, then click the exact property on the map.";
+        }
+    });
+}
+
+if (els.findHomeLocation) {
+    els.findHomeLocation.addEventListener("click", findHomeFormLocation);
 }
 
 if (els.jobForm) {
