@@ -1199,7 +1199,7 @@ if (els.saveGoogleDrive) {
             await saveBackupToDrive(token, backup);
             if (els.googleDriveStatus) {
                 els.googleDriveStatus.textContent =
-                    "Saved to Google Drive as Free Map Router Backup.json.";
+                    "Saved in Google Drive: Free Map Router / Free Map Router Backup.json.";
             }
         } catch (error) {
             if (els.googleDriveStatus) {
