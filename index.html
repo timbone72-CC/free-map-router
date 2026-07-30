@@ -130,6 +130,28 @@
                     </label>
                 </div>
 
+                <div class="btnRow">
+                    <button
+                        id="findLocation"
+                        type="button"
+                        class="btn btnSmall"
+                    >
+                        Find Location (Free)
+                    </button>
+                    <a
+                        id="locationPreview"
+                        class="mapLink"
+                        target="_blank"
+                        rel="noopener"
+                        hidden
+                    >
+                        View Found Location
+                    </a>
+                </div>
+                <p id="locationStatus" class="tiny muted">
+                    Check the found location before saving the address.
+                </p>
+
                 <label>
                     Notes (optional)
                     <textarea id="notes"></textarea>
@@ -160,7 +182,17 @@
         </section>
         </main>
 
+        <p class="tiny muted attribution">
+            Free address lookup ©
+            <a
+                href="https://www.openstreetmap.org/copyright"
+                target="_blank"
+                rel="noopener"
+            >OpenStreetMap contributors</a>.
+        </p>
+
         <script src="contract.js?v=2.1.0"></script>
-        <script src="app.js?v=2.2.0"></script>
+        <script src="geocoder.js?v=1.0.0"></script>
+        <script src="app.js?v=2.3.0"></script>
     </body>
 </html>
