@@ -13,6 +13,7 @@ const {
     findBackupFolder,
     findBackupFile,
     findAddressInbox,
+    loadAddressInboxFromDrive,
     loadBackupFromDrive,
     saveBackupToDrive,
 } = require("../google-drive.js");
@@ -169,4 +170,30 @@ test("Drive restore downloads the existing backup", async () => {
         };
     });
     assert.equal(text, '{"app":"free-map-router"}');
+});
+
+test("Drive inbox load downloads the workbook handoff file", async () => {
+    let count = 0;
+    const text = await loadAddressInboxFromDrive("token", async (url) => {
+        count++;
+        if (count === 1) {
+            return {
+                ok: true,
+                json: async () => ({ files: [{ id: "folder-1" }] }),
+            };
+        }
+        if (count === 2) {
+            return {
+                ok: true,
+                json: async () => ({ files: [{ id: "inbox-1" }] }),
+            };
+        }
+        assert.match(url, /inbox-1\?alt=media/);
+        return {
+            ok: true,
+            text: async () => '{"app":"free-map-router","addresses":[]}',
+        };
+    });
+
+    assert.equal(text, '{"app":"free-map-router","addresses":[]}');
 });

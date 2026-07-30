@@ -281,6 +281,32 @@
         return response.text();
     }
 
+    async function loadAddressInboxFromDrive(
+        token,
+        fetchFn = globalThis.fetch,
+    ) {
+        const folder = await findBackupFolder(token, fetchFn);
+        if (!folder) {
+            throw new Error("The Free Map Router folder was not found.");
+        }
+        const existing = await findAddressInbox(token, folder.id, fetchFn);
+        if (!existing) {
+            throw new Error(
+                "No Free Map Router address inbox was found in Google Drive.",
+            );
+        }
+
+        const response = await fetchFn(
+            `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(existing.id)}?alt=media`,
+            { headers: authorizationHeaders(token) },
+        );
+        requireSuccessfulResponse(
+            response,
+            "Google Drive could not open the address inbox.",
+        );
+        return response.text();
+    }
+
     function requestDriveToken() {
         if (accessToken && Date.now() < tokenExpiresAt) {
             return Promise.resolve(accessToken);
@@ -338,6 +364,7 @@
         findAddressInbox,
         findBackupFolder,
         findBackupFile,
+        loadAddressInboxFromDrive,
         loadBackupFromDrive,
         currentDriveToken,
         requestDriveToken,

@@ -15,6 +15,14 @@ test("Drive auto-save is connected to saved route changes", () => {
     assert.match(app, /function writeJobs[\s\S]*scheduleDriveAutosave/);
 });
 
+test("Drive connection imports the workbook inbox into the current route", () => {
+    assert.match(app, /loadAddressInboxFromDrive/);
+    assert.match(app, /parseAddressInbox/);
+    assert.match(app, /applyAddressInbox\(jobs, inbox\)/);
+    assert.match(app, /routeIds = imported\.routeIds/);
+    assert.match(app, /saved addresses were kept/);
+});
+
 test("Settings explains the active-session auto-save boundary", () => {
     assert.match(html, /Connect &amp; Auto-Save/);
     assert.match(html, /while the app is[\s\S]*open/);
