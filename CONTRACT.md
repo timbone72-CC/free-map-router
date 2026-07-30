@@ -32,6 +32,10 @@ that route in Google Maps.
    shows OpenStreetMap attribution, and is limited to one outside request per
    second.
 7. A found location is not silently treated as manually verified.
+8. Dragging the map pin marks the coordinates as manually verified and saves
+   them with the address.
+9. A manually verified pin must remain protected from later imports and
+   automatic lookups.
 
 ## 4. Page and menu rules
 
