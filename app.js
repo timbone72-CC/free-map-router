@@ -13,6 +13,10 @@ if (!globalThis.FMRContract) {
     throw new Error("Free Map Router contract failed to load.");
 }
 
+if (!globalThis.FMRGeocoder) {
+    throw new Error("Free Map Router geocoder failed to load.");
+}
+
 const {
     normalizeAddress,
     addressKey,
@@ -23,6 +27,8 @@ const {
     writeHome,
     buildRoundTrip,
 } = globalThis.FMRContract;
+
+const { findAddress, mapUrl } = globalThis.FMRGeocoder;
 
 // ============================================================================
 // SECTION 2 — Utilities
@@ -304,6 +310,9 @@ const els = {
     latitude: document.getElementById("latitude"),
     longitude: document.getElementById("longitude"),
     notes: document.getElementById("notes"),
+    findLocation: document.getElementById("findLocation"),
+    locationPreview: document.getElementById("locationPreview"),
+    locationStatus: document.getElementById("locationStatus"),
 
     // lists
     jobList: document.getElementById("jobList"),
@@ -646,6 +655,14 @@ function refreshAddressSuggestions() {
 function resetForm() {
     editingJobId = null;
     if (els.jobForm) els.jobForm.reset();
+    if (els.locationPreview) {
+        els.locationPreview.hidden = true;
+        els.locationPreview.removeAttribute("href");
+    }
+    if (els.locationStatus) {
+        els.locationStatus.textContent =
+            "Check the found location before saving the address.";
+    }
     if (els.address) els.address.focus();
     refreshAddressSuggestions();
 }
@@ -667,6 +684,51 @@ function startEditJob(jobId) {
 
     if (els.address) els.address.focus();
     refreshAddressSuggestions();
+}
+
+async function findFormLocation() {
+    const address = normalizeAddress(els.address?.value);
+    if (!address) {
+        alert("Enter an address first.");
+        return;
+    }
+
+    els.findLocation.disabled = true;
+    if (els.locationStatus) {
+        els.locationStatus.textContent = "Finding the location…";
+    }
+
+    try {
+        const result = await findAddress(address, {
+            storage: localStorage,
+        });
+        els.latitude.value = String(result.latitude);
+        els.longitude.value = String(result.longitude);
+
+        if (els.locationPreview) {
+            els.locationPreview.href = mapUrl(
+                result.latitude,
+                result.longitude,
+            );
+            els.locationPreview.hidden = false;
+        }
+        if (els.locationStatus) {
+            els.locationStatus.textContent = result.cached
+                ? "Saved lookup found. View it on the map before saving."
+                : "Location found. View it on the map before saving.";
+        }
+    } catch (error) {
+        if (els.locationPreview) {
+            els.locationPreview.hidden = true;
+            els.locationPreview.removeAttribute("href");
+        }
+        if (els.locationStatus) {
+            els.locationStatus.textContent =
+                error?.message || "The location could not be found.";
+        }
+    } finally {
+        els.findLocation.disabled = false;
+    }
 }
 
 // ============================================================================
@@ -816,7 +878,19 @@ if (els.jobForm) {
 }
 
 if (els.address) {
-    els.address.addEventListener("input", () => refreshAddressSuggestions());
+    els.address.addEventListener("input", () => {
+        refreshAddressSuggestions();
+        if (els.latitude) els.latitude.value = "";
+        if (els.longitude) els.longitude.value = "";
+        if (els.locationPreview) {
+            els.locationPreview.hidden = true;
+            els.locationPreview.removeAttribute("href");
+        }
+    });
+}
+
+if (els.findLocation) {
+    els.findLocation.addEventListener("click", findFormLocation);
 }
 
 // Optimize / Export buttons
