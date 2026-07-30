@@ -64,6 +64,9 @@ that route in Google Maps.
 9. After the user connects Google Drive, changes save automatically while that
    short-lived Google connection remains active. If it expires, the app must
    say that reconnection is required and must not claim the change was saved.
+10. The app folder contains one workbook handoff file named **Free Map Router
+    Address Inbox.json**. It is reserved for Daily Print jobs from
+    **InspectorADE Repeat Job Predictor - LIVE**.
 
 ## 5. Route rules
 
