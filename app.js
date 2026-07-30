@@ -35,7 +35,11 @@ const {
     writeHome,
 } = globalThis.FMRContract;
 
-const { findAddress, mapUrl } = globalThis.FMRGeocoder;
+const {
+    findAddress,
+    findAddressWithGeoapify,
+    mapUrl,
+} = globalThis.FMRGeocoder;
 const {
     buildGoogleMapsDirectionsUrl,
     optimizeRoundTripOrder,
@@ -298,6 +302,7 @@ const els = {
     // lists
     jobList: document.getElementById("jobList"),
     routeList: document.getElementById("routeList"),
+    routeStatus: document.getElementById("routeStatus"),
 
     // actions
     optimizeRoute: document.getElementById("optimizeRoute"),
@@ -911,13 +916,13 @@ async function findFormLocation() {
 // ============================================================================
 // SECTION 12 — Optimize Route + Export
 // ============================================================================
-function optimizeSelectedRoute() {
+async function optimizeSelectedRoute() {
     if (routeIds.length < 2) {
         alert("Select at least 2 addresses to optimize.");
         return;
     }
 
-    const selected = routeIds
+    let selected = routeIds
         .map((id) => jobs.find((j) => j.id === id))
         .filter(Boolean);
 
@@ -927,20 +932,67 @@ function optimizeSelectedRoute() {
         return;
     }
 
-    const anyMissingCoords = selected.some(
+    const missingCoords = selected.filter(
         (j) => j.latitude == null || j.longitude == null,
     );
 
-    if (anyMissingCoords) {
-        alert(
-            "Not all selected jobs have coordinates. Keeping your manual order.",
-        );
-        return;
+    if (missingCoords.length > 0) {
+        const apiKey = readGeoapifyKey(localStorage);
+        if (!apiKey) {
+            alert("Save the Geoapify key in Settings first.");
+            showPage("settings");
+            return;
+        }
+
+        els.optimizeRoute.disabled = true;
+        try {
+            for (let index = 0; index < missingCoords.length; index++) {
+                const job = missingCoords[index];
+                if (els.routeStatus) {
+                    els.routeStatus.textContent =
+                        `Finding location ${index + 1} of ${missingCoords.length}: ${job.address}`;
+                }
+
+                const found = await findAddressWithGeoapify(
+                    job.address,
+                    apiKey,
+                    { storage: localStorage },
+                );
+                jobs = jobs.map((savedJob) =>
+                    savedJob.id === job.id
+                        ? normalizeStop({
+                              ...savedJob,
+                              latitude: found.latitude,
+                              longitude: found.longitude,
+                              pinStatus: "geocoded",
+                          })
+                        : savedJob,
+                );
+            }
+            writeJobs(jobs);
+            selected = routeIds
+                .map((id) => jobs.find((job) => job.id === id))
+                .filter(Boolean);
+        } catch (error) {
+            writeJobs(jobs);
+            renderAll();
+            if (els.routeStatus) {
+                els.routeStatus.textContent =
+                    error?.message || "A location could not be prepared.";
+            }
+            return;
+        } finally {
+            els.optimizeRoute.disabled = false;
+        }
     }
 
     const ordered = optimizeRoundTripOrder(home, selected);
     routeIds = ordered.map((j) => j.id);
     renderRouteList();
+    if (els.routeStatus) {
+        els.routeStatus.textContent =
+            `Route optimized with ${selected.length} address${selected.length === 1 ? "" : "es"}.`;
+    }
 }
 
 function exportToGoogleMaps() {
