@@ -17,6 +17,13 @@ test("the address page contains a location map", () => {
     assert.match(html, /leaflet@1\.9\.4/);
 });
 
+test("the Home page has separate lookup and manual pin controls", () => {
+    assert.match(html, /id="findHomeLocation"/);
+    assert.match(html, /id="homeLocationMap"/);
+    assert.match(app, /homeLocationMap\.on\("click"/);
+    assert.match(app, /homeDraftPinStatus = "manual"/);
+});
+
 test("clicking the map or dragging the pin records a manual location", () => {
     assert.match(app, /draggable:\s*true/);
     assert.match(app, /locationMarker\.on\("dragend"/);
