@@ -31,7 +31,7 @@
         return radiusMiles * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 
-    function optimizeRoundTripOrder(home, stops) {
+    function nearestNeighborOrder(home, stops) {
         const remaining = Array.isArray(stops) ? stops.slice() : [];
         const ordered = [];
         let current = home;
@@ -55,8 +55,54 @@
         return ordered;
     }
 
+    function roundTripMiles(home, stops) {
+        if (!home || !Array.isArray(stops) || stops.length === 0) return 0;
+
+        let total = distanceMiles(home, stops[0]);
+        for (let index = 1; index < stops.length; index++) {
+            total += distanceMiles(stops[index - 1], stops[index]);
+        }
+        total += distanceMiles(stops[stops.length - 1], home);
+        return total;
+    }
+
+    function improveWithTwoOpt(home, stops) {
+        let best = Array.isArray(stops) ? stops.slice() : [];
+        let bestMiles = roundTripMiles(home, best);
+        let improved = true;
+
+        while (improved) {
+            improved = false;
+
+            for (let start = 0; start < best.length - 1; start++) {
+                for (let end = start + 1; end < best.length; end++) {
+                    const candidate = [
+                        ...best.slice(0, start),
+                        ...best.slice(start, end + 1).reverse(),
+                        ...best.slice(end + 1),
+                    ];
+                    const candidateMiles = roundTripMiles(home, candidate);
+
+                    if (candidateMiles + 0.000001 < bestMiles) {
+                        best = candidate;
+                        bestMiles = candidateMiles;
+                        improved = true;
+                    }
+                }
+            }
+        }
+
+        return best;
+    }
+
+    function optimizeRoundTripOrder(home, stops) {
+        return improveWithTwoOpt(home, nearestNeighborOrder(home, stops));
+    }
+
     return {
         distanceMiles,
+        roundTripMiles,
+        improveWithTwoOpt,
         optimizeRoundTripOrder,
     };
 });
