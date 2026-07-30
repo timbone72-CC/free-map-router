@@ -113,3 +113,47 @@ test("a partial or out-of-range coordinate pair is rejected", () => {
         longitude: null,
     });
 });
+
+test("home is stored separately from route stops", () => {
+    const storage = memoryStorage();
+    const home = contract.writeHome(storage, {
+        address: "222 Example Blvd, Elk City, OK 73644",
+    });
+
+    contract.writeStops(storage, [
+        { address: "400 N 6th St, Weatherford, OK 73096" },
+    ]);
+
+    assert.equal(home.id, "home");
+    assert.equal(home.role, "home");
+    assert.ok(storage.dump()[contract.HOME_STORAGE_KEY]);
+    assert.equal(
+        JSON.parse(storage.dump()[contract.STOPS_STORAGE_KEY]).length,
+        1,
+    );
+});
+
+test("a route starts and finishes at home without treating home as a stop", () => {
+    const route = contract.buildRoundTrip(
+        { address: "222 Example Blvd, Elk City, OK 73644" },
+        [
+            { address: "400 N 6th St, Weatherford, OK 73096" },
+            { address: "222 Example Blvd, Elk City, OK 73644" },
+        ],
+    );
+
+    assert.equal(route.length, 3);
+    assert.equal(route[0].routeRole, "start");
+    assert.equal(route[1].routeRole, "stop");
+    assert.equal(route[2].routeRole, "finish");
+    assert.equal(route[0].addressKey, route[2].addressKey);
+});
+
+test("a round trip cannot be built without a home address", () => {
+    assert.deepEqual(
+        contract.buildRoundTrip(null, [
+            { address: "400 N 6th St, Weatherford, OK 73096" },
+        ]),
+        [],
+    );
+});

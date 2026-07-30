@@ -19,6 +19,9 @@ const {
     normalizeStop,
     readStops,
     writeStops,
+    readHome,
+    writeHome,
+    buildRoundTrip,
 } = globalThis.FMRContract;
 
 // ============================================================================
@@ -267,6 +270,7 @@ function importJobsFromCsvText(csvText) {
 // ============================================================================
 const initialRead = readStops(localStorage);
 let jobs = initialRead.stops;
+let home = readHome(localStorage);
 let routeIds = [];
 let editingJobId = null;
 
@@ -274,6 +278,11 @@ let editingJobId = null;
 // SECTION 6 — DOM
 // ============================================================================
 const els = {
+    // home
+    homeForm: document.getElementById("homeForm"),
+    homeAddress: document.getElementById("homeAddress"),
+    homeStatus: document.getElementById("homeStatus"),
+
     // import
     csvFile: document.getElementById("csvFile"),
     importCsvBtn: document.getElementById("importCsvBtn"),
@@ -485,70 +494,97 @@ function renderRouteList() {
     if (!list) return;
     list.innerHTML = "";
 
-    if (routeIds.length === 0) {
+    if (!home) {
         const li = document.createElement("li");
-        li.textContent = "No addresses selected for route.";
+        li.textContent = "Save your Home / Route Base first.";
         list.appendChild(li);
         return;
     }
 
-    for (let i = 0; i < routeIds.length; i++) {
-        const jobId = routeIds[i];
-        const job = jobs.find((j) => j.id === jobId);
-        if (!job) continue;
+    const start = document.createElement("li");
+    start.textContent = `Start — ${home.address}`;
+    list.appendChild(start);
 
+    if (routeIds.length === 0) {
         const li = document.createElement("li");
-
-        const label = document.createElement("span");
-        label.textContent = formatJobLine(job);
-
-        const upBtn = document.createElement("button");
-        upBtn.textContent = "Up";
-        upBtn.style.width = "auto";
-        upBtn.disabled = i === 0;
-        upBtn.addEventListener("click", () => {
-            if (i === 0) return;
-            const tmp = routeIds[i - 1];
-            routeIds[i - 1] = routeIds[i];
-            routeIds[i] = tmp;
-            renderRouteList();
-        });
-
-        const downBtn = document.createElement("button");
-        downBtn.textContent = "Down";
-        downBtn.style.width = "auto";
-        downBtn.disabled = i === routeIds.length - 1;
-        downBtn.addEventListener("click", () => {
-            if (i === routeIds.length - 1) return;
-            const tmp = routeIds[i + 1];
-            routeIds[i + 1] = routeIds[i];
-            routeIds[i] = tmp;
-            renderRouteList();
-        });
-
-        const removeBtn = document.createElement("button");
-        removeBtn.textContent = "Remove";
-        removeBtn.style.width = "auto";
-        removeBtn.addEventListener("click", () => {
-            routeIds = routeIds.filter((id) => id !== jobId);
-            renderRouteList();
-            renderJobsList();
-        });
-
-        li.appendChild(label);
-        li.appendChild(document.createTextNode(" "));
-        li.appendChild(upBtn);
-        li.appendChild(document.createTextNode(" "));
-        li.appendChild(downBtn);
-        li.appendChild(document.createTextNode(" "));
-        li.appendChild(removeBtn);
-
+        li.textContent = "No addresses selected for route.";
         list.appendChild(li);
+    } else {
+        for (let i = 0; i < routeIds.length; i++) {
+            const jobId = routeIds[i];
+            const job = jobs.find((j) => j.id === jobId);
+            if (!job) continue;
+
+            const li = document.createElement("li");
+
+            const label = document.createElement("span");
+            label.textContent = formatJobLine(job);
+
+            const upBtn = document.createElement("button");
+            upBtn.textContent = "Up";
+            upBtn.style.width = "auto";
+            upBtn.disabled = i === 0;
+            upBtn.addEventListener("click", () => {
+                if (i === 0) return;
+                const tmp = routeIds[i - 1];
+                routeIds[i - 1] = routeIds[i];
+                routeIds[i] = tmp;
+                renderRouteList();
+            });
+
+            const downBtn = document.createElement("button");
+            downBtn.textContent = "Down";
+            downBtn.style.width = "auto";
+            downBtn.disabled = i === routeIds.length - 1;
+            downBtn.addEventListener("click", () => {
+                if (i === routeIds.length - 1) return;
+                const tmp = routeIds[i + 1];
+                routeIds[i + 1] = routeIds[i];
+                routeIds[i] = tmp;
+                renderRouteList();
+            });
+
+            const removeBtn = document.createElement("button");
+            removeBtn.textContent = "Remove";
+            removeBtn.style.width = "auto";
+            removeBtn.addEventListener("click", () => {
+                routeIds = routeIds.filter((id) => id !== jobId);
+                renderRouteList();
+                renderJobsList();
+            });
+
+            li.appendChild(label);
+            li.appendChild(document.createTextNode(" "));
+            li.appendChild(upBtn);
+            li.appendChild(document.createTextNode(" "));
+            li.appendChild(downBtn);
+            li.appendChild(document.createTextNode(" "));
+            li.appendChild(removeBtn);
+
+            list.appendChild(li);
+        }
+    }
+
+    const finish = document.createElement("li");
+    finish.textContent = `Finish — ${home.address}`;
+    list.appendChild(finish);
+}
+
+function renderHome() {
+    if (els.homeAddress) {
+        els.homeAddress.value = home?.address || "";
+    }
+
+    if (els.homeStatus) {
+        els.homeStatus.textContent = home
+            ? `Saved privately in this browser: ${home.address}`
+            : "Required before building a round trip.";
     }
 }
 
 function renderAll() {
     ensureSelectionControls();
+    renderHome();
     renderJobsList();
     renderRouteList();
 }
@@ -644,6 +680,11 @@ function optimizeSelectedRoute() {
 }
 
 function exportToGoogleMaps() {
+    if (!home) {
+        alert("Save your Home / Route Base first.");
+        return;
+    }
+
     if (routeIds.length === 0) {
         alert("No addresses selected for route.");
         return;
@@ -653,8 +694,9 @@ function exportToGoogleMaps() {
         .map((id) => jobs.find((j) => j.id === id))
         .filter(Boolean);
 
-    const addresses = selected
-        .map((j) => (j.address || "").trim())
+    const route = buildRoundTrip(home, selected);
+    const addresses = route
+        .map((item) => (item.address || "").trim())
         .filter(Boolean);
 
     if (addresses.length === 0) {
@@ -681,6 +723,26 @@ function exportToGoogleMaps() {
 // ============================================================================
 // SECTION 13 — Event Wiring
 // ============================================================================
+if (els.homeForm) {
+    els.homeForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const address = normalizeAddress(els.homeAddress?.value);
+
+        if (!address) {
+            alert("Home address is required.");
+            return;
+        }
+
+        const samePhysicalHome =
+            home && addressKey(home.address) === addressKey(address);
+
+        home = writeHome(localStorage, {
+            ...(samePhysicalHome ? home : {}),
+            address,
+        });
+        renderAll();
+    });
+}
 
 if (els.jobForm) {
     els.jobForm.addEventListener("submit", (e) => {

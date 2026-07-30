@@ -28,10 +28,12 @@ rule or removes its regression test.
 ## Route boundaries
 
 1. The app plans for one driver and one vehicle.
-2. The route begins and ends at the saved Elk City home location.
-3. Stops have no appointment windows unless this contract is deliberately
+2. Home is stored separately from route stops and is never imported or counted
+   as a job address.
+3. The route begins and ends at the saved Elk City home location.
+4. Stops have no appointment windows unless this contract is deliberately
    revised.
-4. Optimization must eventually use road travel time, not straight-line
+5. Optimization must eventually use road travel time, not straight-line
    distance.
 
 ## Cost boundary
