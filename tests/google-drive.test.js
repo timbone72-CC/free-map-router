@@ -6,6 +6,7 @@ const {
     DRIVE_BACKUP_NAME,
     DRIVE_FOLDER_NAME,
     DRIVE_SCOPE,
+    currentDriveToken,
     ensureBackupFolder,
     findBackupFolder,
     findBackupFile,
@@ -18,6 +19,10 @@ test("Google Drive connection uses the limited drive.file permission", () => {
     assert.match(CLIENT_ID, /\.apps\.googleusercontent\.com$/);
     assert.equal(DRIVE_FOLDER_NAME, "Free Map Router");
     assert.equal(DRIVE_BACKUP_NAME, "Free Map Router Backup.json");
+});
+
+test("Drive token is not exposed before the user connects", () => {
+    assert.equal(currentDriveToken(), "");
 });
 
 test("app folder search is limited to the app folder name", async () => {
