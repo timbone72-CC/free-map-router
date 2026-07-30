@@ -70,6 +70,10 @@ that route in Google Maps.
 9. Address text remains the primary Google Maps destination and the
    user-facing route label. Coordinates stay hidden and are exported only when
    the user manually corrected that pin.
+10. With a saved Geoapify key, **Optimize Route** automatically finds and
+    remembers missing coordinates for selected addresses before ordering them.
+11. Automatic lookup never changes address text and never marks a pin as
+    manually corrected.
 
 ## 6. Change control
 
