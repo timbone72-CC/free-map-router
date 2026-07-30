@@ -278,6 +278,10 @@ let editingJobId = null;
 // SECTION 6 — DOM
 // ============================================================================
 const els = {
+    // page navigation
+    pageMenu: document.getElementById("pageMenu"),
+    appPages: document.querySelectorAll(".appPage"),
+
     // home
     homeForm: document.getElementById("homeForm"),
     homeAddress: document.getElementById("homeAddress"),
@@ -309,6 +313,21 @@ const els = {
     optimizeRoute: document.getElementById("optimizeRoute"),
     exportRoute: document.getElementById("exportRoute"),
 };
+
+function showPage(pageName) {
+    const validPages = new Set(["home", "addresses", "import", "route"]);
+    const nextPage = validPages.has(pageName) ? pageName : "home";
+
+    els.appPages.forEach((page) => {
+        page.hidden = page.dataset.page !== nextPage;
+    });
+
+    if (els.pageMenu) {
+        els.pageMenu.value = nextPage;
+    }
+
+    window.scrollTo({ top: 0, behavior: "instant" });
+}
 
 // ============================================================================
 // SECTION 7 — Selection Controls (Select All / Clear / Delete Selected)
@@ -856,5 +875,12 @@ window.addEventListener("drop", (e) => {
 // ============================================================================
 // SECTION 14 — Init
 // ============================================================================
+if (els.pageMenu) {
+    els.pageMenu.addEventListener("change", () => {
+        showPage(els.pageMenu.value);
+    });
+}
+
+showPage("home");
 renderAll();
 refreshAddressSuggestions();
