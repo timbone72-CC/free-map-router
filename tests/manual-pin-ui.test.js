@@ -17,9 +17,11 @@ test("the address page contains a location map", () => {
     assert.match(html, /leaflet@1\.9\.4/);
 });
 
-test("dragging the pin records a manual location", () => {
+test("clicking the map or dragging the pin records a manual location", () => {
     assert.match(app, /draggable:\s*true/);
     assert.match(app, /locationMarker\.on\("dragend"/);
+    assert.match(app, /locationMap\.on\("click"/);
+    assert.match(app, /setManualPin\(event\.latlng\.lat/);
     assert.match(app, /formPinStatus = "manual"/);
     assert.match(app, /pinStatus:\s*[\s\S]*formPinStatus/);
 });
