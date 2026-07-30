@@ -34,3 +34,10 @@ test("clicking the map or dragging the pin records a manual location", () => {
     assert.match(app, /formPinStatus = "manual"/);
     assert.match(app, /pinStatus:\s*[\s\S]*formPinStatus/);
 });
+
+test("pin maps default to free USGS aerial imagery with a Roads option", () => {
+    assert.match(app, /USGSImageryOnly\/MapServer\/tile/);
+    assert.match(app, /Aerial:\s*aerial/);
+    assert.match(app, /Roads:\s*roads/);
+    assert.match(app, /aerial\.addTo\(map\)/);
+});
