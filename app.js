@@ -25,6 +25,10 @@ if (!globalThis.FMRSettings) {
     throw new Error("Free Map Router settings failed to load.");
 }
 
+if (!globalThis.FMRInbox) {
+    throw new Error("Free Map Router workbook inbox failed to load.");
+}
+
 const {
     normalizeAddress,
     addressKey,
@@ -55,8 +59,13 @@ const {
     parseBackup,
 } = globalThis.FMRBackup;
 const {
+    applyAddressInbox,
+    parseAddressInbox,
+} = globalThis.FMRInbox;
+const {
     currentDriveToken,
     ensureAddressInbox,
+    loadAddressInboxFromDrive,
     loadBackupFromDrive,
     requestDriveToken,
     saveBackupToDrive,
@@ -1234,6 +1243,21 @@ if (els.connectGoogleDrive) {
         try {
             const token = await connectDrive();
             await ensureAddressInbox(token);
+            const inbox = parseAddressInbox(
+                await loadAddressInboxFromDrive(token),
+            );
+
+            if (inbox.addresses.length > 0) {
+                const imported = applyAddressInbox(jobs, inbox);
+                jobs = writeStops(localStorage, imported.stops);
+                routeIds = imported.routeIds;
+                renderAll();
+                if (els.googleDriveStatus) {
+                    els.googleDriveStatus.textContent =
+                        `Loaded ${imported.importedCount} Daily Print job${imported.importedCount === 1 ? "" : "s"}. ` +
+                        "The current route was replaced and saved addresses were kept.";
+                }
+            }
             scheduleDriveAutosave();
         } catch (error) {
             if (els.googleDriveStatus) {
