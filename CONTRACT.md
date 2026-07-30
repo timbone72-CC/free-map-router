@@ -55,6 +55,8 @@ that route in Google Maps.
 4. Optimization may change stop order, but it must not add, remove, or silently
    replace selected stops.
 5. Stops have no appointment windows unless the user approves that feature.
+6. Home may use the free lookup and manual pin correction. Its verified
+   coordinates remain stored only with the separate home record.
 
 ## 6. Change control
 
