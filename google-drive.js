@@ -243,6 +243,10 @@
         });
     }
 
+    function currentDriveToken() {
+        return accessToken && Date.now() < tokenExpiresAt ? accessToken : "";
+    }
+
     return {
         CLIENT_ID,
         DRIVE_BACKUP_NAME,
@@ -252,6 +256,7 @@
         findBackupFolder,
         findBackupFile,
         loadBackupFromDrive,
+        currentDriveToken,
         requestDriveToken,
         saveBackupToDrive,
     };
