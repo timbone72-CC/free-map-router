@@ -57,41 +57,56 @@ test("the second pass removes a crossing and shortens the round trip", () => {
     );
 });
 
-test("Google Maps export uses exact saved pins instead of address text", () => {
+test("Google Maps export keeps readable addresses for automatic pins", () => {
     const home = {
         address: "Home address text",
         latitude: 35.1,
         longitude: -99.1,
+        pinStatus: "geocoded",
     };
     const stop = {
         address: "Stop address text",
         latitude: 35.2,
         longitude: -99.2,
+        pinStatus: "geocoded",
     };
 
     const url = buildGoogleMapsDirectionsUrl(home, [stop]);
 
-    assert.match(url, /origin=35\.1%2C-99\.1/);
-    assert.match(url, /waypoints=35\.2%2C-99\.2/);
-    assert.doesNotMatch(url, /address/);
+    assert.match(url, /origin=Home%20address%20text/);
+    assert.match(url, /waypoints=Stop%20address%20text/);
+    assert.doesNotMatch(url, /35\.2%2C-99\.2/);
 });
 
-test("Google Maps export refuses an unverified route point", () => {
-    const home = { latitude: 35.1, longitude: -99.1 };
+test("Google Maps export uses coordinates only for a corrected manual pin", () => {
+    const home = {
+        address: "Readable Home",
+        latitude: 35.1,
+        longitude: -99.1,
+        pinStatus: "geocoded",
+    };
+    const corrected = {
+        address: "Ambiguous Address",
+        latitude: 35.2,
+        longitude: -99.2,
+        pinStatus: "manual",
+    };
+
+    const url = buildGoogleMapsDirectionsUrl(home, [corrected]);
+
+    assert.match(url, /origin=Readable%20Home/);
+    assert.match(url, /waypoints=35\.2%2C-99\.2/);
+});
+
+test("an address with null coordinates stays a readable address", () => {
+    const home = { address: "Readable Home" };
     const unverified = {
-        address: "No saved pin",
+        address: "Readable Stop",
         latitude: null,
         longitude: null,
     };
-
-    assert.equal(buildGoogleMapsDirectionsUrl(home, [unverified]), "");
-});
-
-test("null coordinates can never become the real location 0,0", () => {
-    const home = { latitude: 35.1, longitude: -99.1 };
-    const unverified = { latitude: null, longitude: null };
     const url = buildGoogleMapsDirectionsUrl(home, [unverified]);
 
-    assert.equal(url, "");
+    assert.match(url, /waypoints=Readable%20Stop/);
     assert.doesNotMatch(url, /0%2C0/);
 });
