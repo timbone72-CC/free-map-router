@@ -92,6 +92,10 @@ that route in Google Maps.
     remembers missing coordinates for selected addresses before ordering them.
 11. Automatic lookup never changes address text and never marks a pin as
     manually corrected.
+12. A round trip that exceeds one safe Google Maps link is divided into
+    numbered map sections. The sections preserve the optimized order, connect
+    end-to-start without gaps, include every selected stop once, and finish at
+    Home.
 
 ## 6. Change control
 
@@ -114,4 +118,5 @@ Tests must continue to protect:
 - valid coordinate pairs and manual-coordinate priority;
 - home stored separately from stops;
 - round trips starting and finishing at home; and
+- large routes split without dropping or reordering stops; and
 - the four-page dropdown menu with only one selected page visible.

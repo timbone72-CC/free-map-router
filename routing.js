@@ -129,8 +129,7 @@
         return manualPoint || address;
     }
 
-    function buildGoogleMapsDirectionsUrl(home, stops) {
-        const points = [home, ...(Array.isArray(stops) ? stops : []), home];
+    function buildGoogleMapsDirectionsUrlFromPoints(points) {
         const routePoints = points.map(routePoint);
         if (routePoints.some((point) => !point)) return "";
 
@@ -153,8 +152,53 @@
         return url;
     }
 
+    function buildGoogleMapsDirectionsUrl(home, stops) {
+        const points = [home, ...(Array.isArray(stops) ? stops : []), home];
+        return buildGoogleMapsDirectionsUrlFromPoints(points);
+    }
+
+    function buildGoogleMapsRouteSections(home, stops, maxWaypoints = 9) {
+        const selectedStops = Array.isArray(stops) ? stops : [];
+        if (!home || selectedStops.length === 0) return [];
+
+        const waypointLimit = Number.isInteger(maxWaypoints)
+            ? Math.max(0, maxWaypoints)
+            : 9;
+        const maxLegsPerSection = waypointLimit + 1;
+        const points = [home, ...selectedStops, home];
+
+        if (points.some((point) => !routePoint(point))) return [];
+
+        const totalLegs = points.length - 1;
+        const sectionCount = Math.ceil(totalLegs / maxLegsPerSection);
+        const baseLegs = Math.floor(totalLegs / sectionCount);
+        const extraLegs = totalLegs % sectionCount;
+        const sections = [];
+        let startIndex = 0;
+
+        for (let index = 0; index < sectionCount; index++) {
+            const legCount = baseLegs + (index < extraLegs ? 1 : 0);
+            const endIndex = startIndex + legCount;
+            const sectionPoints = points.slice(startIndex, endIndex + 1);
+
+            sections.push({
+                number: index + 1,
+                total: sectionCount,
+                origin: sectionPoints[0],
+                waypoints: sectionPoints.slice(1, -1),
+                destination: sectionPoints[sectionPoints.length - 1],
+                url: buildGoogleMapsDirectionsUrlFromPoints(sectionPoints),
+            });
+
+            startIndex = endIndex;
+        }
+
+        return sections;
+    }
+
     return {
         buildGoogleMapsDirectionsUrl,
+        buildGoogleMapsRouteSections,
         distanceMiles,
         roundTripMiles,
         improveWithTwoOpt,

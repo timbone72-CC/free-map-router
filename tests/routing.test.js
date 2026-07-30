@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
     buildGoogleMapsDirectionsUrl,
+    buildGoogleMapsRouteSections,
     improveWithTwoOpt,
     optimizeRoundTripOrder,
     roundTripMiles,
@@ -109,4 +110,65 @@ test("an address with null coordinates stays a readable address", () => {
 
     assert.match(url, /waypoints=Readable%20Stop/);
     assert.doesNotMatch(url, /0%2C0/);
+});
+
+test("nine jobs fit safely in one round-trip Google Maps link", () => {
+    const home = { address: "Home" };
+    const stops = Array.from({ length: 9 }, (_, index) => ({
+        address: `Stop ${index + 1}`,
+    }));
+
+    const sections = buildGoogleMapsRouteSections(home, stops);
+
+    assert.equal(sections.length, 1);
+    assert.equal(sections[0].waypoints.length, 9);
+    assert.equal(sections[0].origin.address, "Home");
+    assert.equal(sections[0].destination.address, "Home");
+});
+
+test("twenty jobs are balanced across safe numbered map sections", () => {
+    const home = { address: "Home" };
+    const stops = Array.from({ length: 20 }, (_, index) => ({
+        address: `Stop ${index + 1}`,
+    }));
+
+    const sections = buildGoogleMapsRouteSections(home, stops);
+
+    assert.equal(sections.length, 3);
+    assert.deepEqual(
+        sections.map((section) => section.waypoints.length),
+        [6, 6, 6],
+    );
+    assert.ok(sections.every((section) => section.waypoints.length <= 9));
+    assert.equal(sections[0].origin.address, "Home");
+    assert.equal(sections.at(-1).destination.address, "Home");
+});
+
+test("split map sections preserve the complete route order without gaps", () => {
+    const home = { address: "Home" };
+    const stops = Array.from({ length: 20 }, (_, index) => ({
+        address: `Stop ${index + 1}`,
+    }));
+    const expected = [home, ...stops, home].map((point) => point.address);
+
+    const sections = buildGoogleMapsRouteSections(home, stops);
+    const reconstructed = sections.flatMap((section, index) => {
+        const points = [
+            section.origin,
+            ...section.waypoints,
+            section.destination,
+        ];
+        return index === 0 ? points : points.slice(1);
+    });
+
+    assert.deepEqual(
+        reconstructed.map((point) => point.address),
+        expected,
+    );
+    for (let index = 1; index < sections.length; index++) {
+        assert.equal(
+            sections[index - 1].destination.address,
+            sections[index].origin.address,
+        );
+    }
 });
