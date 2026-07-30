@@ -56,6 +56,7 @@ const {
 } = globalThis.FMRBackup;
 const {
     currentDriveToken,
+    ensureAddressInbox,
     loadBackupFromDrive,
     requestDriveToken,
     saveBackupToDrive,
@@ -1231,7 +1232,8 @@ function scheduleDriveAutosave() {
 if (els.connectGoogleDrive) {
     els.connectGoogleDrive.addEventListener("click", async () => {
         try {
-            await connectDrive();
+            const token = await connectDrive();
+            await ensureAddressInbox(token);
             scheduleDriveAutosave();
         } catch (error) {
             if (els.googleDriveStatus) {
