@@ -1,6 +1,6 @@
 // Free Map Router — V2 (Vanilla)
 // Address-first localStorage + stop CRUD + route selection rendering
-// Optimize Route: nearest-neighbor IF all selected have coords; otherwise keep manual order
+// Optimize Route: nearest-neighbor from verified Home IF all points have coords
 // Export: Google Maps Directions URL in the current route order
 // CSV Import: file picker + pasted CSV text, de-dupe by physical address, coords optional
 // Drag/drop: global drop handler for CSV files (Windows File Explorer works best)
@@ -17,6 +17,10 @@ if (!globalThis.FMRGeocoder) {
     throw new Error("Free Map Router geocoder failed to load.");
 }
 
+if (!globalThis.FMRRouting) {
+    throw new Error("Free Map Router routing failed to load.");
+}
+
 const {
     normalizeAddress,
     addressKey,
@@ -29,6 +33,7 @@ const {
 } = globalThis.FMRContract;
 
 const { findAddress, mapUrl } = globalThis.FMRGeocoder;
+const { optimizeRoundTripOrder } = globalThis.FMRRouting;
 
 // ============================================================================
 // SECTION 2 — Utilities
@@ -52,59 +57,6 @@ function toNumberOrNull(v) {
     if (!s) return null;
     const n = Number(s);
     return Number.isFinite(n) ? n : null;
-}
-
-// ============================================================================
-// SECTION 3 — Distance Utilities (Haversine) + Nearest Neighbor
-// ============================================================================
-function toRad(deg) {
-    return (deg * Math.PI) / 180;
-}
-
-function haversineMiles(lat1, lon1, lat2, lon2) {
-    const R = 3958.8; // Earth radius miles
-    const dLat = toRad(lat2 - lat1);
-    const dLon = toRad(lon2 - lon1);
-    const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(toRad(lat1)) *
-            Math.cos(toRad(lat2)) *
-            Math.sin(dLon / 2) *
-            Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-}
-
-// Nearest-neighbor reorder (simple heuristic)
-function nearestNeighborOrder(jobsWithCoords) {
-    if (jobsWithCoords.length <= 2) return jobsWithCoords.slice();
-
-    const remaining = jobsWithCoords.slice();
-    const route = [];
-    route.push(remaining.shift()); // start at first in list
-
-    while (remaining.length) {
-        const last = route[route.length - 1];
-        let bestIdx = 0;
-        let bestDist = Infinity;
-
-        for (let i = 0; i < remaining.length; i++) {
-            const cand = remaining[i];
-            const d = haversineMiles(
-                last.latitude,
-                last.longitude,
-                cand.latitude,
-                cand.longitude,
-            );
-            if (d < bestDist) {
-                bestDist = d;
-                bestIdx = i;
-            }
-        }
-        route.push(remaining.splice(bestIdx, 1)[0]);
-    }
-
-    return route;
 }
 
 // ============================================================================
@@ -924,6 +876,12 @@ function optimizeSelectedRoute() {
         .map((id) => jobs.find((j) => j.id === id))
         .filter(Boolean);
 
+    if (home?.latitude == null || home?.longitude == null) {
+        alert("Verify the Home location before optimizing the route.");
+        showPage("home");
+        return;
+    }
+
     const anyMissingCoords = selected.some(
         (j) => j.latitude == null || j.longitude == null,
     );
@@ -935,7 +893,7 @@ function optimizeSelectedRoute() {
         return;
     }
 
-    const ordered = nearestNeighborOrder(selected);
+    const ordered = optimizeRoundTripOrder(home, selected);
     routeIds = ordered.map((j) => j.id);
     renderRouteList();
 }
