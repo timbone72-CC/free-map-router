@@ -666,7 +666,7 @@ function resetForm() {
     }
     if (els.locationStatus) {
         els.locationStatus.textContent =
-            "Check the found location before saving the address.";
+            "Find the location, then click the exact property on the map.";
     }
     if (els.locationMap) els.locationMap.hidden = true;
     if (els.address) els.address.focus();
@@ -705,6 +705,18 @@ function updateLocationPreview(latitude, longitude) {
     els.locationPreview.hidden = false;
 }
 
+function setManualPin(latitude, longitude) {
+    locationMarker.setLatLng([latitude, longitude]);
+    els.latitude.value = Number(latitude).toFixed(7);
+    els.longitude.value = Number(longitude).toFixed(7);
+    formPinStatus = "manual";
+    updateLocationPreview(latitude, longitude);
+    if (els.locationStatus) {
+        els.locationStatus.textContent =
+            "Manual pin ready. Save Address to remember it.";
+    }
+}
+
 function showLocationMap(latitude, longitude) {
     if (!els.locationMap || !globalThis.L) return;
 
@@ -732,14 +744,11 @@ function showLocationMap(latitude, longitude) {
 
         locationMarker.on("dragend", () => {
             const corrected = locationMarker.getLatLng();
-            els.latitude.value = corrected.lat.toFixed(7);
-            els.longitude.value = corrected.lng.toFixed(7);
-            formPinStatus = "manual";
-            updateLocationPreview(corrected.lat, corrected.lng);
-            if (els.locationStatus) {
-                els.locationStatus.textContent =
-                    "Manual pin ready. Save Address to remember it.";
-            }
+            setManualPin(corrected.lat, corrected.lng);
+        });
+
+        locationMap.on("click", (event) => {
+            setManualPin(event.latlng.lat, event.latlng.lng);
         });
     } else {
         locationMap.setView([latitude, longitude], 19);
@@ -773,8 +782,8 @@ async function findFormLocation() {
         updateLocationPreview(result.latitude, result.longitude);
         if (els.locationStatus) {
             els.locationStatus.textContent = result.cached
-                ? "Saved lookup found. View it on the map before saving."
-                : "Location found. View it on the map before saving.";
+                ? "Saved lookup found. Click the exact property to move the pin."
+                : "Location found. Click the exact property to move the pin.";
         }
     } catch (error) {
         if (els.locationPreview) {
