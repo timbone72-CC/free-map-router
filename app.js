@@ -1,17 +1,25 @@
-// Free Map Router — V1 (Vanilla)
-// localStorage + job CRUD (add/delete/edit) + filter + route selection rendering
+// Free Map Router — V2 (Vanilla)
+// Address-first localStorage + stop CRUD + route selection rendering
 // Optimize Route: nearest-neighbor IF all selected have coords; otherwise keep manual order
 // Export: Google Maps Directions URL in the current route order
-// CSV Import: file picker + pasted CSV text, de-dupe by (company + address), coords optional
+// CSV Import: file picker + pasted CSV text, de-dupe by physical address, coords optional
 // Drag/drop: global drop handler for CSV files (Windows File Explorer works best)
-// Company picks: manual Top 10 quick-picks stored in localStorage
-// Address suggestions: offline-only datalist from saved jobs (same-company prioritized)
+// Address suggestions: offline-only datalist from saved stops
 
 // ============================================================================
-// SECTION 1 — Storage Keys
+// SECTION 1 — Storage Contract
 // ============================================================================
-const STORAGE_KEY = "fmr_v1_jobs";
-const PICKS_KEY = "fmr_v1_company_picks";
+if (!globalThis.FMRContract) {
+    throw new Error("Free Map Router contract failed to load.");
+}
+
+const {
+    normalizeAddress,
+    addressKey,
+    normalizeStop,
+    readStops,
+    writeStops,
+} = globalThis.FMRContract;
 
 // ============================================================================
 // SECTION 2 — Utilities
@@ -25,42 +33,9 @@ function uid() {
     );
 }
 
-function safeJsonParse(raw, fallback) {
-    try {
-        const v = JSON.parse(raw);
-        return v ?? fallback;
-    } catch {
-        return fallback;
-    }
-}
-
-function readJobs() {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    const parsed = safeJsonParse(raw, []);
-    return Array.isArray(parsed) ? parsed : [];
-}
-
-function writeJobs(jobs) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(jobs));
-}
-
-function readCompanyPicks() {
-    const raw = localStorage.getItem(PICKS_KEY);
-    const parsed = safeJsonParse(raw, []);
-    return Array.isArray(parsed) ? parsed : [];
-}
-
-function writeCompanyPicks(picks) {
-    localStorage.setItem(PICKS_KEY, JSON.stringify(picks));
-}
-
-function normalizeCompany(company) {
-    const c = (company ?? "").toString().trim();
-    return c || "Unknown";
-}
-
-function normalizeAddress(address) {
-    return (address ?? "").toString().trim();
+function writeJobs(nextJobs) {
+    jobs = writeStops(localStorage, nextJobs);
+    return jobs;
 }
 
 function toNumberOrNull(v) {
@@ -68,21 +43,6 @@ function toNumberOrNull(v) {
     if (!s) return null;
     const n = Number(s);
     return Number.isFinite(n) ? n : null;
-}
-
-function clampCompanyPicks(picks) {
-    const out = [];
-    const seen = new Set();
-    for (const p of picks) {
-        const v = (p ?? "").toString().trim();
-        if (!v) continue;
-        const key = v.toLowerCase();
-        if (seen.has(key)) continue;
-        seen.add(key);
-        out.push(v);
-        if (out.length >= 10) break;
-    }
-    return out;
 }
 
 // ============================================================================
@@ -220,21 +180,21 @@ function buildAddressFromRow(row) {
 }
 
 function importJobsFromRows(rows) {
-    // De-dupe by (company + address)
+    // De-dupe by normalized physical address only.
     const existing = jobs.slice();
-    const seen = new Set(
-        existing.map(
-            (j) =>
-                `${(j.company || "").toLowerCase()}|${(j.address || "").toLowerCase()}`,
-        ),
-    );
+    const seen = new Set(existing.map((j) => addressKey(j.address)));
 
     let added = 0;
 
     for (const row of rows) {
-        const company = normalizeCompany(
-            pickFirst(row, ["Client", "Company", "company", "client"]),
-        );
+        const label = pickFirst(row, [
+            "Label",
+            "label",
+            "Client",
+            "Company",
+            "company",
+            "client",
+        ]);
 
         const address = normalizeAddress(buildAddressFromRow(row));
         if (!address) continue;
@@ -267,19 +227,20 @@ function importJobsFromRows(rows) {
             notes = parts.join(" | ");
         }
 
-        const key = `${company.toLowerCase()}|${address.toLowerCase()}`;
+        const key = addressKey(address);
         if (seen.has(key)) continue;
 
         seen.add(key);
 
-        existing.push({
+        const stop = normalizeStop({
             id: uid(),
-            company,
+            label,
             address,
             latitude: coordLat,
             longitude: coordLon,
             notes: notes || "",
         });
+        if (stop) existing.push(stop);
 
         added++;
     }
@@ -298,17 +259,16 @@ function importJobsFromCsvText(csvText) {
         return;
     }
     const added = importJobsFromRows(parsed.rows);
-    alert(`Imported ${added} new jobs (de-duped by company + address).`);
+    alert(`Imported ${added} new addresses (de-duplicated by address).`);
 }
 
 // ============================================================================
 // SECTION 5 — State
 // ============================================================================
-let jobs = readJobs();
-let activeCompanyFilter = "";
+const initialRead = readStops(localStorage);
+let jobs = initialRead.stops;
 let routeIds = [];
 let editingJobId = null;
-let companyPicks = readCompanyPicks();
 
 // ============================================================================
 // SECTION 6 — DOM
@@ -321,25 +281,16 @@ const els = {
     importCsvTextBtn: document.getElementById("importCsvTextBtn"),
     dropHint: document.getElementById("dropHint"),
 
-    // company picks
-    companyPicks: document.getElementById("companyPicks"),
-    addCompanyPickBtn: document.getElementById("addCompanyPickBtn"),
-    clearCompanyPicksBtn: document.getElementById("clearCompanyPicksBtn"),
-
     // address suggestions
     addressSuggestions: document.getElementById("addressSuggestions"),
 
     // job form
     jobForm: document.getElementById("jobForm"),
-    company: document.getElementById("company"),
     address: document.getElementById("address"),
+    label: document.getElementById("label"),
     latitude: document.getElementById("latitude"),
     longitude: document.getElementById("longitude"),
     notes: document.getElementById("notes"),
-
-    // filtering
-    companyFilter: document.getElementById("companyFilter"),
-    clearFilter: document.getElementById("clearFilter"),
 
     // lists
     jobList: document.getElementById("jobList"),
@@ -359,12 +310,12 @@ const els = {
 // ============================================================================
 function deleteSelectedJobs() {
     if (routeIds.length === 0) {
-        alert("No jobs selected to delete.");
+        alert("No addresses selected to delete.");
         return;
     }
 
     const ok = confirm(
-        `Delete ${routeIds.length} selected job(s)? This cannot be undone.`,
+        `Delete ${routeIds.length} selected address(es)? This cannot be undone.`,
     );
     if (!ok) return;
 
@@ -447,49 +398,19 @@ function ensureSelectionControls() {
 // SECTION 8 — Rendering
 // ============================================================================
 function getFilteredJobs() {
-    if (!activeCompanyFilter) return jobs;
-    return jobs.filter((j) => j.company === activeCompanyFilter);
-}
-
-function renderCompanyFilterOptions() {
-    const companies = Array.from(new Set(jobs.map((j) => j.company))).sort(
-        (a, b) => a.localeCompare(b),
-    );
-
-    const selected = activeCompanyFilter;
-
-    if (!els.companyFilter) return;
-    els.companyFilter.innerHTML = "";
-
-    const allOpt = document.createElement("option");
-    allOpt.value = "";
-    allOpt.textContent = "All Companies";
-    els.companyFilter.appendChild(allOpt);
-
-    for (const c of companies) {
-        const opt = document.createElement("option");
-        opt.value = c;
-        opt.textContent = c;
-        els.companyFilter.appendChild(opt);
-    }
-
-    if (selected && companies.includes(selected)) {
-        els.companyFilter.value = selected;
-    } else {
-        els.companyFilter.value = "";
-        activeCompanyFilter = "";
-    }
+    return jobs;
 }
 
 function formatJobLine(job) {
-    const addr = job.address ? ` — ${job.address}` : "";
+    const label = job.label ? `${job.label} — ` : "";
+    const addr = job.address || "";
     const coords =
         job.latitude != null && job.longitude != null
             ? ` (${job.latitude}, ${job.longitude})`
             : "";
     const notesRaw = String(job.notes || "").trim();
     const notes = notesRaw ? ` | Notes: ${notesRaw}` : "";
-    return `${job.company}${coords}${addr}${notes}`;
+    return `${label}${addr}${coords}${notes}`;
 }
 
 function renderJobsList() {
@@ -501,7 +422,7 @@ function renderJobsList() {
 
     if (filtered.length === 0) {
         const li = document.createElement("li");
-        li.textContent = "No jobs yet.";
+        li.textContent = "No addresses yet.";
         list.appendChild(li);
         return;
     }
@@ -566,7 +487,7 @@ function renderRouteList() {
 
     if (routeIds.length === 0) {
         const li = document.createElement("li");
-        li.textContent = "No jobs selected for route.";
+        li.textContent = "No addresses selected for route.";
         list.appendChild(li);
         return;
     }
@@ -628,8 +549,6 @@ function renderRouteList() {
 
 function renderAll() {
     ensureSelectionControls();
-    renderCompanyPicks();
-    renderCompanyFilterOptions();
     renderJobsList();
     renderRouteList();
 }
@@ -641,24 +560,14 @@ function refreshAddressSuggestions() {
     const dl = els.addressSuggestions;
     if (!dl) return;
 
-    const company = (els.company?.value || "").trim();
     const q = (els.address?.value || "").trim().toLowerCase();
-
-    const sameCompany = [];
-    const otherCompany = [];
-
-    for (const j of jobs) {
-        const addr = (j.address || "").trim();
-        if (!addr) continue;
-
-        if (company && j.company === company) sameCompany.push(addr);
-        else otherCompany.push(addr);
-    }
 
     const pool = [];
     const seen = new Set();
 
-    for (const a of [...sameCompany, ...otherCompany]) {
+    for (const job of jobs) {
+        const a = (job.address || "").trim();
+        if (!a) continue;
         const key = a.toLowerCase();
         if (seen.has(key)) continue;
         seen.add(key);
@@ -677,46 +586,12 @@ function refreshAddressSuggestions() {
 }
 
 // ============================================================================
-// SECTION 10 — Company Picks (Top 10 Manual)
-// ============================================================================
-function renderCompanyPicks() {
-    const host = els.companyPicks;
-    if (!host) return;
-
-    host.innerHTML = "";
-
-    companyPicks = clampCompanyPicks(companyPicks);
-    writeCompanyPicks(companyPicks);
-
-    for (const c of companyPicks) {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.textContent = c;
-        btn.style.width = "auto";
-        btn.addEventListener("click", () => {
-            if (els.company) els.company.value = c;
-            if (els.address) els.address.focus();
-            refreshAddressSuggestions();
-        });
-        host.appendChild(btn);
-    }
-
-    if (companyPicks.length === 0) {
-        const span = document.createElement("span");
-        span.textContent = "No company picks yet.";
-        span.style.opacity = "0.8";
-        span.style.fontSize = "12px";
-        host.appendChild(span);
-    }
-}
-
-// ============================================================================
 // SECTION 11 — Job CRUD (Add/Edit)
 // ============================================================================
 function resetForm() {
     editingJobId = null;
     if (els.jobForm) els.jobForm.reset();
-    if (els.company) els.company.focus();
+    if (els.address) els.address.focus();
     refreshAddressSuggestions();
 }
 
@@ -726,8 +601,8 @@ function startEditJob(jobId) {
 
     editingJobId = jobId;
 
-    if (els.company) els.company.value = job.company || "";
     if (els.address) els.address.value = job.address || "";
+    if (els.label) els.label.value = job.label || "";
     if (els.latitude)
         els.latitude.value = job.latitude != null ? String(job.latitude) : "";
     if (els.longitude)
@@ -735,7 +610,7 @@ function startEditJob(jobId) {
             job.longitude != null ? String(job.longitude) : "";
     if (els.notes) els.notes.value = job.notes || "";
 
-    if (els.company) els.company.focus();
+    if (els.address) els.address.focus();
     refreshAddressSuggestions();
 }
 
@@ -744,7 +619,7 @@ function startEditJob(jobId) {
 // ============================================================================
 function optimizeSelectedRoute() {
     if (routeIds.length < 2) {
-        alert("Select at least 2 jobs to optimize.");
+        alert("Select at least 2 addresses to optimize.");
         return;
     }
 
@@ -770,7 +645,7 @@ function optimizeSelectedRoute() {
 
 function exportToGoogleMaps() {
     if (routeIds.length === 0) {
-        alert("No jobs selected for route.");
+        alert("No addresses selected for route.");
         return;
     }
 
@@ -783,7 +658,7 @@ function exportToGoogleMaps() {
         .filter(Boolean);
 
     if (addresses.length === 0) {
-        alert("Selected jobs have no addresses.");
+        alert("The selected items have no addresses.");
         return;
     }
 
@@ -806,37 +681,19 @@ function exportToGoogleMaps() {
 // ============================================================================
 // SECTION 13 — Event Wiring
 // ============================================================================
-if (els.companyFilter) {
-    els.companyFilter.addEventListener("change", () => {
-        activeCompanyFilter = els.companyFilter.value || "";
-        renderJobsList();
-    });
-}
-
-if (els.clearFilter) {
-    els.clearFilter.addEventListener("click", () => {
-        activeCompanyFilter = "";
-        if (els.companyFilter) els.companyFilter.value = "";
-        renderJobsList();
-    });
-}
 
 if (els.jobForm) {
     els.jobForm.addEventListener("submit", (e) => {
         e.preventDefault();
 
-        const company = normalizeCompany(els.company?.value);
         const address = normalizeAddress(els.address?.value);
+        const label = (els.label?.value ?? "").toString().trim();
 
         const lat = toNumberOrNull(els.latitude?.value);
         const lon = toNumberOrNull(els.longitude?.value);
 
         const notes = (els.notes?.value ?? "").toString();
 
-        if (!company || company === "Unknown") {
-            alert("Company is required.");
-            return;
-        }
         if (!address) {
             alert("Address is required.");
             return;
@@ -856,14 +713,14 @@ if (els.jobForm) {
             }
         }
 
-        const job = {
+        const job = normalizeStop({
             id: editingJobId || uid(),
-            company,
             address,
+            label,
             latitude: latProvided && lonProvided ? lat : null,
             longitude: latProvided && lonProvided ? lon : null,
             notes: notes || "",
-        };
+        });
 
         if (editingJobId) {
             jobs = jobs.map((j) => (j.id === editingJobId ? job : j));
@@ -877,36 +734,8 @@ if (els.jobForm) {
     });
 }
 
-if (els.company) {
-    els.company.addEventListener("input", () => refreshAddressSuggestions());
-}
 if (els.address) {
     els.address.addEventListener("input", () => refreshAddressSuggestions());
-}
-
-// Company picks controls
-if (els.addCompanyPickBtn) {
-    els.addCompanyPickBtn.addEventListener("click", () => {
-        const c = (els.company?.value || "").trim();
-        if (!c) {
-            alert("Enter a company first.");
-            return;
-        }
-
-        companyPicks = clampCompanyPicks([c, ...companyPicks]);
-        writeCompanyPicks(companyPicks);
-        renderCompanyPicks();
-    });
-}
-
-if (els.clearCompanyPicksBtn) {
-    els.clearCompanyPicksBtn.addEventListener("click", () => {
-        const ok = confirm("Clear Top 10 company picks?");
-        if (!ok) return;
-        companyPicks = [];
-        writeCompanyPicks(companyPicks);
-        renderCompanyPicks();
-    });
 }
 
 // Optimize / Export buttons
