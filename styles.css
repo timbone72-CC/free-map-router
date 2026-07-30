@@ -221,3 +221,15 @@ li {
 .attribution {
     text-align: center;
 }
+
+#locationMap {
+    width: 100%;
+    height: 360px;
+    margin: 10px 0 16px;
+    border: 1px solid #cfcfcf;
+    border-radius: 10px;
+}
+
+#locationMap[hidden] {
+    display: none;
+}
