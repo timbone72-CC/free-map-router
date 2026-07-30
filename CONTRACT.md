@@ -58,7 +58,9 @@ that route in Google Maps.
 6. Home may use the free lookup and manual pin correction. Its verified
    coordinates remain stored only with the separate home record.
 7. Free optimization requires verified coordinates for Home and every selected
-   stop, and calculates the first stop outward from Home.
+   stop, and shortens the complete round trip anchored at Home.
+8. Optimization must never return a route longer than its initial free
+   nearest-stop order.
 
 ## 6. Change control
 
