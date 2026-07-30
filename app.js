@@ -29,11 +29,13 @@ const {
     writeStops,
     readHome,
     writeHome,
-    buildRoundTrip,
 } = globalThis.FMRContract;
 
 const { findAddress, mapUrl } = globalThis.FMRGeocoder;
-const { optimizeRoundTripOrder } = globalThis.FMRRouting;
+const {
+    buildGoogleMapsDirectionsUrl,
+    optimizeRoundTripOrder,
+} = globalThis.FMRRouting;
 
 // ============================================================================
 // SECTION 2 — Utilities
@@ -913,27 +915,12 @@ function exportToGoogleMaps() {
         .map((id) => jobs.find((j) => j.id === id))
         .filter(Boolean);
 
-    const route = buildRoundTrip(home, selected);
-    const addresses = route
-        .map((item) => (item.address || "").trim())
-        .filter(Boolean);
-
-    if (addresses.length === 0) {
-        alert("The selected items have no addresses.");
+    const url = buildGoogleMapsDirectionsUrl(home, selected);
+    if (!url) {
+        alert(
+            "Verify the Home location and every selected address before opening Google Maps.",
+        );
         return;
-    }
-
-    const origin = encodeURIComponent(addresses[0]);
-    const destination = encodeURIComponent(addresses[addresses.length - 1]);
-
-    let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}`;
-
-    if (addresses.length > 2) {
-        const waypoints = addresses
-            .slice(1, -1)
-            .map(encodeURIComponent)
-            .join("|");
-        url += `&waypoints=${waypoints}`;
     }
 
     window.open(url, "_blank");
