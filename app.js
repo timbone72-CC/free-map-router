@@ -55,6 +55,7 @@ const {
     parseBackup,
 } = globalThis.FMRBackup;
 const {
+    currentDriveToken,
     loadBackupFromDrive,
     requestDriveToken,
     saveBackupToDrive,
@@ -74,6 +75,7 @@ function uid() {
 
 function writeJobs(nextJobs) {
     jobs = writeStops(localStorage, nextJobs);
+    scheduleDriveAutosave();
     return jobs;
 }
 
@@ -264,6 +266,8 @@ let homeLocationMarker = null;
 let homeDraftLatitude = null;
 let homeDraftLongitude = null;
 let homeDraftPinStatus = "unverified";
+let driveAutosaveEnabled = false;
+let driveAutosaveTimer = null;
 
 // ============================================================================
 // SECTION 6 — DOM
@@ -426,6 +430,7 @@ function ensureSelectionControls() {
         routeIds = Array.from(set);
         renderJobsList();
         renderRouteList();
+        scheduleDriveAutosave();
     });
 
     // Clear = clear route selection only
@@ -433,6 +438,7 @@ function ensureSelectionControls() {
         routeIds = [];
         renderJobsList();
         renderRouteList();
+        scheduleDriveAutosave();
     });
 
     // Delete Selected = delete checked jobs + clear route (confirmed)
@@ -485,6 +491,7 @@ function renderJobsList() {
                 routeIds = routeIds.filter((id) => id !== job.id);
             }
             renderRouteList();
+            scheduleDriveAutosave();
         });
 
         const label = document.createElement("span");
@@ -564,6 +571,7 @@ function renderRouteList() {
                 routeIds[i - 1] = routeIds[i];
                 routeIds[i] = tmp;
                 renderRouteList();
+                scheduleDriveAutosave();
             });
 
             const downBtn = document.createElement("button");
@@ -576,6 +584,7 @@ function renderRouteList() {
                 routeIds[i + 1] = routeIds[i];
                 routeIds[i] = tmp;
                 renderRouteList();
+                scheduleDriveAutosave();
             });
 
             const removeBtn = document.createElement("button");
@@ -585,6 +594,7 @@ function renderRouteList() {
                 routeIds = routeIds.filter((id) => id !== jobId);
                 renderRouteList();
                 renderJobsList();
+                scheduleDriveAutosave();
             });
 
             li.appendChild(label);
@@ -1007,6 +1017,7 @@ async function optimizeSelectedRoute() {
     const ordered = optimizeRoundTripOrder(home, selected);
     routeIds = ordered.map((j) => j.id);
     renderRouteList();
+    scheduleDriveAutosave();
     if (els.routeStatus) {
         els.routeStatus.textContent =
             `Route optimized with ${selected.length} address${selected.length === 1 ? "" : "es"}.`;
@@ -1062,6 +1073,7 @@ if (els.homeForm) {
             longitude: homeDraftLongitude,
             pinStatus: homeDraftPinStatus,
         });
+        scheduleDriveAutosave();
         renderAll();
     });
 }
@@ -1172,16 +1184,55 @@ if (els.backupFile) {
 
 async function connectDrive() {
     const token = await requestDriveToken();
+    driveAutosaveEnabled = true;
     if (els.googleDriveStatus) {
-        els.googleDriveStatus.textContent = "Google Drive connected.";
+        els.googleDriveStatus.textContent =
+            "Google Drive connected. Changes save automatically while the app is open.";
     }
     return token;
+}
+
+function scheduleDriveAutosave() {
+    if (!driveAutosaveEnabled) return;
+    clearTimeout(driveAutosaveTimer);
+    driveAutosaveTimer = setTimeout(async () => {
+        const token = currentDriveToken();
+        if (!token) {
+            driveAutosaveEnabled = false;
+            if (els.googleDriveStatus) {
+                els.googleDriveStatus.textContent =
+                    "Google Drive connection expired. Click Connect & Auto-Save.";
+            }
+            return;
+        }
+
+        try {
+            if (els.googleDriveStatus) {
+                els.googleDriveStatus.textContent =
+                    "Saving changes to Google Drive…";
+            }
+            await saveBackupToDrive(
+                token,
+                createBackup({ home, stops: jobs, routeIds }),
+            );
+            if (els.googleDriveStatus) {
+                els.googleDriveStatus.textContent =
+                    "All changes saved automatically in the Free Map Router folder.";
+            }
+        } catch (error) {
+            if (els.googleDriveStatus) {
+                els.googleDriveStatus.textContent =
+                    error?.message || "Automatic Google Drive save failed.";
+            }
+        }
+    }, 750);
 }
 
 if (els.connectGoogleDrive) {
     els.connectGoogleDrive.addEventListener("click", async () => {
         try {
             await connectDrive();
+            scheduleDriveAutosave();
         } catch (error) {
             if (els.googleDriveStatus) {
                 els.googleDriveStatus.textContent =
