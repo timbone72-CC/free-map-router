@@ -61,6 +61,8 @@ that route in Google Maps.
    stop, and shortens the complete round trip anchored at Home.
 8. Optimization must never return a route longer than its initial free
    nearest-stop order.
+9. **Open in Google Maps** sends the saved coordinates for Home and every stop,
+   not address text that can resolve to a different location.
 
 ## 6. Change control
 
