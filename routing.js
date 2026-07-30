@@ -119,21 +119,31 @@
         return `${latitude},${longitude}`;
     }
 
+    function routePoint(location) {
+        const address = (location?.address ?? "").toString().trim();
+        const manualPoint =
+            location?.pinStatus === "manual"
+                ? coordinatePoint(location)
+                : "";
+
+        return manualPoint || address;
+    }
+
     function buildGoogleMapsDirectionsUrl(home, stops) {
         const points = [home, ...(Array.isArray(stops) ? stops : []), home];
-        const coordinates = points.map(coordinatePoint);
-        if (coordinates.some((point) => !point)) return "";
+        const routePoints = points.map(routePoint);
+        if (routePoints.some((point) => !point)) return "";
 
-        const origin = encodeURIComponent(coordinates[0]);
+        const origin = encodeURIComponent(routePoints[0]);
         const destination = encodeURIComponent(
-            coordinates[coordinates.length - 1],
+            routePoints[routePoints.length - 1],
         );
         let url =
             "https://www.google.com/maps/dir/?api=1" +
             `&origin=${origin}&destination=${destination}`;
 
-        if (coordinates.length > 2) {
-            const waypoints = coordinates
+        if (routePoints.length > 2) {
+            const waypoints = routePoints
                 .slice(1, -1)
                 .map(encodeURIComponent)
                 .join("|");
