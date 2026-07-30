@@ -8,12 +8,13 @@ const html = fs.readFileSync(
     "utf8",
 );
 
-test("the approved four-page dropdown menu remains intact", () => {
+test("the approved five-page dropdown menu remains intact", () => {
     const expectedOptions = [
         '<option value="home">Home</option>',
         '<option value="addresses">Addresses</option>',
         '<option value="import">Import Addresses</option>',
         '<option value="route">Build Route</option>',
+        '<option value="settings">Settings</option>',
     ];
 
     assert.match(html, /<select id="pageMenu">/);
@@ -33,4 +34,8 @@ test("only Home is visible when the app first opens", () => {
     );
     assert.match(html, /data-page="import"\s+hidden/);
     assert.match(html, /class="section appPage" data-page="route" hidden>/);
+    assert.match(
+        html,
+        /class="section appPage" data-page="settings" hidden>/,
+    );
 });
