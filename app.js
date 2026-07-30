@@ -46,6 +46,7 @@ const {
 } = globalThis.FMRGeocoder;
 const {
     buildGoogleMapsDirectionsUrl,
+    buildGoogleMapsRouteSections,
     optimizeRoundTripOrder,
 } = globalThis.FMRRouting;
 const {
@@ -335,6 +336,7 @@ const els = {
     jobList: document.getElementById("jobList"),
     routeList: document.getElementById("routeList"),
     routeStatus: document.getElementById("routeStatus"),
+    routeMapLinks: document.getElementById("routeMapLinks"),
 
     // actions
     optimizeRoute: document.getElementById("optimizeRoute"),
@@ -472,6 +474,44 @@ function formatJobLine(job) {
     return `${label}${addr}${notes}`;
 }
 
+function selectedRouteJobs() {
+    return routeIds
+        .map((id) => jobs.find((job) => job.id === id))
+        .filter(Boolean);
+}
+
+function renderGoogleMapsActions() {
+    if (!els.exportRoute || !els.routeMapLinks) return;
+
+    els.routeMapLinks.innerHTML = "";
+    els.routeMapLinks.hidden = true;
+    els.exportRoute.hidden = false;
+
+    if (!home || routeIds.length === 0) return;
+
+    const sections = buildGoogleMapsRouteSections(home, selectedRouteJobs());
+    if (sections.length <= 1) return;
+
+    els.exportRoute.hidden = true;
+    els.routeMapLinks.hidden = false;
+
+    const message = document.createElement("span");
+    message.className = "tiny muted";
+    message.textContent =
+        `Open these ${sections.length} map sections in order:`;
+    els.routeMapLinks.appendChild(message);
+
+    for (const section of sections) {
+        const link = document.createElement("a");
+        link.className = "btn btnSmall";
+        link.href = section.url;
+        link.target = "_blank";
+        link.rel = "noopener";
+        link.textContent = `Map ${section.number} of ${section.total}`;
+        els.routeMapLinks.appendChild(link);
+    }
+}
+
 function renderJobsList() {
     const list = els.jobList;
     if (!list) return;
@@ -544,6 +584,7 @@ function renderRouteList() {
     const list = els.routeList;
     if (!list) return;
     list.innerHTML = "";
+    renderGoogleMapsActions();
 
     if (!home) {
         const li = document.createElement("li");
@@ -1029,8 +1070,13 @@ async function optimizeSelectedRoute() {
     renderRouteList();
     scheduleDriveAutosave();
     if (els.routeStatus) {
+        const sections = buildGoogleMapsRouteSections(home, ordered);
+        const mapsReady =
+            sections.length > 1
+                ? ` ${sections.length} numbered Google Maps sections are ready below.`
+                : "";
         els.routeStatus.textContent =
-            `Route optimized with ${selected.length} address${selected.length === 1 ? "" : "es"}.`;
+            `Route optimized with ${selected.length} address${selected.length === 1 ? "" : "es"}.${mapsReady}`;
     }
 }
 
@@ -1045,9 +1091,14 @@ function exportToGoogleMaps() {
         return;
     }
 
-    const selected = routeIds
-        .map((id) => jobs.find((j) => j.id === id))
-        .filter(Boolean);
+    const selected = selectedRouteJobs();
+    const sections = buildGoogleMapsRouteSections(home, selected);
+
+    if (sections.length > 1) {
+        renderGoogleMapsActions();
+        alert("Open the numbered Google Maps sections in order.");
+        return;
+    }
 
     const url = buildGoogleMapsDirectionsUrl(home, selected);
     if (!url) {

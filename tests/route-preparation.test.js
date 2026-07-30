@@ -17,3 +17,9 @@ test("Optimize Route prepares selected addresses with Geoapify", () => {
 test("Geoapify attribution is visible", () => {
     assert.match(html, /Batch lookup powered by[\s\S]*Geoapify/);
 });
+
+test("large routes show numbered Google Maps links", () => {
+    assert.match(html, /id="routeMapLinks"/);
+    assert.match(app, /buildGoogleMapsRouteSections/);
+    assert.match(app, /Map \$\{section\.number\} of \$\{section\.total\}/);
+});
