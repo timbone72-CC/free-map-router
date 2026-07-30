@@ -1,6 +1,10 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { optimizeRoundTripOrder } = require("../routing.js");
+const {
+    improveWithTwoOpt,
+    optimizeRoundTripOrder,
+    roundTripMiles,
+} = require("../routing.js");
 
 test("optimization starts with the stop nearest verified Home", () => {
     const home = { latitude: 35, longitude: -99 };
@@ -31,4 +35,23 @@ test("optimization preserves every selected stop exactly once", () => {
         ["a", "b", "c"],
     );
     assert.equal(stops[0].id, "a");
+});
+
+test("the second pass removes a crossing and shortens the round trip", () => {
+    const home = { latitude: 0, longitude: 0 };
+    const crossing = [
+        { id: "north", latitude: 0, longitude: 1 },
+        { id: "south-east", latitude: 1, longitude: 0 },
+        { id: "north-east", latitude: 1, longitude: 1 },
+    ];
+
+    const improved = improveWithTwoOpt(home, crossing);
+
+    assert.ok(
+        roundTripMiles(home, improved) < roundTripMiles(home, crossing),
+    );
+    assert.deepEqual(
+        improved.map((stop) => stop.id).sort(),
+        crossing.map((stop) => stop.id).sort(),
+    );
 });
