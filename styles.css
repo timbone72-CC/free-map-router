@@ -213,3 +213,11 @@ li {
         margin-top: 14px;
     }
 }
+
+.mapLink {
+    padding: 8px 0;
+}
+
+.attribution {
+    text-align: center;
+}
