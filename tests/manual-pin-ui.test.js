@@ -14,7 +14,9 @@ const app = fs.readFileSync(
 
 test("the address page contains a location map", () => {
     assert.match(html, /id="locationMap"/);
-    assert.match(html, /leaflet@1\.9\.4/);
+    assert.match(html, /vendor\/leaflet\.js\?v=1\.9\.4/);
+    assert.match(html, /vendor\/leaflet\.css\?v=1\.9\.4/);
+    assert.doesNotMatch(html, /unpkg\.com/);
 });
 
 test("the Home page has separate lookup and manual pin controls", () => {
