@@ -99,7 +99,41 @@
         return improveWithTwoOpt(home, nearestNeighborOrder(home, stops));
     }
 
+    function coordinatePoint(location) {
+        const latitude = Number(location?.latitude);
+        const longitude = Number(location?.longitude);
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+            return "";
+        }
+        return `${latitude},${longitude}`;
+    }
+
+    function buildGoogleMapsDirectionsUrl(home, stops) {
+        const points = [home, ...(Array.isArray(stops) ? stops : []), home];
+        const coordinates = points.map(coordinatePoint);
+        if (coordinates.some((point) => !point)) return "";
+
+        const origin = encodeURIComponent(coordinates[0]);
+        const destination = encodeURIComponent(
+            coordinates[coordinates.length - 1],
+        );
+        let url =
+            "https://www.google.com/maps/dir/?api=1" +
+            `&origin=${origin}&destination=${destination}`;
+
+        if (coordinates.length > 2) {
+            const waypoints = coordinates
+                .slice(1, -1)
+                .map(encodeURIComponent)
+                .join("|");
+            url += `&waypoints=${waypoints}`;
+        }
+
+        return url;
+    }
+
     return {
+        buildGoogleMapsDirectionsUrl,
         distanceMiles,
         roundTripMiles,
         improveWithTwoOpt,
