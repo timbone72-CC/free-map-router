@@ -686,6 +686,37 @@ function setHomeManualPin(latitude, longitude) {
     }
 }
 
+function addFreeMapLayers(map) {
+    const aerial = globalThis.L.tileLayer(
+        "https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}",
+        {
+            maxNativeZoom: 16,
+            maxZoom: 19,
+            attribution: "USDA, USGS The National Map",
+        },
+    );
+    const roads = globalThis.L.tileLayer(
+        "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+        {
+            maxZoom: 19,
+            attribution:
+                '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',
+        },
+    );
+
+    aerial.addTo(map);
+    globalThis.L.control
+        .layers(
+            {
+                Aerial: aerial,
+                Roads: roads,
+            },
+            null,
+            { collapsed: false },
+        )
+        .addTo(map);
+}
+
 function showHomeLocationMap(latitude, longitude) {
     if (!els.homeLocationMap || !globalThis.L) return;
 
@@ -696,14 +727,7 @@ function showHomeLocationMap(latitude, longitude) {
             [latitude, longitude],
             19,
         );
-        globalThis.L.tileLayer(
-            "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-            {
-                maxZoom: 19,
-                attribution:
-                    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',
-            },
-        ).addTo(homeLocationMap);
+        addFreeMapLayers(homeLocationMap);
 
         homeLocationMarker = globalThis.L.marker([latitude, longitude], {
             draggable: true,
@@ -788,14 +812,7 @@ function showLocationMap(latitude, longitude) {
             [latitude, longitude],
             19,
         );
-        globalThis.L.tileLayer(
-            "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-            {
-                maxZoom: 19,
-                attribution:
-                    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',
-            },
-        ).addTo(locationMap);
+        addFreeMapLayers(locationMap);
 
         locationMarker = globalThis.L.marker([latitude, longitude], {
             draggable: true,
