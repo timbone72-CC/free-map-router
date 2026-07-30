@@ -54,6 +54,11 @@ const {
     createBackup,
     parseBackup,
 } = globalThis.FMRBackup;
+const {
+    loadBackupFromDrive,
+    requestDriveToken,
+    saveBackupToDrive,
+} = globalThis.FMRGoogleDrive;
 
 // ============================================================================
 // SECTION 2 — Utilities
@@ -285,6 +290,10 @@ const els = {
     restoreBackup: document.getElementById("restoreBackup"),
     backupFile: document.getElementById("backupFile"),
     backupStatus: document.getElementById("backupStatus"),
+    connectGoogleDrive: document.getElementById("connectGoogleDrive"),
+    saveGoogleDrive: document.getElementById("saveGoogleDrive"),
+    restoreGoogleDrive: document.getElementById("restoreGoogleDrive"),
+    googleDriveStatus: document.getElementById("googleDriveStatus"),
 
     // import
     csvFile: document.getElementById("csvFile"),
@@ -1157,6 +1166,80 @@ if (els.backupFile) {
             }
         } finally {
             els.backupFile.value = "";
+        }
+    });
+}
+
+async function connectDrive() {
+    const token = await requestDriveToken();
+    if (els.googleDriveStatus) {
+        els.googleDriveStatus.textContent = "Google Drive connected.";
+    }
+    return token;
+}
+
+if (els.connectGoogleDrive) {
+    els.connectGoogleDrive.addEventListener("click", async () => {
+        try {
+            await connectDrive();
+        } catch (error) {
+            if (els.googleDriveStatus) {
+                els.googleDriveStatus.textContent =
+                    error?.message || "Google Drive could not connect.";
+            }
+        }
+    });
+}
+
+if (els.saveGoogleDrive) {
+    els.saveGoogleDrive.addEventListener("click", async () => {
+        try {
+            const token = await connectDrive();
+            const backup = createBackup({ home, stops: jobs, routeIds });
+            await saveBackupToDrive(token, backup);
+            if (els.googleDriveStatus) {
+                els.googleDriveStatus.textContent =
+                    "Saved to Google Drive as Free Map Router Backup.json.";
+            }
+        } catch (error) {
+            if (els.googleDriveStatus) {
+                els.googleDriveStatus.textContent =
+                    error?.message || "Google Drive backup failed.";
+            }
+        }
+    });
+}
+
+if (els.restoreGoogleDrive) {
+    els.restoreGoogleDrive.addEventListener("click", async () => {
+        try {
+            const token = await connectDrive();
+            const backup = parseBackup(await loadBackupFromDrive(token));
+            if (!backup.home) {
+                throw new Error("The Google Drive backup has no Home address.");
+            }
+            if (
+                !confirm(
+                    "Replace the saved Home, addresses, pins, and current route with the Google Drive backup?",
+                )
+            ) {
+                return;
+            }
+
+            jobs = writeStops(localStorage, backup.stops);
+            home = writeHome(localStorage, backup.home);
+            const savedIds = new Set(jobs.map((job) => job.id));
+            routeIds = backup.routeIds.filter((id) => savedIds.has(id));
+            renderAll();
+            if (els.googleDriveStatus) {
+                els.googleDriveStatus.textContent =
+                    `Restored ${jobs.length} address${jobs.length === 1 ? "" : "es"} from Google Drive.`;
+            }
+        } catch (error) {
+            if (els.googleDriveStatus) {
+                els.googleDriveStatus.textContent =
+                    error?.message || "Google Drive restore failed.";
+            }
         }
     });
 }
