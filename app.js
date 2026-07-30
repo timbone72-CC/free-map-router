@@ -21,6 +21,10 @@ if (!globalThis.FMRRouting) {
     throw new Error("Free Map Router routing failed to load.");
 }
 
+if (!globalThis.FMRSettings) {
+    throw new Error("Free Map Router settings failed to load.");
+}
+
 const {
     normalizeAddress,
     addressKey,
@@ -36,6 +40,11 @@ const {
     buildGoogleMapsDirectionsUrl,
     optimizeRoundTripOrder,
 } = globalThis.FMRRouting;
+const {
+    maskedKey,
+    readGeoapifyKey,
+    writeGeoapifyKey,
+} = globalThis.FMRSettings;
 
 // ============================================================================
 // SECTION 2 — Utilities
@@ -258,6 +267,12 @@ const els = {
     homeLocationStatus: document.getElementById("homeLocationStatus"),
     homeLocationMap: document.getElementById("homeLocationMap"),
 
+    // settings
+    settingsForm: document.getElementById("settingsForm"),
+    geoapifyKey: document.getElementById("geoapifyKey"),
+    geoapifyKeyStatus: document.getElementById("geoapifyKeyStatus"),
+    clearGeoapifyKey: document.getElementById("clearGeoapifyKey"),
+
     // import
     csvFile: document.getElementById("csvFile"),
     importCsvBtn: document.getElementById("importCsvBtn"),
@@ -290,7 +305,13 @@ const els = {
 };
 
 function showPage(pageName) {
-    const validPages = new Set(["home", "addresses", "import", "route"]);
+    const validPages = new Set([
+        "home",
+        "addresses",
+        "import",
+        "route",
+        "settings",
+    ]);
     const nextPage = validPages.has(pageName) ? pageName : "home";
 
     els.appPages.forEach((page) => {
@@ -585,6 +606,15 @@ function renderAll() {
     renderHome();
     renderJobsList();
     renderRouteList();
+    renderSettings();
+}
+
+function renderSettings() {
+    const savedKey = readGeoapifyKey(localStorage);
+    if (els.geoapifyKey) els.geoapifyKey.value = savedKey;
+    if (els.geoapifyKeyStatus) {
+        els.geoapifyKeyStatus.textContent = maskedKey(savedKey);
+    }
 }
 
 // ============================================================================
@@ -981,6 +1011,26 @@ if (els.homeAddress) {
 
 if (els.findHomeLocation) {
     els.findHomeLocation.addEventListener("click", findHomeFormLocation);
+}
+
+if (els.settingsForm) {
+    els.settingsForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const savedKey = writeGeoapifyKey(
+            localStorage,
+            els.geoapifyKey?.value,
+        );
+        if (els.geoapifyKeyStatus) {
+            els.geoapifyKeyStatus.textContent = maskedKey(savedKey);
+        }
+    });
+}
+
+if (els.clearGeoapifyKey) {
+    els.clearGeoapifyKey.addEventListener("click", () => {
+        writeGeoapifyKey(localStorage, "");
+        renderSettings();
+    });
 }
 
 if (els.jobForm) {
