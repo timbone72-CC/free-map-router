@@ -49,6 +49,11 @@ const {
     readGeoapifyKey,
     writeGeoapifyKey,
 } = globalThis.FMRSettings;
+const {
+    backupFilename,
+    createBackup,
+    parseBackup,
+} = globalThis.FMRBackup;
 
 // ============================================================================
 // SECTION 2 — Utilities
@@ -276,6 +281,10 @@ const els = {
     geoapifyKey: document.getElementById("geoapifyKey"),
     geoapifyKeyStatus: document.getElementById("geoapifyKeyStatus"),
     clearGeoapifyKey: document.getElementById("clearGeoapifyKey"),
+    downloadBackup: document.getElementById("downloadBackup"),
+    restoreBackup: document.getElementById("restoreBackup"),
+    backupFile: document.getElementById("backupFile"),
+    backupStatus: document.getElementById("backupStatus"),
 
     // import
     csvFile: document.getElementById("csvFile"),
@@ -1082,6 +1091,73 @@ if (els.clearGeoapifyKey) {
     els.clearGeoapifyKey.addEventListener("click", () => {
         writeGeoapifyKey(localStorage, "");
         renderSettings();
+    });
+}
+
+if (els.downloadBackup) {
+    els.downloadBackup.addEventListener("click", () => {
+        const backup = createBackup({
+            home,
+            stops: jobs,
+            routeIds,
+        });
+        const blob = new Blob([JSON.stringify(backup, null, 2)], {
+            type: "application/json",
+        });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = backupFilename();
+        link.click();
+        URL.revokeObjectURL(url);
+        if (els.backupStatus) {
+            els.backupStatus.textContent =
+                "Backup downloaded. Save that file in Google Drive.";
+        }
+    });
+}
+
+if (els.restoreBackup) {
+    els.restoreBackup.addEventListener("click", () => {
+        els.backupFile?.click();
+    });
+}
+
+if (els.backupFile) {
+    els.backupFile.addEventListener("change", async () => {
+        const file = els.backupFile.files?.[0];
+        if (!file) return;
+
+        try {
+            const backup = parseBackup(await file.text());
+            if (!backup.home) {
+                throw new Error("The backup does not contain a Home address.");
+            }
+            if (
+                !confirm(
+                    "Replace the saved Home, addresses, pins, and current route with this backup?",
+                )
+            ) {
+                return;
+            }
+
+            jobs = writeStops(localStorage, backup.stops);
+            home = writeHome(localStorage, backup.home);
+            const savedIds = new Set(jobs.map((job) => job.id));
+            routeIds = backup.routeIds.filter((id) => savedIds.has(id));
+            renderAll();
+            if (els.backupStatus) {
+                els.backupStatus.textContent =
+                    `Backup restored: ${jobs.length} saved address${jobs.length === 1 ? "" : "es"}.`;
+            }
+        } catch (error) {
+            if (els.backupStatus) {
+                els.backupStatus.textContent =
+                    error?.message || "The backup could not be restored.";
+            }
+        } finally {
+            els.backupFile.value = "";
+        }
     });
 }
 
