@@ -42,12 +42,16 @@ that route in Google Maps.
 ## 4. Page and menu rules
 
 1. The app uses a visible **Go to** dropdown menu.
-2. The menu contains these four understandable pages:
-   **Home**, **Addresses**, **Import Addresses**, and **Build Route**.
+2. The menu contains these five understandable pages:
+   **Home**, **Addresses**, **Import Addresses**, **Build Route**, and
+   **Settings**.
 3. Only the selected page is shown. The app must not return to one long page
    requiring the user to scroll through every feature.
 4. Existing pages may not be renamed, removed, combined, or reordered without
    the user's approval.
+5. Settings stores the Geoapify key only in the current browser. The key must
+   never be committed to GitHub, included in route links, or displayed in full
+   after saving.
 
 ## 5. Route rules
 
