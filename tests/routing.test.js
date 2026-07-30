@@ -78,7 +78,20 @@ test("Google Maps export uses exact saved pins instead of address text", () => {
 
 test("Google Maps export refuses an unverified route point", () => {
     const home = { latitude: 35.1, longitude: -99.1 };
-    const unverified = { address: "No saved pin" };
+    const unverified = {
+        address: "No saved pin",
+        latitude: null,
+        longitude: null,
+    };
 
     assert.equal(buildGoogleMapsDirectionsUrl(home, [unverified]), "");
+});
+
+test("null coordinates can never become the real location 0,0", () => {
+    const home = { latitude: 35.1, longitude: -99.1 };
+    const unverified = { latitude: null, longitude: null };
+    const url = buildGoogleMapsDirectionsUrl(home, [unverified]);
+
+    assert.equal(url, "");
+    assert.doesNotMatch(url, /0%2C0/);
 });
