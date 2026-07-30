@@ -52,6 +52,9 @@ that route in Google Maps.
 5. Settings stores the Geoapify key only in the current browser. The key must
    never be committed to GitHub, included in route links, or displayed in full
    after saving.
+6. Settings provides a downloadable backup and restore. The backup contains
+   Home, saved addresses, pins, and the selected route, but never the Geoapify
+   key.
 
 ## 5. Route rules
 
