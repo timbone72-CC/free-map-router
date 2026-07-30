@@ -3,8 +3,10 @@ const assert = require("node:assert/strict");
 
 const {
     CACHE_KEY,
+    GEOAPIFY_MIN_REQUEST_INTERVAL_MS,
     MIN_REQUEST_INTERVAL_MS,
     findAddress,
+    findAddressWithGeoapify,
     mapUrl,
 } = require("../geocoder.js");
 
@@ -78,4 +80,57 @@ test("map preview targets the exact found coordinates", () => {
 
 test("free provider interval remains one second", () => {
     assert.equal(MIN_REQUEST_INTERVAL_MS, 1000);
+});
+
+test("automatic lookup uses Geoapify and caches the location", async () => {
+    const storage = memoryStorage();
+    let requestedUrl = "";
+    let requestCount = 0;
+    const fetchFn = async (url) => {
+        requestCount++;
+        requestedUrl = url;
+        return {
+            ok: true,
+            json: async () => ({
+                results: [
+                    {
+                        lat: 35.5262,
+                        lon: -98.7076,
+                        formatted: "400 N 6th St, Weatherford, OK 73096",
+                    },
+                ],
+            }),
+        };
+    };
+
+    const first = await findAddressWithGeoapify(
+        "400 N 6th St, Weatherford, OK 73096",
+        "test-key",
+        { storage, fetchFn, waitFn: async () => {} },
+    );
+    const second = await findAddressWithGeoapify(
+        " 400 N 6TH ST, WEATHERFORD, OK 73096 ",
+        "test-key",
+        { storage, fetchFn, waitFn: async () => {} },
+    );
+
+    const request = new URL(requestedUrl);
+    assert.equal(request.searchParams.get("text"), "400 N 6th St, Weatherford, OK 73096");
+    assert.equal(request.searchParams.get("filter"), "countrycode:us");
+    assert.equal(request.searchParams.get("limit"), "1");
+    assert.equal(request.searchParams.get("apiKey"), "test-key");
+    assert.equal(first.cached, false);
+    assert.equal(second.cached, true);
+    assert.equal(requestCount, 1);
+});
+
+test("Geoapify lookup requires a saved key", async () => {
+    await assert.rejects(
+        findAddressWithGeoapify("400 N 6th St, Weatherford, OK 73096", ""),
+        /Save the Geoapify key/,
+    );
+});
+
+test("Geoapify requests stay below the free rate limit", () => {
+    assert.equal(GEOAPIFY_MIN_REQUEST_INTERVAL_MS, 250);
 });
