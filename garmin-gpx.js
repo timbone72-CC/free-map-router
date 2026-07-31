@@ -12,8 +12,7 @@
     "use strict";
 
     function escapeXml(value) {
-        return (value ?? "")
-            .toString()
+        return String(value ?? "")
             .replace(/&/g, "&amp;")
             .replace(/</g, "&lt;")
             .replace(/>/g, "&gt;")
@@ -25,43 +24,71 @@
         if (index === 0) return "Start - Home";
         if (index === total - 1) return "Finish - Home";
 
-        const label = (point?.label || "").toString().trim();
-        const address = (point?.address || "").toString().trim();
+        const label = String(point?.label || "").trim();
+        const address = String(point?.address || "").trim();
         return label ? `${label} - ${address}` : address || `Stop ${index}`;
     }
 
-    function validatePoint(point, index) {
+    function resolvedCoordinates(point) {
         const latitude = Number(point?.latitude);
         const longitude = Number(point?.longitude);
 
         if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-            const address = (point?.address || `Stop ${index}`).toString().trim();
-            throw new Error(`Missing verified coordinates for: ${address}`);
+            return null;
         }
 
         return { latitude, longitude };
     }
 
+    function findUnresolvedPoints(points) {
+        const routePoints = Array.isArray(points) ? points : [];
+
+        return routePoints
+            .map((point, index) => {
+                if (resolvedCoordinates(point)) return null;
+
+                return {
+                    index,
+                    address: String(point?.address || `Stop ${index}`).trim(),
+                };
+            })
+            .filter(Boolean);
+    }
+
     function buildGarminRouteGpx(routeName, points) {
         const routePoints = Array.isArray(points) ? points : [];
         if (routePoints.length < 3) {
-            throw new Error("A Garmin route needs Home, at least one stop, and Home again.");
+            throw new Error(
+                "A Garmin route needs Home, at least one stop, and Home again.",
+            );
+        }
+
+        const unresolved = findUnresolvedPoints(routePoints);
+        if (unresolved.length > 0) {
+            const error = new Error(
+                "Some route addresses still need a confirmed map location.",
+            );
+            error.code = "UNRESOLVED_ROUTE_POINTS";
+            error.unresolved = unresolved;
+            throw error;
         }
 
         const safeRouteName = escapeXml(
-            (routeName || "Free Map Router Route").toString().trim(),
+            String(routeName || "Free Map Router Route").trim(),
         );
         const total = routePoints.length;
         const rtepts = routePoints
             .map((point, index) => {
-                const { latitude, longitude } = validatePoint(point, index);
+                const { latitude, longitude } = resolvedCoordinates(point);
                 const name = escapeXml(routePointName(point, index, total));
-                const address = escapeXml((point?.address || "").toString().trim());
+                const address = escapeXml(String(point?.address || "").trim());
+                const notes = escapeXml(String(point?.notes || "").trim());
+                const description = [address, notes].filter(Boolean).join(" | ");
 
                 return [
                     `    <rtept lat="${latitude}" lon="${longitude}">`,
                     `      <name>${name}</name>`,
-                    address ? `      <desc>${address}</desc>` : "",
+                    description ? `      <desc>${description}</desc>` : "",
                     "    </rtept>",
                 ]
                     .filter(Boolean)
@@ -88,8 +115,7 @@
     }
 
     function garminFilename(routeName) {
-        const base = (routeName || "free-map-router-route")
-            .toString()
+        const base = String(routeName || "free-map-router-route")
             .trim()
             .toLowerCase()
             .replace(/[^a-z0-9]+/g, "-")
@@ -100,6 +126,7 @@
     return Object.freeze({
         buildGarminRouteGpx,
         escapeXml,
+        findUnresolvedPoints,
         garminFilename,
     });
 });
