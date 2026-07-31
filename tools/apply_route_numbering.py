@@ -37,16 +37,23 @@ if app.count(anchor) != 1:
     raise SystemExit("Expected one formatJobLine anchor; refusing to patch.")
 app = app.replace(anchor, anchor + helpers, 1)
 
+route_start = app.find("function renderRouteList() {")
+route_end = app.find("\nfunction renderHome()", route_start)
+if route_start < 0 or route_end < 0:
+    raise SystemExit("Could not isolate renderRouteList; refusing to patch.")
+
+route_block = app[route_start:route_end]
 needle = "            label.textContent = formatJobLine(job);"
-first = app.find(needle)
-second = app.find(needle, first + 1)
-third = app.find(needle, second + 1)
-if first < 0 or second < 0 or third >= 0:
+if route_block.count(needle) != 1:
     raise SystemExit(
-        "Expected exactly two formatJobLine render calls; refusing to patch."
+        "Expected one formatJobLine call inside renderRouteList; refusing to patch."
     )
-replacement = "            label.textContent = formatRouteStopLine(job, i);"
-app = app[:second] + replacement + app[second + len(needle):]
+route_block = route_block.replace(
+    needle,
+    "            label.textContent = formatRouteStopLine(job, i);",
+    1,
+)
+app = app[:route_start] + route_block + app[route_end:]
 app_path.write_text(app)
 
 contract_path = Path("CONTRACT.md")
