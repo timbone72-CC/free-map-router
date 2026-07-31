@@ -21,6 +21,9 @@
     }
 
     function routeSource(point) {
+        const source = String(point?.source || "").trim().toUpperCase();
+        if (source === "DCFS" || source === "GIS") return source;
+
         const searchable = [point?.label, point?.notes]
             .filter(Boolean)
             .join(" ")

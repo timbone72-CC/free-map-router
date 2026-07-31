@@ -17,9 +17,15 @@
     const LEGACY_JOBS_STORAGE_KEY = "fmr_v1_jobs";
     const MIGRATION_MARKER_KEY = "fmr_v2_migration_complete";
     const PIN_STATUSES = new Set(["unverified", "geocoded", "manual"]);
+    const ROUTE_SOURCES = new Set(["GIS", "DCFS"]);
 
     function text(value) {
         return (value ?? "").toString().trim();
+    }
+
+    function normalizeSource(value) {
+        const source = text(value).toUpperCase();
+        return ROUTE_SOURCES.has(source) ? source : "";
     }
 
     function normalizeAddress(address) {
@@ -91,6 +97,7 @@
             address,
             addressKey: addressKey(address),
             label: text(raw?.label || raw?.company),
+            source: normalizeSource(raw?.source),
             notes: text(raw?.notes),
             latitude: coordinates.latitude,
             longitude: coordinates.longitude,
@@ -133,6 +140,7 @@
         return {
             ...existing,
             label: existing.label || incoming.label,
+            source: incoming.source || existing.source,
             notes: existing.notes || incoming.notes,
             latitude: incomingWins ? incoming.latitude : existing.latitude,
             longitude: incomingWins ? incoming.longitude : existing.longitude,
@@ -240,6 +248,7 @@
         LEGACY_JOBS_STORAGE_KEY,
         MIGRATION_MARKER_KEY,
         normalizeAddress,
+        normalizeSource,
         addressKey,
         normalizeCoordinates,
         normalizeStop,
