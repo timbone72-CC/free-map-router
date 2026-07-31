@@ -1,0 +1,51 @@
+name: Apply Route Numbering on PR
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Apply exact governed patch
+        run: python3 tools/apply_route_numbering.py
+
+      - name: Run complete verification before commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test
+          for file in *.js; do
+            node --check "$file"
+          done
+
+      - name: Remove temporary patch machinery
+        shell: bash
+        run: |
+          rm tools/apply_route_numbering.py
+          rm .github/workflows/apply-route-numbering-pr.yml
+          rm .github/workflows/apply-route-numbering-branch.yml
+
+      - name: Commit governed implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Add safe numbered route stop display"
+          git push origin HEAD:${{ github.head_ref }}
