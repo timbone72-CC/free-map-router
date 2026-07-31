@@ -105,8 +105,22 @@ that route in Google Maps.
 3. Only files and behavior required for the requested change may be modified.
 4. New features, fields, pages, services, paid APIs, or workflow changes require
    approval before implementation.
-5. A change is incomplete if relevant regression tests fail or if it violates
-   this contract.
+5. Before any repository write, the implementer must read `CONTRACT.md`,
+   `CHANGE_CONTROL_CONTRACT.md`, and `REGRESSION_CHECKLIST.md`.
+6. Intentional behavior changes must be developed on a branch and reviewed in a
+   pull request. `main` is the live deployment surface and is not a workbench.
+7. A direct-to-`main` emergency change may only restore previously working
+   behavior. It may not add a feature or redesign.
+8. Presentation changes belong in the owning render function or style sheet.
+   A post-load script may not rewrite another module's live output.
+9. A first-party `MutationObserver` is prohibited by default. Any exception
+   requires explicit contract approval plus a bounded, idempotent regression
+   test proving the callback cannot trigger itself.
+10. A change is incomplete without a written scope, protected behavior, risks,
+    rollback point, focused regression coverage, the complete test suite,
+    syntax checks, and the applicable live smoke test.
+11. A change is incomplete if relevant regression tests fail or if it violates
+    this contract.
 
 ## 7. Required regression checks
 
@@ -117,6 +131,19 @@ Tests must continue to protect:
 - safe legacy migration;
 - valid coordinate pairs and manual-coordinate priority;
 - home stored separately from stops;
-- round trips starting and finishing at home; and
-- large routes split without dropping or reordering stops; and
-- the four-page dropdown menu with only one selected page visible.
+- round trips starting and finishing at home;
+- large routes split without dropping or reordering stops;
+- the five-page dropdown menu with only one selected page visible;
+- a responsive Addresses page whose checkboxes, Select All, Clear, Edit, and
+  navigation controls remain usable;
+- stable Build Route rendering without self-triggering observers or render
+  loops; and
+- Garmin changes remaining isolated from address selection and route controls.
+
+## 8. Relationship to other control documents
+
+- `CHANGE_CONTROL_CONTRACT.md` owns approval, scope, ownership, deployment, and
+  rollback rules.
+- `REGRESSION_CHECKLIST.md` owns automated and live verification.
+- `AGENTS.md` makes the contract-first workflow mandatory for every human or
+  automated implementer.
