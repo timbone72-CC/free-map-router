@@ -100,29 +100,27 @@ that route in Google Maps.
 ## 6. Change control
 
 1. A live-tested change confirmed by the user as **Works** becomes protected.
-2. Protected behavior may not be removed, weakened, bypassed, or silently
-   replaced without the user's approval.
-3. Only files and behavior required for the requested change may be modified.
-4. New features, fields, pages, services, paid APIs, or workflow changes require
+2. Before changing runtime behavior, the relevant product, change-control, and
+   regression contracts must be read.
+3. The required process must match the risk: low-risk work stays light, normal
+   features receive focused protection, and high-risk data or deployment work
+   receives stronger review and rollback controls.
+4. Protected behavior may not be removed, weakened, bypassed, or silently
+   replaced without approval.
+5. Only files and behavior required for the approved change may be modified.
+6. Experimental behavior may not be written directly to `main`.
+7. The user's approval of a documented Level 1 or Level 2 scope counts once; do
+   not require duplicate approval unless the scope changes.
+8. Level 3 changes require explicit pre-merge approval because they can broadly
+   affect data, permissions, routing, or deployment.
+9. New features, fields, pages, services, paid APIs, or workflow changes require
    approval before implementation.
-5. Before any repository write, the implementer must read `CONTRACT.md`,
-   `CHANGE_CONTROL_CONTRACT.md`, and `REGRESSION_CHECKLIST.md`.
-6. Intentional behavior changes must be developed on a branch and reviewed in a
-   pull request. `main` is the live deployment surface and is not a workbench.
-7. A direct-to-`main` emergency change may only restore previously working
-   behavior. It may not add a feature or redesign.
-8. Presentation changes belong in the owning render function or style sheet.
-   A post-load script may not rewrite another module's live output.
-9. A first-party `MutationObserver` is prohibited by default. Any exception
-   requires explicit contract approval plus a bounded, idempotent regression
-   test proving the callback cannot trigger itself.
-10. A change is incomplete without a written scope, protected behavior, risks,
-    rollback point, focused regression coverage, the complete test suite,
-    syntax checks, and the applicable live smoke test.
-11. A change is incomplete if relevant regression tests fail or if it violates
-    this contract.
+10. A change is incomplete if its risk-matched regression checks fail or if it
+    violates this contract.
+11. Guardrails must not be expanded merely to slow development. They exist to
+    make forward progress safer and more reliable.
 
-## 7. Required regression checks
+## 7. Required regression protection
 
 Tests must continue to protect:
 
@@ -132,18 +130,5 @@ Tests must continue to protect:
 - valid coordinate pairs and manual-coordinate priority;
 - home stored separately from stops;
 - round trips starting and finishing at home;
-- large routes split without dropping or reordering stops;
-- the five-page dropdown menu with only one selected page visible;
-- a responsive Addresses page whose checkboxes, Select All, Clear, Edit, and
-  navigation controls remain usable;
-- stable Build Route rendering without self-triggering observers or render
-  loops; and
-- Garmin changes remaining isolated from address selection and route controls.
-
-## 8. Relationship to other control documents
-
-- `CHANGE_CONTROL_CONTRACT.md` owns approval, scope, ownership, deployment, and
-  rollback rules.
-- `REGRESSION_CHECKLIST.md` owns automated and live verification.
-- `AGENTS.md` makes the contract-first workflow mandatory for every human or
-  automated implementer.
+- large routes split without dropping or reordering stops; and
+- the five-page dropdown menu with only one selected page visible.
