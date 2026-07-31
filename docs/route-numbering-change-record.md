@@ -124,3 +124,10 @@ Published-app smoke checks:
 - extended responsiveness check;
 - Build Route checks;
 - Garmin export checks.
+
+## Automated implementation result
+
+The governed branch implementation completed successfully in GitHub Actions.
+The exact patch anchors matched, the focused route-numbering coverage passed,
+the complete repository test suite passed, and all root JavaScript syntax checks
+passed before the implementation commit was created.
