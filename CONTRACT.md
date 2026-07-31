@@ -96,6 +96,11 @@ that route in Google Maps.
     numbered map sections. The sections preserve the optimized order, connect
     end-to-start without gaps, include every selected stop once, and finish at
     Home.
+13. Build Route displays selected job stops with two-digit numbers matching
+    the current route order. Home remains unnumbered at Start and Finish.
+14. Build Route labels and Garmin point names may show `DCFS` or `GIS` when
+    that source exists in the saved label or notes. They never insert `MCS`;
+    when neither approved source is present, they show the number and address.
 
 ## 6. Change control
 

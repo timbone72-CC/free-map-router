@@ -474,6 +474,24 @@ function formatJobLine(job) {
     return `${label}${addr}${notes}`;
 }
 
+function routeDisplaySource(job) {
+    const searchable = [job?.label, job?.notes]
+        .filter(Boolean)
+        .join(" ")
+        .toUpperCase();
+
+    if (/\bDCFS\b/.test(searchable)) return "DCFS";
+    if (/\bGIS\b/.test(searchable)) return "GIS";
+    return "";
+}
+
+function formatRouteStopLine(job, index) {
+    const stopNumber = String(index + 1).padStart(2, "0");
+    const source = routeDisplaySource(job);
+    const address = String(job?.address || "").trim();
+    return [stopNumber, source, address].filter(Boolean).join(" — ");
+}
+
 function selectedRouteJobs() {
     return routeIds
         .map((id) => jobs.find((job) => job.id === id))
@@ -610,7 +628,7 @@ function renderRouteList() {
             const li = document.createElement("li");
 
             const label = document.createElement("span");
-            label.textContent = formatJobLine(job);
+            label.textContent = formatRouteStopLine(job, i);
 
             const upBtn = document.createElement("button");
             upBtn.textContent = "Up";
