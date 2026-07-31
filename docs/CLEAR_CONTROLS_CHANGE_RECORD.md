@@ -1,0 +1,21 @@
+# Clear saved jobs controls — Level 3 impact record
+
+- Problem: the existing Addresses **Clear** control only removed route selection, and Build Route had no whole-route clear control. The user could not plainly remove every saved job from the app.
+- Evidence: `ensureSelectionControls()` labels selection clearing as `Clear`; Build Route provides only per-stop `Remove`; no confirmed delete-all action exists.
+- Approved behavior: **Clear Route** clears route selection but preserves saved addresses. **Delete All Addresses** requires confirmation, removes all app-saved stops and the current route, and preserves Home, settings, workbook history, Google Doc history, and older backups.
+- Level: 3 because the change adds bulk deletion of stored app data.
+- Owning files/functions: `app.js` (`clearRouteSelection`, `deleteAllAddresses`, selection controls and event wiring), `index.html` (Build Route control and cache version), `CONTRACT.md`, and `tests/clear-controls.test.js`.
+- Read surfaces: in-memory `jobs`, `routeIds`, edit state, and current DOM controls.
+- Write surfaces: the existing browser stop storage through `writeJobs`; current route selection; normal Drive auto-save only when already connected.
+- Required data: none beyond the current saved-stop list. Optional data such as labels, notes, source, and pins is deleted only as part of the confirmed all-stop deletion.
+- Schema and permissions: no schema, Drive scope, API permission, inbox format, routing algorithm, or deployment configuration change.
+- Hard limits: one synchronous pass over the current in-memory stop list; no polling, observer, retry loop, new network request, or background deletion.
+- Stale-output behavior: Clear Route immediately removes selection only. A cancelled Delete All leaves all state unchanged. Confirmed deletion updates the current app list; an older backup or a later workbook inbox can restore/re-send addresses.
+- Protected behavior: Home, Geoapify key, page menu, individual Edit/Delete, selected Delete, pins, imports, workbook inbox, optimization, Google Maps, Garmin, backups, and all unrelated pages.
+- Realistic fixtures: tests distinguish route-only clearing from confirmed all-stop deletion and prove the delete-all function does not write Home.
+- Baseline and expected verification: current `main` has 75 tests. This change adds 3 focused tests; expected complete result is 78 passing tests plus JavaScript syntax checks.
+- Primary risks: accidental broad deletion or misleading control wording. Mitigation: explicit labels, a count-bearing confirmation, no deletion on cancellation, and separate route-only logic.
+- Failure recovery: before live deletion testing, download or save a Drive backup. If publication or behavior fails, restore app `main` commit `0d349d427491bae48e7447ff0640f4d4d280afc9`; restore the backup only if test data was deleted.
+- Smoke checks: confirm Home remains intact; Clear Route empties Build Route while Addresses remain; cancel Delete All leaves addresses; confirm Delete All empties Addresses, Build Route, and suggestions; refresh preserves the empty app list; an existing backup can restore stops.
+- Workbook/router integration impact: none. The workbook inbox contract and import behavior are unchanged; a later inbox may send jobs back after deletion.
+- Approval status: implementation approved; explicit pre-merge Level 3 approval still required.
