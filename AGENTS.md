@@ -11,7 +11,8 @@ configuration, or the app's data contract, read:
 1. `CONTRACT.md`
 2. `CHANGE_CONTROL_CONTRACT.md`
 3. the relevant sections of `REGRESSION_CHECKLIST.md`
-4. `INTEGRATION_CONTRACT.md` when the change may touch the workbook handoff
+4. `TESTING_CONTRACT.md`
+5. `INTEGRATION_CONTRACT.md` when the change may touch the workbook handoff
 
 Documentation-only edits must still read the document they change and the
 change-class rules below. No one may treat `main` as an experiment surface.
@@ -24,9 +25,10 @@ Examples: documentation, comments, test wording, noninteractive copy, and
 appearance-only changes that cannot alter state, controls, stored data, route
 order, imports, or exports.
 
-Use a short change record, a branch, automated CI, and a quick check of the
-changed surface when runtime files are touched. Do not require Level 3 paperwork
-for a Level 1 change.
+Use a short change record and a branch. Documentation-only changes require diff
+and contract review, not runtime tests. A Level 1 runtime change uses focused
+coverage while developing and one final runtime verification before merge. Do
+not require Level 3 paperwork for a Level 1 change.
 
 ### Level 2 — normal feature or fix
 
@@ -34,7 +36,8 @@ Examples: route labels, numbering, controls, Garmin names, import parsing,
 Google Maps behavior, and normal page interactions.
 
 Record the problem, scope, owning files, protected behavior, focused tests,
-rollback point, and affected smoke check. Run the complete automated suite.
+rollback point, and affected smoke check. Run focused tests during development,
+then the complete automated suite once on the final runtime head before merge.
 
 ### Level 3 — high risk
 
@@ -43,8 +46,8 @@ permissions, route-algorithm replacement, deployment changes, and anything that
 could broadly lose data or disable the app.
 
 Use a detailed impact record, realistic fixtures or a safe test environment,
-explicit rollback steps, complete automated verification, and explicit
-pre-merge operator approval.
+explicit rollback steps, focused development tests, one final complete automated
+verification, and explicit pre-merge operator approval.
 
 When uncertain between two levels, use the higher level. Do not classify a
 change as high risk merely because it is important.
@@ -91,11 +94,18 @@ open the other repository or add cross-project tests merely as paperwork.
 
 ## Verification
 
-CI runs the complete repository tests and JavaScript syntax checks for every
-pull request. Add focused coverage for changed behavior and complete only the
-smoke checks required by the selected risk level and affected surface.
+`TESTING_CONTRACT.md` owns test selection, timing, reuse, and failure-stop
+behavior.
 
-At minimum, the automated commands are:
+- During development, run only the focused tests that cover the changed behavior.
+- After fixing a focused failure, rerun that focused test before unrelated tests.
+- For runtime changes, run the complete suite and syntax checks once on the final
+  runtime head before merge; successful CI on that exact head satisfies this.
+- Documentation-only changes do not require runtime tests or syntax checks.
+- A test failure must stop any automated command sequence before commit, push,
+  merge, publication, or deployment.
+
+Final runtime commands are:
 
 ```bash
 npm test
