@@ -1,83 +1,4 @@
-from pathlib import Path
-
-
-app_path = Path("app.js")
-app = app_path.read_text()
-
-anchor = r'''function formatJobLine(job) {
-    const label = job.label ? `${job.label} — ` : "";
-    const addr = job.address || "";
-    const notesRaw = String(job.notes || "").trim();
-    const notes = notesRaw ? ` | Notes: ${notesRaw}` : "";
-    return `${label}${addr}${notes}`;
-}
-'''
-
-helpers = r'''
-function routeDisplaySource(job) {
-    const searchable = [job?.label, job?.notes]
-        .filter(Boolean)
-        .join(" ")
-        .toUpperCase();
-
-    if (/\bDCFS\b/.test(searchable)) return "DCFS";
-    if (/\bGIS\b/.test(searchable)) return "GIS";
-    return "";
-}
-
-function formatRouteStopLine(job, index) {
-    const stopNumber = String(index + 1).padStart(2, "0");
-    const source = routeDisplaySource(job);
-    const address = String(job?.address || "").trim();
-    return [stopNumber, source, address].filter(Boolean).join(" — ");
-}
-'''
-
-if app.count(anchor) != 1:
-    raise SystemExit("Expected one formatJobLine anchor; refusing to patch.")
-app = app.replace(anchor, anchor + helpers, 1)
-
-route_start = app.find("function renderRouteList() {")
-route_end = app.find("\nfunction renderHome()", route_start)
-if route_start < 0 or route_end < 0:
-    raise SystemExit("Could not isolate renderRouteList; refusing to patch.")
-
-route_block = app[route_start:route_end]
-needle = "            label.textContent = formatJobLine(job);"
-if route_block.count(needle) != 1:
-    raise SystemExit(
-        "Expected one formatJobLine call inside renderRouteList; refusing to patch."
-    )
-route_block = route_block.replace(
-    needle,
-    "            label.textContent = formatRouteStopLine(job, i);",
-    1,
-)
-app = app[:route_start] + route_block + app[route_end:]
-app_path.write_text(app)
-
-contract_path = Path("CONTRACT.md")
-contract = contract_path.read_text()
-contract_anchor = '''12. A round trip that exceeds one safe Google Maps link is divided into
-    numbered map sections. The sections preserve the optimized order, connect
-    end-to-start without gaps, include every selected stop once, and finish at
-    Home.
-'''
-contract_addition = '''13. Build Route displays selected job stops with two-digit numbers matching
-    the current route order. Home remains unnumbered at Start and Finish.
-14. Build Route labels and Garmin point names may show `DCFS` or `GIS` when
-    that source exists in the saved label or notes. They never insert `MCS`;
-    when neither approved source is present, they show the number and address.
-'''
-if contract.count(contract_anchor) != 1:
-    raise SystemExit("Expected one route-contract anchor; refusing to patch.")
-contract = contract.replace(contract_anchor, contract_anchor + contract_addition, 1)
-contract_path.write_text(contract)
-
-test_path = Path("tests/route-numbering.test.js")
-if test_path.exists():
-    raise SystemExit("Focused test already exists; refusing to overwrite.")
-test_path.write_text(r'''const test = require("node:test");
+const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
@@ -197,4 +118,3 @@ test("route numbering uses the owned render and no observer", () => {
         /function renderRouteList\(\)[\s\S]*formatRouteStopLine\(job, i\)/,
     );
 });
-''')
