@@ -1,0 +1,9 @@
+{
+  "postAppScripts": [
+    {
+      "file": "garmin-export-ui.js",
+      "reason": "Owns only the Garmin download button and export invocation. It may not rewrite app-owned lists or page state."
+    }
+  ],
+  "mutationObservers": []
+}
