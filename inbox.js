@@ -27,8 +27,80 @@
 
         const {
             addressKey,
+            normalizeAddress,
+            normalizeStop,
             normalizeStopList,
         } = contract;
+
+        function addUnique(values, value) {
+            if (value && !values.includes(value)) values.push(value);
+        }
+
+        function originalAliases(raw) {
+            const addresses = [];
+            const keys = [];
+            const candidates = [
+                ...(Array.isArray(raw?.originalAddresses)
+                    ? raw.originalAddresses
+                    : []),
+                raw?.originalAddress,
+            ];
+
+            for (const candidate of candidates) {
+                const address = normalizeAddress(candidate);
+                if (!address) continue;
+                addUnique(addresses, address);
+                addUnique(keys, addressKey(address));
+            }
+
+            return { addresses, keys };
+        }
+
+        function normalizeInboxAddresses(entries) {
+            const result = [];
+            const indexByAddress = new Map();
+
+            for (const raw of Array.isArray(entries) ? entries : []) {
+                const stop = normalizeStop(raw);
+                if (!stop) continue;
+
+                const aliases = originalAliases(raw);
+                const index = indexByAddress.get(stop.addressKey);
+
+                if (index === undefined) {
+                    indexByAddress.set(stop.addressKey, result.length);
+                    result.push({
+                        ...stop,
+                        originalAddresses: aliases.addresses,
+                        originalAddressKeys: aliases.keys,
+                    });
+                    continue;
+                }
+
+                const merged = normalizeStopList([result[index], stop])[0];
+                const originalAddresses = [
+                    ...(result[index].originalAddresses || []),
+                ];
+                const originalAddressKeys = [
+                    ...(result[index].originalAddressKeys || []),
+                ];
+
+                for (const address of aliases.addresses) {
+                    addUnique(originalAddresses, address);
+                }
+                for (const key of aliases.keys) {
+                    addUnique(originalAddressKeys, key);
+                }
+
+                result[index] = {
+                    ...merged,
+                    originalAddresses,
+                    originalAddressKeys,
+                };
+            }
+
+            return result;
+        }
 
         function parseAddressInbox(rawText) {
             let parsed;
@@ -52,15 +124,42 @@
 
             return {
                 ...parsed,
-                addresses: normalizeStopList(parsed.addresses),
+                addresses: normalizeInboxAddresses(parsed.addresses),
             };
         }
 
         function applyAddressInbox(existingStops, inbox) {
             const savedStops = normalizeStopList(existingStops);
-            const incomingStops = normalizeStopList(inbox?.addresses);
+            const incomingStops = normalizeInboxAddresses(inbox?.addresses);
+            const migrationByOriginalKey = new Map();
+
+            for (const incoming of incomingStops) {
+                for (const originalAddressKey of
+                    incoming.originalAddressKeys || []) {
+                    if (
+                        originalAddressKey &&
+                        originalAddressKey !== incoming.addressKey
+                    ) {
+                        migrationByOriginalKey.set(
+                            originalAddressKey,
+                            incoming,
+                        );
+                    }
+                }
+            }
+
+            const migratedSavedStops = savedStops.map((stop) => {
+                const incoming = migrationByOriginalKey.get(stop.addressKey);
+                if (!incoming) return stop;
+
+                return normalizeStop({
+                    ...stop,
+                    address: incoming.address,
+                    source: incoming.source || stop.source,
+                });
+            });
             const stops = normalizeStopList([
-                ...savedStops,
+                ...migratedSavedStops,
                 ...incomingStops,
             ]);
             const idByAddress = new Map(

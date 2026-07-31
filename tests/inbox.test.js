@@ -102,3 +102,96 @@ test("damaged or unrelated inbox files are rejected", () => {
         /unexpected structure/,
     );
 });
+
+test("corrected workbook address migrates the saved stop without losing its pin", () => {
+    const existing = [
+        {
+            id: "manual-granite",
+            address: "420 NWGRANITE AVE, Cache, OK 73527",
+            label: "MCS",
+            notes: "Gate is on the east side",
+            latitude: 34.63615,
+            longitude: -98.624558,
+            pinStatus: "manual",
+        },
+    ];
+    const inbox = parseAddressInbox(
+        inboxText([
+            {
+                address: "420 NW GRANITE AVE, Cache, OK 73527",
+                originalAddress: "420 NWGRANITE AVE, Cache, OK 73527",
+                source: "GIS",
+            },
+        ]),
+    );
+    const result = applyAddressInbox(existing, inbox);
+
+    assert.equal(result.stops.length, 1);
+    assert.equal(result.importedCount, 1);
+    assert.deepEqual(result.routeIds, ["manual-granite"]);
+    assert.deepEqual(
+        {
+            id: result.stops[0].id,
+            address: result.stops[0].address,
+            label: result.stops[0].label,
+            source: result.stops[0].source,
+            notes: result.stops[0].notes,
+            latitude: result.stops[0].latitude,
+            longitude: result.stops[0].longitude,
+            pinStatus: result.stops[0].pinStatus,
+        },
+        {
+            id: "manual-granite",
+            address: "420 NW GRANITE AVE, Cache, OK 73527",
+            label: "MCS",
+            source: "GIS",
+            notes: "Gate is on the east side",
+            latitude: 34.63615,
+            longitude: -98.624558,
+            pinStatus: "manual",
+        },
+    );
+});
+
+test("all original aliases migrate into one corrected saved stop", () => {
+    const existing = [
+        {
+            id: "manual-allen",
+            address: "5503NWALAN A DALE LN, Lawton, OK 73505",
+            latitude: 34.5958677,
+            longitude: -98.4000154,
+            pinStatus: "manual",
+        },
+        {
+            id: "old-allen",
+            address: "5503 NW ALLEN A DALE LN, Lawton, OK 73505",
+            latitude: 34.5958,
+            longitude: -98.4,
+            pinStatus: "geocoded",
+        },
+    ];
+    const inbox = parseAddressInbox(
+        inboxText([
+            {
+                address: "5503 ALLEN-A-DALE LN, Lawton, OK 73505",
+                originalAddress: "5503NWALAN A DALE LN, Lawton, OK 73505",
+                source: "DCFS",
+            },
+            {
+                address: "5503 ALLEN-A-DALE LN, Lawton, OK 73505",
+                originalAddress: "5503 NW ALLEN A DALE LN, Lawton, OK 73505",
+                source: "DCFS",
+            },
+        ]),
+    );
+    const result = applyAddressInbox(existing, inbox);
+
+    assert.equal(result.stops.length, 1);
+    assert.equal(result.importedCount, 1);
+    assert.deepEqual(result.routeIds, ["manual-allen"]);
+    assert.equal(result.stops[0].address, "5503 ALLEN-A-DALE LN, Lawton, OK 73505");
+    assert.equal(result.stops[0].source, "DCFS");
+    assert.equal(result.stops[0].pinStatus, "manual");
+    assert.equal(result.stops[0].latitude, 34.5958677);
+    assert.equal(result.stops[0].longitude, -98.4000154);
+});
