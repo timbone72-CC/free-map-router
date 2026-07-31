@@ -11,6 +11,7 @@ configuration, or the app's data contract, read:
 1. `CONTRACT.md`
 2. `CHANGE_CONTROL_CONTRACT.md`
 3. the relevant sections of `REGRESSION_CHECKLIST.md`
+4. `INTEGRATION_CONTRACT.md` when the change may touch the workbook handoff
 
 Documentation-only edits must still read the document they change and the
 change-class rules below. No one may treat `main` as an experiment surface.
@@ -56,6 +57,14 @@ change as high risk merely because it is important.
 - Ask again only when scope expands, assumptions prove false, or Level 3
   pre-merge approval is required.
 - Contract findings and adjacent defects are not automatic authorization.
+
+## Connected-workflow check
+
+The InspectorADE workbook is the upstream source for the app's Drive inbox.
+Apply `INTEGRATION_CONTRACT.md` only when a proposed change can affect that
+handoff. When the handoff is not affected, record `No workbook/router
+integration impact.` and continue with the normal risk-matched process; do not
+open the other repository or add cross-project tests merely as paperwork.
 
 ## Live-app protection
 
