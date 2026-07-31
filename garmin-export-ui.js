@@ -1,14 +1,6 @@
 (function attachGarminExportUi() {
     "use strict";
 
-    function formatJobLine(job) {
-        const label = job?.label ? `${job.label} — ` : "";
-        const address = job?.address || "";
-        const notesRaw = String(job?.notes || "").trim();
-        const notes = notesRaw ? ` | Notes: ${notesRaw}` : "";
-        return `${label}${address}${notes}`;
-    }
-
     function routeName() {
         const now = new Date();
         const date = [
@@ -24,19 +16,15 @@
         const savedStops = Array.isArray(readResult?.stops)
             ? readResult.stops
             : [];
-        const available = savedStops.slice();
-        const routeLines = Array.from(
-            document.querySelectorAll("#routeList li span"),
-        ).map((span) => span.textContent || "");
+        const savedById = new Map(
+            savedStops.map((stop) => [String(stop?.id || ""), stop]),
+        );
+        const routeItems = Array.from(
+            document.querySelectorAll("#routeList li[data-stop-id]"),
+        );
 
-        return routeLines
-            .map((line) => {
-                const index = available.findIndex(
-                    (stop) => formatJobLine(stop) === line,
-                );
-                if (index < 0) return null;
-                return available.splice(index, 1)[0];
-            })
+        return routeItems
+            .map((item) => savedById.get(String(item.dataset.stopId || "")))
             .filter(Boolean);
     }
 
