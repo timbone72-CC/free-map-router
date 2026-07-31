@@ -4,6 +4,9 @@
 
 Level 2 — normal feature.
 
+Implementation authorization was confirmed in the current conversation. The
+approved scope may proceed without another approval unless it changes.
+
 ## Exact user-facing problem
 
 The workbook Daily Print contains the full job notes and remains separate from
