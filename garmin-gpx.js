@@ -20,13 +20,26 @@
             .replace(/'/g, "&apos;");
     }
 
+    function routeSource(point) {
+        const searchable = [point?.label, point?.notes]
+            .filter(Boolean)
+            .join(" ")
+            .toUpperCase();
+
+        if (/\bDCFS\b/.test(searchable)) return "DCFS";
+        if (/\bGIS\b/.test(searchable)) return "GIS";
+        return "";
+    }
+
     function routePointName(point, index, total) {
         if (index === 0) return "Start - Home";
         if (index === total - 1) return "Finish - Home";
 
-        const label = String(point?.label || "").trim();
+        const stopNumber = String(index).padStart(2, "0");
+        const source = routeSource(point);
         const address = String(point?.address || "").trim();
-        return label ? `${label} - ${address}` : address || `Stop ${index}`;
+        const parts = [stopNumber, source, address].filter(Boolean);
+        return parts.join(" - ") || `Stop ${stopNumber}`;
     }
 
     function resolvedCoordinates(point) {
@@ -128,5 +141,7 @@
         escapeXml,
         findUnresolvedPoints,
         garminFilename,
+        routePointName,
+        routeSource,
     });
 });
