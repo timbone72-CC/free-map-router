@@ -475,6 +475,9 @@ function formatJobLine(job) {
 }
 
 function routeDisplaySource(job) {
+    const source = String(job?.source || "").trim().toUpperCase();
+    if (source === "DCFS" || source === "GIS") return source;
+
     const searchable = [job?.label, job?.notes]
         .filter(Boolean)
         .join(" ")

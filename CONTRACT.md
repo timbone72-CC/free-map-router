@@ -101,6 +101,10 @@ that route in Google Maps.
 14. Build Route labels and Garmin point names may show `DCFS` or `GIS` when
     that source exists in the saved label or notes. They never insert `MCS`;
     when neither approved source is present, they show the number and address.
+15. The live workbook may send an optional dedicated route `source` of `GIS` or
+    `DCFS` with an address. That authoritative source is stored separately from
+    client labels and notes, updates the matching physical address, and is used
+    first by Build Route and Garmin. Older inboxes without `source` remain valid.
 
 ## 6. Change control
 
