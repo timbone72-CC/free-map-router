@@ -38,6 +38,11 @@ that route in Google Maps.
    automatic lookups.
 10. Pin placement provides free **Aerial** and **Roads** views, with Aerial
     shown first so the user can identify the physical property.
+11. **Clear Route** removes every stop from the current route selection without
+    deleting any saved address, pin, note, Home value, or setting.
+12. **Delete All Addresses** requires confirmation and removes all currently
+    saved stops plus the current route from this app. It does not delete Home,
+    settings, workbook history, Google Doc history, or older backup files.
 
 ## 4. Page and menu rules
 

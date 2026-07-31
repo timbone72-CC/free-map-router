@@ -337,6 +337,7 @@ const els = {
     routeList: document.getElementById("routeList"),
     routeStatus: document.getElementById("routeStatus"),
     routeMapLinks: document.getElementById("routeMapLinks"),
+    clearRoute: document.getElementById("clearRoute"),
 
     // actions
     optimizeRoute: document.getElementById("optimizeRoute"),
@@ -371,6 +372,42 @@ function showPage(pageName) {
 //  - Delete Selected: deletes jobs currently selected (checked) with confirmation,
 //    then clears routeIds
 // ============================================================================
+function clearRouteSelection() {
+    routeIds = [];
+    renderJobsList();
+    renderRouteList();
+    scheduleDriveAutosave();
+    if (els.routeStatus) {
+        els.routeStatus.textContent =
+            "Route cleared. Saved addresses were kept.";
+    }
+}
+
+function deleteAllAddresses() {
+    if (jobs.length === 0) {
+        alert("No saved addresses to delete.");
+        return;
+    }
+
+    const ok = confirm(
+        `Delete all ${jobs.length} saved address(es) from this app? ` +
+            "This clears Build Route but does not delete workbook or Google Doc history. " +
+            "Restore a backup or import the jobs again to bring them back.",
+    );
+    if (!ok) return;
+
+    jobs = [];
+    routeIds = [];
+    editingJobId = null;
+    writeJobs(jobs);
+    resetForm();
+    renderAll();
+    if (els.routeStatus) {
+        els.routeStatus.textContent =
+            "All saved addresses were deleted from this app.";
+    }
+}
+
 function deleteSelectedJobs() {
     if (routeIds.length === 0) {
         alert("No addresses selected to delete.");
@@ -419,16 +456,21 @@ function ensureSelectionControls() {
 
     const btnClear = document.createElement("button");
     btnClear.type = "button";
-    btnClear.textContent = "Clear";
+    btnClear.textContent = "Clear Route";
 
     // NEW: Delete button beside Clear
     const btnDeleteSelected = document.createElement("button");
     btnDeleteSelected.type = "button";
     btnDeleteSelected.textContent = "Delete";
 
+    const btnDeleteAll = document.createElement("button");
+    btnDeleteAll.type = "button";
+    btnDeleteAll.textContent = "Delete All Addresses";
+
     wrap.appendChild(btnSelectAll);
     wrap.appendChild(btnClear);
     wrap.appendChild(btnDeleteSelected);
+    wrap.appendChild(btnDeleteAll);
 
     // Insert controls right above the job list
     const parent = els.jobList.parentNode;
@@ -445,18 +487,15 @@ function ensureSelectionControls() {
         scheduleDriveAutosave();
     });
 
-    // Clear = clear route selection only
-    btnClear.addEventListener("click", () => {
-        routeIds = [];
-        renderJobsList();
-        renderRouteList();
-        scheduleDriveAutosave();
-    });
+    // Clear Route = clear route selection only
+    btnClear.addEventListener("click", clearRouteSelection);
 
     // Delete Selected = delete checked jobs + clear route (confirmed)
     btnDeleteSelected.addEventListener("click", () => {
         deleteSelectedJobs();
     });
+
+    btnDeleteAll.addEventListener("click", deleteAllAddresses);
 }
 
 // ============================================================================
@@ -1476,6 +1515,10 @@ for (const coordinateInput of [els.latitude, els.longitude]) {
 // Optimize / Export buttons
 if (els.optimizeRoute) {
     els.optimizeRoute.addEventListener("click", optimizeSelectedRoute);
+}
+
+if (els.clearRoute) {
+    els.clearRoute.addEventListener("click", clearRouteSelection);
 }
 
 if (els.exportRoute) {
