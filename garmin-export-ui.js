@@ -9,58 +9,6 @@
         return `${label}${address}${notes}`;
     }
 
-    function routeSource(text) {
-        const value = String(text || "").toUpperCase();
-        if (/\bDCFS\b/.test(value)) return "DCFS";
-        if (/\bGIS\b/.test(value)) return "GIS";
-        return "";
-    }
-
-    function cleanRouteText(text) {
-        return String(text || "")
-            .replace(/\bMCS\b\s*[—–-]?\s*/gi, "")
-            .replace(/^\s*\d{1,3}\s*[—–-]\s*/, "")
-            .replace(/^\s*(DCFS|GIS)\s*[—–-]\s*/i, "")
-            .replace(/\s+/g, " ")
-            .trim();
-    }
-
-    function numberRouteList() {
-        const list = document.getElementById("routeList");
-        if (!list) return;
-
-        let stopNumber = 0;
-        for (const row of Array.from(list.children)) {
-            const text = String(row.textContent || "").trim();
-            if (/^(Start|Finish)\s*[—–-]/i.test(text)) continue;
-            if (/^(No addresses selected|Save your Home)/i.test(text)) continue;
-
-            const label = row.querySelector("span");
-            if (!label) continue;
-
-            stopNumber += 1;
-            const original = label.dataset.fmrOriginalText || label.textContent || "";
-            label.dataset.fmrOriginalText = original;
-
-            const source = routeSource(original);
-            const clean = cleanRouteText(original);
-            const number = String(stopNumber).padStart(2, "0");
-            label.textContent = source
-                ? `${number} — ${source} — ${clean}`
-                : `${number} — ${clean}`;
-        }
-    }
-
-    function watchRouteList() {
-        const list = document.getElementById("routeList");
-        if (!list) return;
-        numberRouteList();
-        new MutationObserver(numberRouteList).observe(list, {
-            childList: true,
-            subtree: true,
-        });
-    }
-
     function routeName() {
         const now = new Date();
         const date = [
@@ -79,7 +27,7 @@
         const available = savedStops.slice();
         const routeLines = Array.from(
             document.querySelectorAll("#routeList li span"),
-        ).map((span) => span.dataset.fmrOriginalText || span.textContent || "");
+        ).map((span) => span.textContent || "");
 
         return routeLines
             .map((line) => {
@@ -152,8 +100,6 @@
             alert(error?.message || "The Garmin GPX file could not be created.");
         }
     }
-
-    watchRouteList();
 
     const button = document.getElementById("downloadGarminGpx");
     if (!button) return;
