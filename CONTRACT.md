@@ -100,15 +100,27 @@ that route in Google Maps.
 ## 6. Change control
 
 1. A live-tested change confirmed by the user as **Works** becomes protected.
-2. Protected behavior may not be removed, weakened, bypassed, or silently
-   replaced without the user's approval.
-3. Only files and behavior required for the requested change may be modified.
-4. New features, fields, pages, services, paid APIs, or workflow changes require
+2. Before changing runtime behavior, the relevant product, change-control, and
+   regression contracts must be read.
+3. The required process must match the risk: low-risk work stays light, normal
+   features receive focused protection, and high-risk data or deployment work
+   receives stronger review and rollback controls.
+4. Protected behavior may not be removed, weakened, bypassed, or silently
+   replaced without approval.
+5. Only files and behavior required for the approved change may be modified.
+6. Experimental behavior may not be written directly to `main`.
+7. The user's approval of a documented Level 1 or Level 2 scope counts once; do
+   not require duplicate approval unless the scope changes.
+8. Level 3 changes require explicit pre-merge approval because they can broadly
+   affect data, permissions, routing, or deployment.
+9. New features, fields, pages, services, paid APIs, or workflow changes require
    approval before implementation.
-5. A change is incomplete if relevant regression tests fail or if it violates
-   this contract.
+10. A change is incomplete if its risk-matched regression checks fail or if it
+    violates this contract.
+11. Guardrails must not be expanded merely to slow development. They exist to
+    make forward progress safer and more reliable.
 
-## 7. Required regression checks
+## 7. Required regression protection
 
 Tests must continue to protect:
 
@@ -117,6 +129,6 @@ Tests must continue to protect:
 - safe legacy migration;
 - valid coordinate pairs and manual-coordinate priority;
 - home stored separately from stops;
-- round trips starting and finishing at home; and
+- round trips starting and finishing at home;
 - large routes split without dropping or reordering stops; and
-- the four-page dropdown menu with only one selected page visible.
+- the five-page dropdown menu with only one selected page visible.
