@@ -1,53 +1,65 @@
-## Exact user-facing problem
+## Change level
 
-Describe only the problem being changed.
+Choose the smallest honest level:
 
-## Reproducible evidence
+- [ ] Level 1 — low risk
+- [ ] Level 2 — normal feature or fix
+- [ ] Level 3 — high risk
 
-State what was observed and how to reproduce it.
+## Problem and approved scope
 
-## Requested change
+- User-facing problem:
+- Evidence or reproduction:
+- Approved result:
+- Files/functions expected to change:
+- Protected behavior:
 
-State the approved behavior. Do not include adjacent cleanup or redesign.
+For Level 1, a concise answer is enough.
 
-## Expected files and functions
+## Ownership and effects
 
-List every file and function expected to change.
+Required for Level 2 and Level 3:
 
-## Ownership and surfaces
-
+- Owning module:
 - Read surfaces:
 - Write surfaces:
-- Protected behavior:
+- Primary risks:
+- Rollback commit:
+- Focused tests:
+- Affected smoke checklist section:
+
+## Level 3 impact details
+
+Complete only for Level 3:
+
+- Stored-data, schema, permission, or deployment effects:
 - Required and optional data:
 - Hard limits:
 - Stale-output behavior:
+- Realistic fixture or safe environment:
+- Recovery steps:
+- Explicit pre-merge operator approval:
 
-## Risk and rollback
-
-- Primary risks:
-- Failure modes:
-- Rollback commit:
-
-## Verification record
-
-- Baseline full-suite result:
-- Focused tests added or updated:
-- Expected post-change test result:
-- JavaScript syntax checks:
-- Required live smoke checklist section:
-
-## Contract checklist
+## Verification
 
 - [ ] I read `CONTRACT.md`.
 - [ ] I read `CHANGE_CONTROL_CONTRACT.md`.
-- [ ] I read `REGRESSION_CHECKLIST.md`.
-- [ ] This change is on a branch, not direct feature work on `main`.
+- [ ] I read the relevant `REGRESSION_CHECKLIST.md` sections.
+- [ ] The work is on a branch, not experimental work on `main`.
+- [ ] The selected level matches the actual risk.
 - [ ] Every changed block belongs to the approved scope.
-- [ ] No experimental script was added to `index.html`.
-- [ ] No unapproved `MutationObserver`, polling loop, or post-render UI rewrite was added.
-- [ ] Focused regression coverage was added or updated.
-- [ ] The complete `npm test` suite passed.
-- [ ] All first-party root JavaScript files passed `node --check`.
-- [ ] The affected live page was smoke-tested after publication.
-- [ ] The operator approved the intended behavior before merge.
+- [ ] No unapproved runtime exception, observer, polling loop, timer, or
+      post-render rewrite was added.
+- [ ] Focused coverage was added when behavior changed.
+- [ ] The complete automated CI suite passed.
+- [ ] The required affected-surface smoke check was identified.
+- [ ] The existing user approval covers this unchanged scope, or Level 3
+      pre-merge approval is recorded above.
+
+## Publication result
+
+Complete after merge only when runtime behavior changed:
+
+- Published commit:
+- Live check result:
+- Rollback used, if needed:
