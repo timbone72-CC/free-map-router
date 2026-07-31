@@ -668,6 +668,7 @@ function renderRouteList() {
             if (!job) continue;
 
             const li = document.createElement("li");
+            li.dataset.stopId = job.id;
 
             const label = document.createElement("span");
             label.textContent = formatRouteStopLine(job, i);
