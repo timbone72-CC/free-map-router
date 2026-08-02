@@ -5,5 +5,8 @@
   "scripts": {
     "start": "node google-route-server.js",
     "test": "node --test tests/*.test.js"
+  },
+  "dependencies": {
+    "google-auth-library": "10.9.1"
   }
 }
