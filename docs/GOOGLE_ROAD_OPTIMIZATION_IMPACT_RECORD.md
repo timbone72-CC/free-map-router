@@ -2,110 +2,228 @@
 
 ## Status
 
-Implementation branch only. Not merged, published, enabled, or connected to a
-Google Cloud project.
+Deployed and live.
+
+The implementation entered `main` in commit `35a6bb0`. At the start of this
+corrective documentation work, the live `main` head was `2a7ab9d`.
+
+This record was originally written for a credential-free first slice and was
+not updated before the complete runtime system was published. The historical
+control failure and the decision to retain the verified working system are
+recorded in
+`docs/2026-08-02_CHANGE_CONTROL_VIOLATION_REPORT.md`.
 
 ## Operator goal
 
-Make Free Map Router produce a correct road-aware stop order for one complete
-selected GIS/DCFS batch. Navigation devices, Garmin, BaseCamp, GPX destination
-accuracy, cloud address-memory migration, standalone file import, Obsidian, and
-workbook runtime changes are outside this implementation.
+Make Free Map Router produce a road-aware stop order for one complete selected
+GIS/DCFS batch while keeping the existing free optimizer available.
 
-## Production baseline
+## Production baseline and implementation
 
 - Repository: `timbone72-CC/free-map-router`
-- Base branch: `main`
-- Base commit: `ec4e4ddafeeb8bc476de4eecb49cc20bb346631b`
+- Historical pre-implementation baseline: `ec4e4dd`
 - Implementation branch: `feature/google-road-optimization`
-- Existing optimizer: nearest-neighbor plus 2-opt using straight-line distance
-- Existing Home, saved-address, route-selection, Google Maps, and fallback
-  behavior remain protected
+- First live implementation commit: `35a6bb0`
+- Provider: Google Route Optimization through a private Cloud Run backend
+- Browser access: Google sign-in with backend verification of the allowed
+  company account
+- Route model: one vehicle, one complete selected batch, returning to Home
+- Existing free optimizer: retained as a separate fallback
+- Hard app-owned limit: 100 selected stops
+- Automatic execution: none; the operator starts Google optimization explicitly
 
 ## Change classification
 
-Level 3 because this project will add:
+Level 3 because the deployed system added:
 
 - a private authenticated backend;
 - Google Route Optimization API access;
-- billing and quota exposure;
+- Google Cloud billing and quota exposure;
 - a second route-ordering method;
-- replacement of active route order after external-provider validation.
+- replacement of the active route order after complete external-response
+  validation;
+- production publishing and cloud deployment.
 
-Explicit operator approval is required before merge.
+## Approval and process status
 
-## First implementation slice
+The required explicit Level 3 pre-merge approval was not recorded. PR #16
+remained a draft and its description said not to merge, but the branch reached
+`main` through a local fast-forward and direct push.
 
-This first slice may add only pure, credential-free contract code:
+Later live validation and continued-use approval confirm that the operator wants
+the working feature retained. They do not retroactively satisfy the missing
+pre-merge approval requirement.
 
-- construct the minimal backend request from Home and selected stop IDs and
-  coordinates;
-- reject invalid coordinates, duplicate IDs, empty routes, and over-limit
-  routes before network access;
-- translate the validated request into one Google `OptimizeToursRequest` model;
-- interpret one-vehicle Google results;
-- reject skipped, missing, duplicate, unknown, or extra stops;
-- apply a validated order without mutating saved stop records.
+Current operator decision: preserve the validated working system, correct the
+record, and avoid rebuilding working behavior solely to repeat implementation.
 
-It does not make network requests, enable billing, create Cloud resources, alter
-HTML, change the live app, or store credentials.
+## Runtime components
 
-## Data allowed to leave the browser in the future runtime stage
+- `google-route-auth.js` verifies allowed Google identity claims.
+- `google-route-browser.js` sends the selected request and applies only a
+  complete validated order.
+- `google-route-contract.js` owns request and response validation.
+- `google-route-provider.js` translates between the app contract and Google
+  Route Optimization.
+- `google-route-server.js` owns the private HTTP service, origin checks,
+  authentication, request validation, and provider invocation.
+- `app.js` owns application route state and exposes the narrow route-application
+  bridge.
+- `index.html` owns the Google sign-in and optimization controls.
+- `package.json` and `package-lock.json` include the backend runtime and
+  Google authentication dependency.
+- Dedicated tests cover authentication, browser requests, contracts, provider
+  translation, server behavior, and UI ownership.
+
+## Required and optional data
+
+Required for a Google optimization request:
 
 - opaque request ID;
-- opaque stable stop ID;
-- Home latitude and longitude;
-- selected-stop latitude and longitude.
+- opaque stable stop ID for each selected stop;
+- verified Home latitude and longitude;
+- latitude and longitude for every selected stop.
 
-The first version must not send address text, notes, customer names, source
-labels, workbook history, Gmail content, Drive contents, or payment data.
+Not sent to the optimization backend or provider:
+
+- address text;
+- notes;
+- customer or company names;
+- GIS/DCFS labels;
+- workbook history;
+- Gmail or Drive contents;
+- payment data;
+- Geoapify key.
+
+No route-optimization credential is stored in public browser code or committed
+to the repository.
+
+## Schema and permission impact
+
+- No saved-address, Home, workbook-inbox, backup, or browser-storage schema was
+  migrated.
+- The browser gained Google identity sign-in for the protected optimization
+  request.
+- The private Cloud Run runtime gained permission to call Google Route
+  Optimization.
+- The Google Cloud project has billing and quota exposure for route calls.
+- Google Drive permissions and the workbook handoff schema were unchanged.
+
+No workbook/router integration impact.
+
+## Hard limits and validation
+
+Before provider access, the backend rejects:
+
+- a missing or invalid Home coordinate pair;
+- a selected stop without a complete valid coordinate pair;
+- duplicate selected stop IDs;
+- an empty route;
+- more than 100 selected stops;
+- malformed, oversized, non-JSON, wrong-method, wrong-origin, or unauthenticated
+  requests.
+
+A provider response is rejected unless it:
+
+- belongs to the active request;
+- contains exactly one vehicle route;
+- contains every selected stop exactly once;
+- contains no missing, duplicate, skipped, unknown, or added stop;
+- preserves Home as the round-trip anchor.
+
+A rejected request or response leaves the current route unchanged.
 
 ## Protected behavior
 
 - Home remains start and finish.
-- One complete selected batch is optimized together for one vehicle.
+- Home is not counted as a job stop.
 - Every selected stop must return exactly once.
-- A failed or invalid response leaves route state unchanged.
-- The existing free optimizer remains available.
-- Optimization never rewrites Home, saved addresses, notes, source labels,
-  coordinates, manual pins, workbook data, or browser backups.
-- No automatic optimization occurs on load, import, edit, restore, or Drive
-  connection.
-- No secret is stored in source control or public browser code.
+- The free optimizer remains available.
+- Google optimization never rewrites Home, saved addresses, notes, source
+  labels, coordinates, manual pins, workbook data, or backups.
+- No automatic Google optimization occurs on load, import, edit, restore, or
+  Drive connection.
+- Google Maps export continues to use the complete active route order.
+- A failed sign-in, backend request, provider call, or response validation leaves
+  route state unchanged.
 
-## Planned files for the first slice
+## Stale and failed output behavior
 
-- `google-route-contract.js`
-- `google-route-provider.js`
-- `tests/google-route-contract.test.js`
-- `tests/google-route-provider.test.js`
+Each browser request carries an opaque request ID. A response that does not
+match the active request is rejected. Missing, partial, duplicate, skipped, or
+unknown stop output is rejected as a whole; partial route application is not
+allowed.
 
-## Test gates
+If authentication expires or the backend rejects the account, the app reports
+failure and retains the prior route order.
 
-Before the first slice is accepted:
+## Validation evidence
 
-- focused contract tests pass;
-- focused provider-translation tests pass;
-- complete existing app suite passes once;
-- all first-party JavaScript syntax checks pass;
-- no network or billed API call occurs in automated tests;
-- no credential or project ID is committed.
+Automated verification on the published runtime head before release:
 
-Later runtime slices require separate tests for authentication, quotas, request
-serialization, failure preservation, real 15–25, 40–50, and 60–70 stop batches,
-and comparison with the current straight-line order.
+- complete suite: 117 passed, 0 failed;
+- JavaScript syntax checks passed;
+- contract coverage included request limits, duplicate rejection, complete
+  response preservation, authentication, CORS, server validation, provider
+  translation, and UI ownership;
+- automated tests made no billed Route Optimization request.
 
-## Rollback
+Completed live checks:
 
-Before merge, the exact last-known-good main commit and backend revision must be
-recorded. Disabling Google optimization must leave the existing free optimizer
-and current saved data usable.
+- authenticated company sign-in;
+- two-stop Google optimization;
+- five-stop Google optimization;
+- every selected stop preserved exactly once;
+- Home retained as start and finish;
+- Google Maps output preserved the optimized order;
+- app mileage and duration were consistent with the opened Google Maps route.
 
-For this credential-free first slice, rollback is deletion or reversion of the
-new files on the implementation branch.
+Residual validation gap:
 
-## Integration boundary
+- the originally planned representative live 15–25, 40–50, and 60–70 stop
+  comparisons were not recorded before publication.
 
-No workbook/router integration impact. The workbook inbox schema, exported
-address text, GIS/DCFS source values, order meaning, duplicate handling, and
-import preservation remain unchanged.
+This gap is documented. It does not authorize an unreviewed runtime change.
+
+## Cloud and billing controls
+
+Recorded during implementation:
+
+- Google Cloud project: `free-map-router`;
+- private Cloud Run service;
+- dedicated runtime service account;
+- Route Optimization permission limited to the runtime service;
+- approved GitHub Pages origin;
+- monthly gross-usage alert configured at $5.
+
+The alert is not a hard spending cap. Any quota or billing-policy change remains
+a separate Level 3 change.
+
+## Recovery and rollback
+
+Historical last-known-good baseline before Google optimization:
+`ec4e4dd`.
+
+Do not rewrite `main` history or force-reset production to that commit. That
+would also discard later verified work.
+
+If Google optimization fails while the rest of the app remains usable:
+
+1. stop using the Google optimizer and use the retained free optimizer;
+2. preserve current browser data and Drive backups;
+3. create a dedicated Level 3 rollback branch and PR;
+4. remove or disable only the Google browser control and adapter invocation;
+5. verify Home, saved addresses, route selection, the free optimizer, and Google
+   Maps output;
+6. merge only with explicit operator approval;
+7. disable or remove backend access only after the browser no longer calls it.
+
+If a backend revision fails but the browser contract remains compatible, restore
+the last verified backend revision and confirm the protected live request before
+any further backend change.
+
+## Current correction classification
+
+The 2026-08-02 update to this record is Level 1 documentation only. It changes
+no runtime code, tests, workflow, dependency, cloud resource, permission, route,
+saved address, or workbook data.
