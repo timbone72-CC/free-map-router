@@ -9,6 +9,10 @@ const {
     buildGoogleOptimizeToursRequest,
     interpretGoogleOptimizeToursResponse,
 } = require("./google-route-provider.js");
+const {
+    RouteAuthenticationError,
+    authenticateRequest,
+} = require("./google-route-auth.js");
 
 const DEFAULT_MAX_BODY_BYTES = 256 * 1024;
 const METADATA_TOKEN_URL =
@@ -23,15 +27,62 @@ class HttpError extends Error {
     }
 }
 
-function writeJson(response, statusCode, payload) {
+function writeJson(response, statusCode, payload, extraHeaders = {}) {
     const body = JSON.stringify(payload);
     response.writeHead(statusCode, {
         "content-type": "application/json; charset=utf-8",
         "content-length": Buffer.byteLength(body),
         "cache-control": "no-store",
         "x-content-type-options": "nosniff",
+        ...extraHeaders,
     });
     response.end(body);
+}
+
+function writeNoContent(response, extraHeaders = {}) {
+    response.writeHead(204, {
+        "cache-control": "no-store",
+        "x-content-type-options": "nosniff",
+        ...extraHeaders,
+    });
+    response.end();
+}
+
+function corsHeaders(request, allowedOrigin) {
+    const configuredOrigin = String(allowedOrigin ?? "").trim();
+    if (!configuredOrigin) {
+        throw new Error("FMR_ALLOWED_ORIGIN is required.");
+    }
+
+    const requestOrigin = String(request?.headers?.origin ?? "").trim();
+    if (requestOrigin !== configuredOrigin) {
+        throw new HttpError(
+            403,
+            "ORIGIN_NOT_ALLOWED",
+            "This route request did not come from Free Map Router.",
+        );
+    }
+
+    return {
+        "access-control-allow-origin": configuredOrigin,
+        "access-control-allow-methods": "POST, OPTIONS",
+        "access-control-allow-headers": "Authorization, Content-Type",
+        "access-control-max-age": "3600",
+        vary: "Origin",
+    };
+}
+
+function safeCorsHeaders(request, allowedOrigin) {
+    const configuredOrigin = String(allowedOrigin ?? "").trim();
+    const requestOrigin = String(request?.headers?.origin ?? "").trim();
+    return configuredOrigin && requestOrigin === configuredOrigin
+        ? {
+              "access-control-allow-origin": configuredOrigin,
+              "access-control-allow-methods": "POST, OPTIONS",
+              "access-control-allow-headers": "Authorization, Content-Type",
+              vary: "Origin",
+          }
+        : {};
 }
 
 async function readJsonBody(request, maxBytes = DEFAULT_MAX_BODY_BYTES) {
@@ -120,7 +171,11 @@ async function callGoogleOptimizeTours(
     return interpretGoogleOptimizeToursResponse(request, googleResponse);
 }
 
-function createRequestHandler({ optimize = callGoogleOptimizeTours } = {}) {
+function createRequestHandler({
+    optimize = callGoogleOptimizeTours,
+    authenticate = null,
+    allowedOrigin = "",
+} = {}) {
     return async function requestHandler(request, response) {
         try {
             const url = new URL(request.url, "http://localhost");
@@ -132,6 +187,16 @@ function createRequestHandler({ optimize = callGoogleOptimizeTours } = {}) {
 
             if (url.pathname !== "/optimize") {
                 throw new HttpError(404, "NOT_FOUND", "Route not found.");
+            }
+
+            let responseCorsHeaders = {};
+            if (typeof authenticate === "function") {
+                responseCorsHeaders = corsHeaders(request, allowedOrigin);
+                if (request.method === "OPTIONS") {
+                    writeNoContent(response, responseCorsHeaders);
+                    return;
+                }
+                await authenticate(request);
             }
 
             if (request.method !== "POST") {
@@ -150,38 +215,68 @@ function createRequestHandler({ optimize = callGoogleOptimizeTours } = {}) {
             const body = await readJsonBody(request);
             const validatedRequest = buildBackendRequest(body);
             const result = await optimize(validatedRequest);
-            writeJson(response, 200, result);
+            writeJson(response, 200, result, responseCorsHeaders);
         } catch (error) {
+            const responseCorsHeaders = safeCorsHeaders(request, allowedOrigin);
+
             if (error instanceof RouteContractError) {
-                writeJson(response, 400, {
-                    ok: false,
-                    code: error.code,
-                    message: error.message,
-                });
+                writeJson(
+                    response,
+                    400,
+                    {
+                        ok: false,
+                        code: error.code,
+                        message: error.message,
+                    },
+                    responseCorsHeaders,
+                );
                 return;
             }
 
-            if (error instanceof HttpError) {
-                writeJson(response, error.statusCode, {
-                    ok: false,
-                    code: error.code,
-                    message: error.message,
-                });
+            if (
+                error instanceof HttpError ||
+                error instanceof RouteAuthenticationError
+            ) {
+                writeJson(
+                    response,
+                    error.statusCode,
+                    {
+                        ok: false,
+                        code: error.code,
+                        message: error.message,
+                    },
+                    responseCorsHeaders,
+                );
                 return;
             }
 
             console.error("Route optimization request failed:", error?.message || error);
-            writeJson(response, 500, {
-                ok: false,
-                code: "INTERNAL_ERROR",
-                message: "Route optimization could not be completed.",
-            });
+            writeJson(
+                response,
+                500,
+                {
+                    ok: false,
+                    code: "INTERNAL_ERROR",
+                    message: "Route optimization could not be completed.",
+                },
+                responseCorsHeaders,
+            );
         }
     };
 }
 
 function startServer({ port = Number(process.env.PORT) || 8080 } = {}) {
-    const server = http.createServer(createRequestHandler());
+    const allowedOrigin = String(process.env.FMR_ALLOWED_ORIGIN ?? "").trim();
+    if (!allowedOrigin) {
+        throw new Error("FMR_ALLOWED_ORIGIN is required.");
+    }
+
+    const server = http.createServer(
+        createRequestHandler({
+            authenticate: authenticateRequest,
+            allowedOrigin,
+        }),
+    );
     server.listen(port, "0.0.0.0", () => {
         console.log(`Free Map Router optimizer listening on port ${port}.`);
     });
@@ -197,9 +292,12 @@ module.exports = {
     HttpError,
     METADATA_TOKEN_URL,
     callGoogleOptimizeTours,
+    corsHeaders,
     createRequestHandler,
     metadataAccessToken,
     readJsonBody,
+    safeCorsHeaders,
     startServer,
     writeJson,
+    writeNoContent,
 };
