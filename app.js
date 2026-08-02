@@ -99,6 +99,17 @@ function toNumberOrNull(v) {
     return Number.isFinite(n) ? n : null;
 }
 
+function isValidCoordinatePair(latitude, longitude) {
+    return (
+        latitude !== null &&
+        latitude >= -90 &&
+        latitude <= 90 &&
+        longitude !== null &&
+        longitude >= -180 &&
+        longitude <= 180
+    );
+}
+
 // ============================================================================
 // SECTION 4 — CSV Parsing + Import
 // ============================================================================
@@ -1024,13 +1035,10 @@ async function findFormLocation() {
 
     const currentLatitude = toNumberOrNull(els.latitude?.value);
     const currentLongitude = toNumberOrNull(els.longitude?.value);
-    const hasValidManualCoordinates =
-        currentLatitude !== null &&
-        currentLatitude >= -90 &&
-        currentLatitude <= 90 &&
-        currentLongitude !== null &&
-        currentLongitude >= -180 &&
-        currentLongitude <= 180;
+    const hasValidManualCoordinates = isValidCoordinatePair(
+        currentLatitude,
+        currentLongitude,
+    );
     if (
         formPinStatus === "manual" &&
         hasValidManualCoordinates
@@ -1053,6 +1061,30 @@ async function findFormLocation() {
         const result = await findAddress(address, {
             storage: localStorage,
         });
+
+        if (normalizeAddress(els.address?.value) !== address) {
+            if (els.locationStatus) {
+                els.locationStatus.textContent =
+                    "Address changed during lookup. Find the new location when ready.";
+            }
+            return;
+        }
+
+        const latestLatitude = toNumberOrNull(els.latitude?.value);
+        const latestLongitude = toNumberOrNull(els.longitude?.value);
+        if (
+            formPinStatus === "manual" &&
+            isValidCoordinatePair(latestLatitude, latestLongitude)
+        ) {
+            showLocationMap(latestLatitude, latestLongitude);
+            updateLocationPreview(latestLatitude, latestLongitude);
+            if (els.locationStatus) {
+                els.locationStatus.textContent =
+                    "Manual pin kept. The automatic lookup was not applied.";
+            }
+            return;
+        }
+
         els.latitude.value = String(result.latitude);
         els.longitude.value = String(result.longitude);
         formPinStatus = "geocoded";

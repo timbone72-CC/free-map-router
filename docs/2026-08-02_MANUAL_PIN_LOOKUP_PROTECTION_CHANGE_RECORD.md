@@ -15,6 +15,9 @@ one accidental save could weaken a verified property pin.
 
 - A complete, geographically valid manual pin in the current Address form
   cannot be replaced by **Find Location (Free)**.
+- A manual pin added while lookup is pending wins over the late automatic
+  result.
+- Changing the address while lookup is pending discards the stale result.
 - The app explains that the pin can be changed by moving it on the map.
 - Changing the address resets the form to unverified and permits a new lookup.
 
@@ -48,6 +51,9 @@ address remains eligible for lookup.
 
 Out-of-range numeric coordinates remain eligible for lookup and are never
 treated as a protected manual pin.
+
+A late lookup result is discarded when the address changes or the user creates
+a valid manual pin while the request is pending.
 
 Focused test: `node --test tests/manual-pin-ui.test.js`.
 
