@@ -61,6 +61,7 @@ const {
 } = globalThis.FMRBackup;
 const {
     applyAddressInbox,
+    formatInboxImportStatus,
     parseAddressInbox,
 } = globalThis.FMRInbox;
 const {
@@ -1366,9 +1367,15 @@ if (els.connectGoogleDrive) {
                 renderAll();
                 if (els.googleDriveStatus) {
                     els.googleDriveStatus.textContent =
-                        `Loaded ${imported.importedCount} Daily Print job${imported.importedCount === 1 ? "" : "s"}. ` +
+                        formatInboxImportStatus(
+                            inbox,
+                            imported.importedCount,
+                        ) + " " +
                         "The current route was replaced and saved addresses were kept.";
                 }
+            } else if (els.googleDriveStatus) {
+                els.googleDriveStatus.textContent =
+                    formatInboxImportStatus(inbox, 0);
             }
             scheduleDriveAutosave();
         } catch (error) {
