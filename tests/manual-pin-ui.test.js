@@ -35,6 +35,48 @@ test("clicking the map or dragging the pin records a manual location", () => {
     assert.match(app, /pinStatus:\s*[\s\S]*formPinStatus/);
 });
 
+test("Find Location cannot overwrite a complete manual pin", () => {
+    const handler = app.slice(
+        app.indexOf("async function findFormLocation()"),
+        app.indexOf("// SECTION 12"),
+    );
+    const guard = handler.indexOf('formPinStatus === "manual"');
+    const lookup = handler.indexOf("await findAddress(address");
+
+    assert.notEqual(guard, -1);
+    assert.notEqual(lookup, -1);
+    assert.ok(guard < lookup);
+    assert.match(app, /latitude >= -90/);
+    assert.match(app, /latitude <= 90/);
+    assert.match(app, /longitude >= -180/);
+    assert.match(app, /longitude <= 180/);
+    assert.match(handler, /Manual pin protected/);
+    assert.match(handler, /return;/);
+});
+
+test("a late lookup cannot overwrite a newly manual pin or changed address", () => {
+    const handler = app.slice(
+        app.indexOf("async function findFormLocation()"),
+        app.indexOf("// SECTION 12"),
+    );
+    const lookup = handler.indexOf("await findAddress(address");
+    const changedAddressGuard = handler.indexOf(
+        "normalizeAddress(els.address?.value) !== address",
+    );
+    const latestManualGuard = handler.lastIndexOf(
+        'formPinStatus === "manual"',
+    );
+    const applyLookup = handler.indexOf(
+        "els.latitude.value = String(result.latitude)",
+    );
+
+    assert.ok(lookup < changedAddressGuard);
+    assert.ok(changedAddressGuard < applyLookup);
+    assert.ok(lookup < latestManualGuard);
+    assert.ok(latestManualGuard < applyLookup);
+    assert.match(handler, /Manual pin kept/);
+});
+
 test("pin maps default to free USGS aerial imagery with a Roads option", () => {
     assert.match(app, /USGSImageryOnly\/MapServer\/tile/);
     assert.match(app, /Aerial:\s*aerial/);
