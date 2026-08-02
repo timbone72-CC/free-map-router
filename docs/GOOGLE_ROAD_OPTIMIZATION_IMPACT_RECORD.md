@@ -4,6 +4,12 @@
 
 Deployed and live.
 
+The original coordinate-only request described below is the historical
+baseline. The approved address-first correction is documented separately in
+`docs/2026-08-02_GOOGLE_ADDRESS_FIRST_OPTIMIZATION_IMPACT_RECORD.md`; when that
+change is live, ordinary stop addresses are sent to the private backend for
+request-only Google geocoding while manual pins continue to use coordinates.
+
 The implementation entered `main` in commit `35a6bb0`. At the start of this
 corrective documentation work, the live `main` head was `2a7ab9d`.
 
@@ -84,9 +90,8 @@ Required for a Google optimization request:
 - verified Home latitude and longitude;
 - latitude and longitude for every selected stop.
 
-Not sent to the optimization backend or provider:
+Not sent to the Route Optimization provider or retained by the backend:
 
-- address text;
 - notes;
 - customer or company names;
 - GIS/DCFS labels;
@@ -94,6 +99,11 @@ Not sent to the optimization backend or provider:
 - Gmail or Drive contents;
 - payment data;
 - Geoapify key.
+
+Under the address-first correction, ordinary written addresses are sent only
+to the authenticated private backend and Google Geocoding for the active
+request. They are converted to coordinates before the Route Optimization call
+and are not stored by this app.
 
 No route-optimization credential is stored in public browser code or committed
 to the repository.

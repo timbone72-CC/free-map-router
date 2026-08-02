@@ -93,20 +93,26 @@ that route in Google Maps.
 9. Address text remains the primary Google Maps destination and the
    user-facing route label. Coordinates stay hidden and are exported only when
    the user manually corrected that pin.
-10. With a saved Geoapify key, **Optimize Route** automatically finds and
-    remembers missing coordinates for selected addresses before ordering them.
-11. Automatic lookup never changes address text and never marks a pin as
+10. With a saved Geoapify key, the free **Optimize Route** action automatically
+    finds and remembers missing coordinates for selected addresses before
+    ordering them.
+11. **Google Optimize** sends each ordinary stop to the private backend as its
+    written address. The backend uses Google Geocoding for that request before
+    Google Route Optimization. A manually corrected stop instead uses its
+    protected coordinates. Google results used for optimization do not rewrite
+    saved pins or address text.
+12. Automatic lookup never changes address text and never marks a pin as
     manually corrected.
-12. A round trip that exceeds one safe Google Maps link is divided into
+13. A round trip that exceeds one safe Google Maps link is divided into
     numbered map sections. The sections preserve the optimized order, connect
     end-to-start without gaps, include every selected stop once, and finish at
     Home.
-13. Build Route displays selected job stops with two-digit numbers matching
+14. Build Route displays selected job stops with two-digit numbers matching
     the current route order. Home remains unnumbered at Start and Finish.
-14. Build Route labels and Garmin point names may show `DCFS` or `GIS` when
+15. Build Route labels and Garmin point names may show `DCFS` or `GIS` when
     that source exists in the saved label or notes. They never insert `MCS`;
     when neither approved source is present, they show the number and address.
-15. The live workbook may send an optional dedicated route `source` of `GIS` or
+16. The live workbook may send an optional dedicated route `source` of `GIS` or
     `DCFS` with an address. That authoritative source is stored separately from
     client labels and notes, updates the matching physical address, and is used
     first by Build Route and Garmin. Older inboxes without `source` remain valid.

@@ -12,6 +12,7 @@
     "use strict";
 
     const MAX_STOPS = 100;
+    const MAX_ADDRESS_LENGTH = 500;
 
     class RouteContractError extends Error {
         constructor(code, message) {
@@ -70,7 +71,42 @@
         return { latitude, longitude };
     }
 
-    function normalizeStops(stops) {
+    function normalizeAddress(value, fieldName) {
+        const address = String(value ?? "").trim();
+        if (!address) fail("MISSING_ADDRESS", `${fieldName} is required.`);
+        if (address.length > MAX_ADDRESS_LENGTH) {
+            fail(
+                "ADDRESS_TOO_LONG",
+                `${fieldName} must be ${MAX_ADDRESS_LENGTH} characters or fewer.`,
+            );
+        }
+        return address;
+    }
+
+    function hasCoordinateValue(value) {
+        return value !== null && value !== undefined && value !== "";
+    }
+
+    function normalizeStopLocation(stop, fieldName) {
+        const hasAddress = String(stop?.address ?? "").trim() !== "";
+        const hasLatitude = hasCoordinateValue(stop?.latitude);
+        const hasLongitude = hasCoordinateValue(stop?.longitude);
+
+        if (hasAddress && (hasLatitude || hasLongitude)) {
+            fail(
+                "AMBIGUOUS_STOP_LOCATION",
+                `${fieldName} must use either an address or coordinates, not both.`,
+            );
+        }
+
+        if (hasAddress) {
+            return { address: normalizeAddress(stop.address, `${fieldName}.address`) };
+        }
+
+        return normalizePoint(stop, fieldName);
+    }
+
+    function normalizeStops(stops, locationNormalizer = normalizeStopLocation) {
         if (!Array.isArray(stops) || stops.length === 0) {
             fail("NO_STOPS", "At least one selected stop is required.");
         }
@@ -91,7 +127,7 @@
 
             return {
                 id,
-                ...normalizePoint(stop, `stops[${index}]`),
+                ...locationNormalizer(stop, `stops[${index}]`),
             };
         });
     }
@@ -102,6 +138,15 @@
             requestId: normalizedRequestId,
             home: normalizePoint(home, "home"),
             stops: normalizeStops(stops),
+        };
+    }
+
+    function buildCoordinateRequest({ home, stops, requestId }) {
+        const normalizedRequestId = normalizeId(requestId, "requestId");
+        return {
+            requestId: normalizedRequestId,
+            home: normalizePoint(home, "home"),
+            stops: normalizeStops(stops, normalizePoint),
         };
     }
 
@@ -211,10 +256,12 @@
     }
 
     return {
+        MAX_ADDRESS_LENGTH,
         MAX_STOPS,
         RouteContractError,
         applyOrderedStopIds,
         buildBackendRequest,
+        buildCoordinateRequest,
         validateBackendResponse,
         validateOrderedStopIds,
     };

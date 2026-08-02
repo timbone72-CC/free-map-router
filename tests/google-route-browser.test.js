@@ -27,6 +27,7 @@ function snapshot() {
                 notes: "private note",
                 latitude: 35.44,
                 longitude: -99.41,
+                pinStatus: "geocoded",
             },
             {
                 id: "job-b",
@@ -35,12 +36,13 @@ function snapshot() {
                 notes: "another private note",
                 latitude: 35.45,
                 longitude: -99.42,
+                pinStatus: "manual",
             },
         ],
     };
 }
 
-test("browser request sends only opaque IDs and coordinates", () => {
+test("browser request sends written addresses except for manual pins", () => {
     const request = buildBrowserRequest(snapshot(), "browser-request-1");
 
     assert.deepEqual(request, {
@@ -50,20 +52,22 @@ test("browser request sends only opaque IDs and coordinates", () => {
             longitude: -99.4031811,
         },
         stops: [
-            { id: "job-a", latitude: 35.44, longitude: -99.41 },
+            { id: "job-a", address: "101 Main St, Elk City, OK" },
             { id: "job-b", latitude: 35.45, longitude: -99.42 },
         ],
     });
 
     const serialized = JSON.stringify(request);
     assert.equal(serialized.includes("Blackburn"), false);
+    assert.equal(serialized.includes("101 Main St"), true);
     assert.equal(serialized.includes("private note"), false);
     assert.equal(serialized.includes("GIS"), false);
     assert.equal(serialized.includes("DCFS"), false);
 });
 
-test("duplicate saved coordinates stop the browser request", () => {
+test("duplicate manual coordinates stop the browser request", () => {
     const route = snapshot();
+    route.stops[0].pinStatus = "manual";
     route.stops[1].latitude = route.stops[0].latitude;
     route.stops[1].longitude = route.stops[0].longitude;
 
@@ -78,6 +82,20 @@ test("duplicate saved coordinates stop the browser request", () => {
     );
 });
 
+test("duplicate automatic coordinates do not block address-first optimization", () => {
+    const route = snapshot();
+    route.stops[1].pinStatus = "geocoded";
+    route.stops[1].latitude = route.stops[0].latitude;
+    route.stops[1].longitude = route.stops[0].longitude;
+
+    assert.equal(duplicateCoordinateGroups(route.stops).length, 0);
+    const request = buildBrowserRequest(route, "browser-request-1");
+    assert.deepEqual(request.stops, [
+        { id: "job-a", address: "101 Main St, Elk City, OK" },
+        { id: "job-b", address: "202 Main St, Elk City, OK" },
+    ]);
+});
+
 test("blank coordinates are missing, not duplicate saved pins", () => {
     const route = snapshot();
     route.stops.forEach((stop) => {
@@ -88,7 +106,7 @@ test("blank coordinates are missing, not duplicate saved pins", () => {
     assert.equal(duplicateCoordinateGroups(route.stops).length, 0);
 });
 
-test("Google preparation waits for the app to locate missing coordinates", async () => {
+test("Google preparation waits for the app snapshot", async () => {
     const prepared = snapshot();
     const calls = [];
     const result = await prepareSnapshotForGoogle({
