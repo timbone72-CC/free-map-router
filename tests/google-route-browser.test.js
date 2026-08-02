@@ -9,6 +9,7 @@ const {
     duplicateCoordinateGroups,
     formatMetrics,
     optimizeWithGoogle,
+    prepareSnapshotForGoogle,
 } = require("../google-route-browser.js");
 
 function snapshot() {
@@ -75,6 +76,30 @@ test("duplicate saved coordinates stop the browser request", () => {
             error.message.includes("101 Main St") &&
             error.message.includes("202 Main St"),
     );
+});
+
+test("blank coordinates are missing, not duplicate saved pins", () => {
+    const route = snapshot();
+    route.stops.forEach((stop) => {
+        stop.latitude = null;
+        stop.longitude = null;
+    });
+
+    assert.equal(duplicateCoordinateGroups(route.stops).length, 0);
+});
+
+test("Google preparation waits for the app to locate missing coordinates", async () => {
+    const prepared = snapshot();
+    const calls = [];
+    const result = await prepareSnapshotForGoogle({
+        prepareSelectedRouteSnapshot: async () => {
+            calls.push("prepare");
+            return prepared;
+        },
+    });
+
+    assert.deepEqual(calls, ["prepare"]);
+    assert.equal(result, prepared);
 });
 
 test("browser sends the memory-only token and validates the complete response", async () => {
