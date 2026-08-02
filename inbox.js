@@ -141,6 +141,27 @@
             };
         }
 
+        function isAddressInboxExportedToday(inbox, now = new Date()) {
+            const updatedAt = inbox?.updatedAt
+                ? new Date(inbox.updatedAt)
+                : null;
+            const currentDate = now instanceof Date ? now : new Date(now);
+
+            if (
+                !updatedAt ||
+                Number.isNaN(updatedAt.getTime()) ||
+                Number.isNaN(currentDate.getTime())
+            ) {
+                return false;
+            }
+
+            return (
+                updatedAt.getFullYear() === currentDate.getFullYear() &&
+                updatedAt.getMonth() === currentDate.getMonth() &&
+                updatedAt.getDate() === currentDate.getDate()
+            );
+        }
+
         function formatInboxImportStatus(
             inbox,
             importedCount,
@@ -227,6 +248,7 @@
             INBOX_VERSION,
             applyAddressInbox,
             formatInboxImportStatus,
+            isAddressInboxExportedToday,
             parseAddressInbox,
         });
     },

@@ -62,6 +62,7 @@ const {
 const {
     applyAddressInbox,
     formatInboxImportStatus,
+    isAddressInboxExportedToday,
     parseAddressInbox,
 } = globalThis.FMRInbox;
 const {
@@ -1361,7 +1362,24 @@ if (els.connectGoogleDrive) {
                 await loadAddressInboxFromDrive(token),
             );
 
-            if (inbox.addresses.length > 0) {
+            const exportedToday = isAddressInboxExportedToday(inbox);
+            const importApproved =
+                inbox.addresses.length === 0 ||
+                exportedToday ||
+                confirm(
+                    `This workbook inbox was exported on ${new Date(inbox.updatedAt).toLocaleString()}, not today. ` +
+                    `It contains ${inbox.addresses.length} job${inbox.addresses.length === 1 ? "" : "s"}. ` +
+                    "Importing it will replace your current route selection but keep saved addresses. Import it anyway?",
+                );
+
+            if (inbox.addresses.length > 0 && !importApproved) {
+                if (els.googleDriveInboxStatus) {
+                    els.googleDriveInboxStatus.textContent =
+                        `Inbox not imported — ${inbox.addresses.length} job${inbox.addresses.length === 1 ? "" : "s"} ` +
+                        `were exported ${new Date(inbox.updatedAt).toLocaleString()}, not today. ` +
+                        "The current route was kept.";
+                }
+            } else if (inbox.addresses.length > 0) {
                 const imported = applyAddressInbox(jobs, inbox);
                 jobs = writeStops(localStorage, imported.stops);
                 routeIds = imported.routeIds;

@@ -23,6 +23,17 @@ test("Drive connection imports the workbook inbox into the current route", () =>
     assert.match(app, /saved addresses were kept/);
 });
 
+test("an inbox not exported today requires confirmation before route replacement", () => {
+    const freshnessCheck = app.indexOf("isAddressInboxExportedToday(inbox)");
+    const warning = app.indexOf("This workbook inbox was exported on");
+    const routeReplacement = app.indexOf("applyAddressInbox(jobs, inbox)");
+
+    assert.ok(freshnessCheck >= 0);
+    assert.ok(warning > freshnessCheck);
+    assert.ok(routeReplacement > warning);
+    assert.match(app, /Inbox not imported[\s\S]*The current route was kept/);
+});
+
 test("Settings explains the active-session auto-save boundary", () => {
     assert.match(html, /Connect &amp; Auto-Save/);
     assert.match(html, /while the app is[\s\S]*open/);
