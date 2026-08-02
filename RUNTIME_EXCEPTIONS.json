@@ -3,6 +3,10 @@
     {
       "file": "garmin-export-ui.js",
       "reason": "Owns only the Garmin download button and export invocation. It may not rewrite app-owned lists or page state."
+    },
+    {
+      "file": "google-route-browser.js",
+      "reason": "Owns only the test-only Google sign-in and optimization button. It requests a validated order through the narrow app-owned FMRRouteBridge and may not rewrite route lists or page state directly."
     }
   ],
   "mutationObservers": []

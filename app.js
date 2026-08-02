@@ -1579,6 +1579,53 @@ if (els.pageMenu) {
     });
 }
 
+// GOOGLE ROAD ROUTE BRIDGE
+// Narrow app-owned bridge for the authenticated test-only Google optimizer.
+// It exposes copies of the current selection and applies only a fully validated
+// order. Route rendering and routeIds remain owned by app.js.
+if (!globalThis.FMRGoogleRouteContract) {
+    throw new Error("Google route contract failed to load.");
+}
+
+globalThis.FMRRouteBridge = Object.freeze({
+    selectedRouteSnapshot() {
+        return {
+            home: home ? { ...home } : null,
+            stops: selectedRouteJobs().map((job) => ({ ...job })),
+        };
+    },
+
+    applyGoogleRouteResult(request, response) {
+        const validated =
+            globalThis.FMRGoogleRouteContract.validateBackendResponse(
+                request,
+                response,
+            );
+        const currentSelection = selectedRouteJobs();
+        const ordered = globalThis.FMRGoogleRouteContract.applyOrderedStopIds(
+            currentSelection,
+            validated.orderedStopIds,
+        );
+
+        routeIds = ordered.map((job) => job.id);
+        renderRouteList();
+        renderJobsList();
+        scheduleDriveAutosave();
+
+        return {
+            orderedStopIds: routeIds.slice(),
+            totalDistanceMeters: validated.totalDistanceMeters,
+            totalDurationSeconds: validated.totalDurationSeconds,
+        };
+    },
+
+    setRouteStatus(message) {
+        if (els.routeStatus) {
+            els.routeStatus.textContent = String(message || "");
+        }
+    },
+});
+
 showPage("home");
 renderAll();
 refreshAddressSuggestions();

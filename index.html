@@ -203,6 +203,14 @@
                 <button id="optimizeRoute" type="button" class="btn btnSmall">
                     Optimize Route
                 </button>
+                <button
+                    id="googleOptimizeRoute"
+                    type="button"
+                    class="btn btnSmall"
+                    disabled
+                >
+                    Google Optimize (Test)
+                </button>
                 <button id="clearRoute" type="button" class="btn btnSmall">
                     Clear Route
                 </button>
@@ -217,6 +225,11 @@
                     Download Garmin GPX
                 </button>
             </div>
+            <div id="googleRouteSignIn" class="googleRouteSignIn"></div>
+            <p id="googleRouteAuthStatus" class="tiny muted">
+                Google road optimization is test-only and requires the approved
+                company Google account.
+            </p>
             <div id="routeMapLinks" class="btnRow" hidden></div>
             <p id="routeStatus" class="tiny muted">
                 Select addresses, then optimize the route.
@@ -328,10 +341,12 @@
         <script src="inbox.js?v=1.1.0"></script>
         <script src="https://accounts.google.com/gsi/client" async></script>
         <script src="google-drive.js?v=1.4.0"></script>
+        <script src="google-route-contract.js?v=1.0.0"></script>
         <script src="routing.js?v=1.4.0"></script>
         <script src="garmin-gpx.js?v=1.2.0"></script>
         <script src="vendor/leaflet.js?v=1.9.4"></script>
-        <script src="app.js?v=3.10.1"></script>
+        <script src="app.js?v=3.11.0"></script>
+        <script src="google-route-browser.js?v=1.0.0"></script>
         <script src="garmin-export-ui.js?v=1.1.0"></script>
     </body>
 </html>
