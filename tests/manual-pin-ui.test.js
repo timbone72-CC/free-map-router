@@ -46,8 +46,10 @@ test("Find Location cannot overwrite a complete manual pin", () => {
     assert.notEqual(guard, -1);
     assert.notEqual(lookup, -1);
     assert.ok(guard < lookup);
-    assert.match(handler, /currentLatitude !== null/);
-    assert.match(handler, /currentLongitude !== null/);
+    assert.match(handler, /currentLatitude >= -90/);
+    assert.match(handler, /currentLatitude <= 90/);
+    assert.match(handler, /currentLongitude >= -180/);
+    assert.match(handler, /currentLongitude <= 180/);
     assert.match(handler, /Manual pin protected/);
     assert.match(handler, /return;/);
 });

@@ -1024,10 +1024,16 @@ async function findFormLocation() {
 
     const currentLatitude = toNumberOrNull(els.latitude?.value);
     const currentLongitude = toNumberOrNull(els.longitude?.value);
+    const hasValidManualCoordinates =
+        currentLatitude !== null &&
+        currentLatitude >= -90 &&
+        currentLatitude <= 90 &&
+        currentLongitude !== null &&
+        currentLongitude >= -180 &&
+        currentLongitude <= 180;
     if (
         formPinStatus === "manual" &&
-        currentLatitude !== null &&
-        currentLongitude !== null
+        hasValidManualCoordinates
     ) {
         showLocationMap(currentLatitude, currentLongitude);
         updateLocationPreview(currentLatitude, currentLongitude);

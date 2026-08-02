@@ -13,8 +13,8 @@ one accidental save could weaken a verified property pin.
 
 ## Approved behavior
 
-- A complete manual pin in the current Address form cannot be replaced by
-  **Find Location (Free)**.
+- A complete, geographically valid manual pin in the current Address form
+  cannot be replaced by **Find Location (Free)**.
 - The app explains that the pin can be changed by moving it on the map.
 - Changing the address resets the form to unverified and permits a new lookup.
 
@@ -45,6 +45,9 @@ blocked. No saved data is written by the guard.
 Primary risk: blocking a legitimate lookup after the address text changes. The
 existing address-input handler resets the pin status to `unverified`, so a new
 address remains eligible for lookup.
+
+Out-of-range numeric coordinates remain eligible for lookup and are never
+treated as a protected manual pin.
 
 Focused test: `node --test tests/manual-pin-ui.test.js`.
 
