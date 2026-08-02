@@ -1059,6 +1059,39 @@ async function findFormLocation() {
 // ============================================================================
 // SECTION 12 — Optimize Route + Export
 // ============================================================================
+async function prepareMissingRouteCoordinates(selected, apiKey) {
+    const missingCoords = selected.filter(
+        (job) => job.latitude == null || job.longitude == null,
+    );
+
+    for (let index = 0; index < missingCoords.length; index++) {
+        const job = missingCoords[index];
+        if (els.routeStatus) {
+            els.routeStatus.textContent =
+                `Finding location ${index + 1} of ${missingCoords.length}: ${job.address}`;
+        }
+
+        const found = await findAddressWithGeoapify(job.address, apiKey, {
+            storage: localStorage,
+        });
+        jobs = jobs.map((savedJob) =>
+            savedJob.id === job.id
+                ? normalizeStop({
+                      ...savedJob,
+                      latitude: found.latitude,
+                      longitude: found.longitude,
+                      pinStatus: "geocoded",
+                  })
+                : savedJob,
+        );
+    }
+
+    writeJobs(jobs);
+    return routeIds
+        .map((id) => jobs.find((job) => job.id === id))
+        .filter(Boolean);
+}
+
 async function optimizeSelectedRoute() {
     if (routeIds.length < 2) {
         alert("Select at least 2 addresses to optimize.");
@@ -1089,33 +1122,7 @@ async function optimizeSelectedRoute() {
 
         els.optimizeRoute.disabled = true;
         try {
-            for (let index = 0; index < missingCoords.length; index++) {
-                const job = missingCoords[index];
-                if (els.routeStatus) {
-                    els.routeStatus.textContent =
-                        `Finding location ${index + 1} of ${missingCoords.length}: ${job.address}`;
-                }
-
-                const found = await findAddressWithGeoapify(
-                    job.address,
-                    apiKey,
-                    { storage: localStorage },
-                );
-                jobs = jobs.map((savedJob) =>
-                    savedJob.id === job.id
-                        ? normalizeStop({
-                              ...savedJob,
-                              latitude: found.latitude,
-                              longitude: found.longitude,
-                              pinStatus: "geocoded",
-                          })
-                        : savedJob,
-                );
-            }
-            writeJobs(jobs);
-            selected = routeIds
-                .map((id) => jobs.find((job) => job.id === id))
-                .filter(Boolean);
+            selected = await prepareMissingRouteCoordinates(selected, apiKey);
         } catch (error) {
             writeJobs(jobs);
             renderAll();
@@ -1618,6 +1625,39 @@ globalThis.FMRRouteBridge = Object.freeze({
         return {
             home: home ? { ...home } : null,
             stops: selectedRouteJobs().map((job) => ({ ...job })),
+        };
+    },
+
+    async prepareSelectedRouteSnapshot() {
+        if (home?.latitude == null || home?.longitude == null) {
+            throw new Error("Verify the Home location before optimizing the route.");
+        }
+
+        let selected = selectedRouteJobs();
+        const hasMissingCoordinates = selected.some(
+            (job) => job.latitude == null || job.longitude == null,
+        );
+
+        if (hasMissingCoordinates) {
+            const apiKey = readGeoapifyKey(localStorage);
+            if (!apiKey) {
+                throw new Error(
+                    "Save the Geoapify key in Settings before Google optimization can locate missing addresses.",
+                );
+            }
+
+            try {
+                selected = await prepareMissingRouteCoordinates(selected, apiKey);
+            } catch (error) {
+                writeJobs(jobs);
+                renderAll();
+                throw error;
+            }
+        }
+
+        return {
+            home: home ? { ...home } : null,
+            stops: selected.map((job) => ({ ...job })),
         };
     },
 
