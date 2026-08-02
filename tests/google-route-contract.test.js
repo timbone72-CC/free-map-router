@@ -5,6 +5,7 @@ const {
     RouteContractError,
     applyOrderedStopIds,
     buildBackendRequest,
+    buildCoordinateRequest,
     validateBackendResponse,
 } = require("../google-route-contract.js");
 
@@ -14,19 +15,14 @@ function sampleStops() {
             id: "job-a",
             address: "Address A",
             notes: "Private note",
-            latitude: 35.1,
-            longitude: -99.1,
         },
         {
             id: "job-b",
             address: "Address B",
             source: "GIS",
-            latitude: 35.2,
-            longitude: -99.2,
         },
         {
             id: "job-c",
-            address: "Address C",
             latitude: 35.3,
             longitude: -99.3,
         },
@@ -45,24 +41,24 @@ function sampleRequest() {
     });
 }
 
-test("backend request keeps only opaque IDs and coordinates", () => {
+test("backend request keeps addresses for ordinary stops and coordinates for manual pins", () => {
     const request = sampleRequest();
 
     assert.deepEqual(request, {
         requestId: "request-1",
         home: { latitude: 35, longitude: -99 },
         stops: [
-            { id: "job-a", latitude: 35.1, longitude: -99.1 },
-            { id: "job-b", latitude: 35.2, longitude: -99.2 },
+            { id: "job-a", address: "Address A" },
+            { id: "job-b", address: "Address B" },
             { id: "job-c", latitude: 35.3, longitude: -99.3 },
         ],
     });
     assert.equal(JSON.stringify(request).includes("Private note"), false);
-    assert.equal(JSON.stringify(request).includes("Address A"), false);
+    assert.equal(JSON.stringify(request).includes("Address A"), true);
     assert.equal(JSON.stringify(request).includes("GIS"), false);
 });
 
-test("backend request rejects missing coordinates before network access", () => {
+test("backend request rejects a stop without an address or complete coordinates", () => {
     assert.throws(
         () =>
             buildBackendRequest({
@@ -73,6 +69,49 @@ test("backend request rejects missing coordinates before network access", () => 
         (error) =>
             error instanceof RouteContractError &&
             error.code === "MISSING_COORDINATE",
+    );
+});
+
+test("backend request rejects ambiguous address and coordinate input", () => {
+    assert.throws(
+        () =>
+            buildBackendRequest({
+                requestId: "request-1",
+                home: { latitude: 35, longitude: -99 },
+                stops: [
+                    {
+                        id: "job-a",
+                        address: "Address A",
+                        latitude: 35.1,
+                        longitude: -99.1,
+                    },
+                ],
+            }),
+        (error) =>
+            error instanceof RouteContractError &&
+            error.code === "AMBIGUOUS_STOP_LOCATION",
+    );
+});
+
+test("coordinate request requires provider-ready coordinate pairs", () => {
+    const request = buildCoordinateRequest({
+        requestId: "request-1",
+        home: { latitude: 35, longitude: -99 },
+        stops: [{ id: "job-a", latitude: 35.1, longitude: -99.1 }],
+    });
+    assert.deepEqual(request.stops[0], {
+        id: "job-a",
+        latitude: 35.1,
+        longitude: -99.1,
+    });
+    assert.throws(
+        () =>
+            buildCoordinateRequest({
+                requestId: "request-1",
+                home: { latitude: 35, longitude: -99 },
+                stops: [{ id: "job-a", address: "Address A" }],
+            }),
+        /latitude is required/,
     );
 });
 

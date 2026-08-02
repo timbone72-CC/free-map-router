@@ -15,8 +15,8 @@ test("Build Route exposes separate free and Google road optimizers", () => {
     assert.match(html, /Google Optimize/);
     assert.doesNotMatch(html, /Google Optimize \(Test\)/);
     assert.match(html, /id="googleRouteSignIn"/);
-    assert.match(html, /google-route-contract\.js\?v=1\.0\.0/);
-    assert.match(html, /google-route-browser\.js\?v=1\.1\.0/);
+    assert.match(html, /google-route-contract\.js\?v=1\.1\.0/);
+    assert.match(html, /google-route-browser\.js\?v=1\.2\.0/);
 });
 
 test("app owns Google route application through a narrow bridge", () => {

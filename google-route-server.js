@@ -4,6 +4,7 @@ const http = require("node:http");
 const {
     RouteContractError,
     buildBackendRequest,
+    buildCoordinateRequest,
 } = require("./google-route-contract.js");
 const {
     buildGoogleOptimizeToursRequest,
@@ -17,6 +18,8 @@ const {
 const DEFAULT_MAX_BODY_BYTES = 256 * 1024;
 const METADATA_TOKEN_URL =
     "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token";
+const GOOGLE_GEOCODE_ENDPOINT =
+    "https://geocode.googleapis.com/v4/geocode/address";
 
 class HttpError extends Error {
     constructor(statusCode, code, message) {
@@ -130,6 +133,110 @@ async function metadataAccessToken(fetchImpl = globalThis.fetch) {
     return accessToken;
 }
 
+async function geocodeAddressWithGoogle(
+    address,
+    {
+        fetchImpl = globalThis.fetch,
+        accessToken,
+    } = {},
+) {
+    if (typeof fetchImpl !== "function") {
+        throw new Error("A fetch implementation is required.");
+    }
+
+    const token = String(accessToken ?? "").trim();
+    if (!token) {
+        throw new Error("A Google access token is required for address lookup.");
+    }
+
+    const normalizedAddress = String(address ?? "").trim();
+    const endpoint =
+        `${GOOGLE_GEOCODE_ENDPOINT}/${encodeURIComponent(normalizedAddress)}` +
+        "?regionCode=us&languageCode=en";
+    const response = await fetchImpl(endpoint, {
+        headers: {
+            authorization: `Bearer ${token}`,
+            accept: "application/json",
+        },
+    });
+
+    if (!response.ok) {
+        throw new HttpError(
+            502,
+            "GOOGLE_GEOCODE_FAILED",
+            `Google address lookup failed for ${normalizedAddress}.`,
+        );
+    }
+
+    const body = await response.json();
+    const location = body?.results?.[0]?.location;
+    if (!location) {
+        throw new HttpError(
+            422,
+            "ADDRESS_NOT_FOUND",
+            `Google could not locate ${normalizedAddress}.`,
+        );
+    }
+
+    try {
+        const point = buildCoordinateRequest({
+            requestId: "google-geocode-result",
+            home: { latitude: 0, longitude: 0 },
+            stops: [
+                {
+                    id: "google-geocode-result",
+                    latitude: location.latitude,
+                    longitude: location.longitude,
+                },
+            ],
+        }).stops[0];
+        return {
+            latitude: point.latitude,
+            longitude: point.longitude,
+        };
+    } catch (error) {
+        if (error instanceof RouteContractError) {
+            throw new HttpError(
+                502,
+                "INVALID_GEOCODE_RESULT",
+                `Google returned an invalid location for ${normalizedAddress}.`,
+            );
+        }
+        throw error;
+    }
+}
+
+async function resolveGoogleRouteRequest(
+    backendRequest,
+    {
+        fetchImpl = globalThis.fetch,
+        accessToken,
+        geocode = geocodeAddressWithGoogle,
+    } = {},
+) {
+    const request = buildBackendRequest(backendRequest);
+    const resolvedStops = await Promise.all(
+        request.stops.map(async (stop) => {
+            if (!stop.address) return stop;
+            const location = await geocode(stop.address, {
+                fetchImpl,
+                accessToken,
+            });
+            return {
+                id: stop.id,
+                latitude: location.latitude,
+                longitude: location.longitude,
+            };
+        }),
+    );
+
+    return buildCoordinateRequest({
+        requestId: request.requestId,
+        home: request.home,
+        stops: resolvedStops,
+    });
+}
+
 async function callGoogleOptimizeTours(
     backendRequest,
     {
@@ -144,7 +251,11 @@ async function callGoogleOptimizeTours(
     }
 
     const accessToken = await metadataAccessToken(fetchImpl);
-    const googleRequest = buildGoogleOptimizeToursRequest(request);
+    const resolvedRequest = await resolveGoogleRouteRequest(request, {
+        fetchImpl,
+        accessToken,
+    });
+    const googleRequest = buildGoogleOptimizeToursRequest(resolvedRequest);
     const endpoint =
         "https://routeoptimization.googleapis.com/v1/projects/" +
         encodeURIComponent(normalizedProjectId) +
@@ -289,13 +400,16 @@ if (require.main === module) {
 
 module.exports = {
     DEFAULT_MAX_BODY_BYTES,
+    GOOGLE_GEOCODE_ENDPOINT,
     HttpError,
     METADATA_TOKEN_URL,
     callGoogleOptimizeTours,
     corsHeaders,
     createRequestHandler,
+    geocodeAddressWithGoogle,
     metadataAccessToken,
     readJsonBody,
+    resolveGoogleRouteRequest,
     safeCorsHeaders,
     startServer,
     writeJson,
