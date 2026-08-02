@@ -122,10 +122,49 @@
                 );
             }
 
+            const updatedAt = parsed.updatedAt
+                ? new Date(parsed.updatedAt)
+                : null;
+            if (
+                (updatedAt && Number.isNaN(updatedAt.getTime())) ||
+                (parsed.addresses.length > 0 && !updatedAt)
+            ) {
+                throw new Error(
+                    "The workbook address inbox is missing a valid export time.",
+                );
+            }
+
             return {
                 ...parsed,
+                updatedAt: updatedAt ? updatedAt.toISOString() : null,
                 addresses: normalizeInboxAddresses(parsed.addresses),
             };
+        }
+
+        function formatInboxImportStatus(
+            inbox,
+            importedCount,
+            formatDate = (date) => date.toLocaleString(),
+        ) {
+            const jobCount = Array.isArray(inbox?.addresses)
+                ? inbox.addresses.length
+                : 0;
+            const source = inbox?.source || "Unknown source";
+            const updated = inbox?.updatedAt
+                ? formatDate(new Date(inbox.updatedAt))
+                : "not yet exported";
+
+            if (jobCount === 0) {
+                return (
+                    `Inbox ready — 0 jobs. Source: ${source}. ` +
+                    `Updated: ${updated}. Import status: no jobs to import.`
+                );
+            }
+
+            return (
+                `Import successful — ${importedCount} of ${jobCount} job${jobCount === 1 ? "" : "s"}. ` +
+                `Source: ${source}. Updated: ${updated}.`
+            );
         }
 
         function applyAddressInbox(existingStops, inbox) {
@@ -187,6 +226,7 @@
             INBOX_SOURCE,
             INBOX_VERSION,
             applyAddressInbox,
+            formatInboxImportStatus,
             parseAddressInbox,
         });
     },
