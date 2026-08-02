@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Free Map Router — Google Sign-In Test</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    body {
+      margin: 0;
+      background: #f3f5f7;
+      color: #18212b;
+    }
+    main {
+      width: min(680px, calc(100% - 32px));
+      margin: 48px auto;
+      background: #fff;
+      border: 1px solid #d9dee3;
+      border-radius: 12px;
+      box-shadow: 0 4px 18px rgba(24, 33, 43, 0.08);
+      padding: 28px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 1.55rem;
+    }
+    p {
+      line-height: 1.5;
+    }
+    #googleSignIn {
+      min-height: 44px;
+      margin: 22px 0;
+    }
+    #status {
+      padding: 14px;
+      border-radius: 8px;
+      background: #eef2f6;
+      font-weight: 700;
+    }
+    #status.success {
+      color: #125c2e;
+      background: #e8f6ed;
+    }
+    #status.error {
+      color: #8a1c1c;
+      background: #fdecec;
+    }
+    a {
+      color: #1257a6;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Google Sign-In Test</h1>
+    <p>This temporary page checks whether the approved company Google account can reach the protected route service.</p>
+    <div id="googleSignIn"></div>
+    <p id="status" role="status">Loading Google sign-in…</p>
+    <p><a href="../">Return to Free Map Router</a></p>
+  </main>
+
+  <script>
+    const CLIENT_ID = "170117881136-v1k2p78ukleac3ep22b9rc3mpnsut4i8.apps.googleusercontent.com";
+    const BACKEND_URL = "https://fmr-route-optimizer-nigrg27taq-uc.a.run.app";
+
+    function setStatus(message, kind) {
+      const status = document.getElementById("status");
+      status.textContent = message;
+      status.className = kind || "";
+    }
+
+    async function verifyBackendAccess(credential) {
+      setStatus("Google sign-in completed. Verifying the protected service…");
+      try {
+        const response = await fetch(BACKEND_URL + "/optimize", {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer " + credential,
+            "Content-Type": "application/json"
+          },
+          body: "{}"
+        });
+        const body = await response.json().catch(() => ({}));
+
+        if (response.status === 400 && body.code === "MISSING_ID") {
+          setStatus("SUCCESS: Company Google sign-in and protected service access both work.", "success");
+          return;
+        }
+
+        if (response.status === 401 || response.status === 403) {
+          setStatus("NOT APPROVED: " + (body.message || "The signed-in Google account was rejected."), "error");
+          return;
+        }
+
+        setStatus("UNEXPECTED RESPONSE: HTTP " + response.status + " " + (body.message || ""), "error");
+      } catch (error) {
+        setStatus("CONNECTION FAILED: " + error.message, "error");
+      }
+    }
+
+    function initGoogleSignIn() {
+      if (!window.google || !google.accounts || !google.accounts.id) {
+        setStatus("Google sign-in did not load. Refresh this page.", "error");
+        return;
+      }
+
+      google.accounts.id.initialize({
+        client_id: CLIENT_ID,
+        auto_select: false,
+        cancel_on_tap_outside: true,
+        callback: (response) => {
+          const credential = String(response && response.credential || "").trim();
+          if (!credential) {
+            setStatus("Google sign-in was not completed.", "error");
+            return;
+          }
+          verifyBackendAccess(credential);
+        }
+      });
+
+      google.accounts.id.renderButton(
+        document.getElementById("googleSignIn"),
+        {
+          type: "standard",
+          theme: "outline",
+          size: "large",
+          text: "signin_with",
+          shape: "rectangular"
+        }
+      );
+      setStatus("Sign in with inandoutinspections2026@gmail.com.");
+    }
+  </script>
+  <script src="https://accounts.google.com/gsi/client" async defer onload="initGoogleSignIn()"></script>
+</body>
+</html>
