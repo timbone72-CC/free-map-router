@@ -1,9 +1,21 @@
 # Google Route Optimization Behavior Contract
 
+## Current controlling scope
+
+The current implementation is optimization only. Read
+`docs/CURRENT_OPTIMIZATION_ONLY_SCOPE.md` first.
+
+Garmin, BaseCamp, GPX destination testing, phone navigation, car navigation,
+cloud address-memory migration, standalone file import, Excel support, Obsidian,
+and reporting are not part of the current implementation or its acceptance
+gate.
+
+Where older planning text conflicts, the optimization-only scope controls.
+
 ## Purpose
 
 This contract defines the required user-visible and data-preservation behavior
-for an optional Google road-aware route optimizer in Free Map Router.
+for Google road-aware route optimization in Free Map Router.
 
 It supplements `CONTRACT.md`, `CHANGE_CONTROL_CONTRACT.md`,
 `INTEGRATION_CONTRACT.md`, and `TESTING_CONTRACT.md`. If this document conflicts
@@ -19,8 +31,8 @@ The feature may:
 - request one-vehicle route optimization;
 - receive and validate a complete ordered set of stop IDs;
 - replace the current selected route order only after validation;
-- show method, status, timestamp, and basic route totals;
-- pass the final order to existing Google Maps and Garmin exports.
+- show method, status, timestamp, road distance, and estimated drive time;
+- display the complete returned order inside Free Map Router.
 
 The feature may not:
 
@@ -28,10 +40,11 @@ The feature may not:
 - rewrite saved addresses, notes, source labels, coordinates, or manual pins;
 - alter Home;
 - run automatically;
-- create one navigation request per job;
+- create one optimization request per job;
 - silently skip jobs;
 - remove the current free optimizer;
-- place Google credentials in browser code or storage.
+- place Google credentials in browser code or storage;
+- require Garmin or another navigation system before optimization is usable.
 
 ## Full-batch rule
 
@@ -41,8 +54,6 @@ vehicle.
 The app must send the complete selected batch together, subject to the app-owned
 hard limit. It must not optimize one job at a time or require the operator to
 request the next job after each completion.
-
-The returned order must be usable to create one complete Garmin GPX route.
 
 ## Home rule
 
@@ -77,7 +88,7 @@ skipped job, duplicate ID, missing ID, unknown ID, or count mismatch must:
 - preserve all saved addresses and route selections;
 - show a clear operator-facing error;
 - keep the current free optimizer available;
-- prevent an invalid Google result from reaching Google Maps or Garmin export.
+- prevent an invalid Google result from replacing the visible order.
 
 The app must not silently substitute a partial Google result.
 
@@ -102,12 +113,9 @@ After a valid Google order is applied:
 
 - Up, Down, and Remove continue to work;
 - manual changes become the current route order;
-- exports use the visible current order;
+- the app displays the visible current order;
 - Google does not automatically reapply its previous order;
 - re-optimization requires another explicit operator action.
-
-A future lock-position feature is outside this contract unless separately
-approved.
 
 ## Coordinate rule
 
@@ -123,23 +131,23 @@ approved.
 
 - GIS and DCFS remain the only dedicated route source labels.
 - MCS must not be introduced as a dedicated source label.
-- Source labels are app display and export metadata; they are not required by
-  Google for optimization.
+- Source labels are app display metadata; they are not required by Google for
+  optimization.
 - Source values, notes, and job details are not sent to the routing backend
   unless a later approved constraint requires them.
 
-## Export rule
+## Display rule
 
 After a valid route is applied:
 
 - the Build Route list is the authoritative visible order;
-- Google Maps sections preserve that order without omission, duplication, or
-  reordering;
-- Garmin GPX preserves that order;
-- Home appears at the beginning and end of the Garmin route;
-- Garmin labels remain in the approved numbered/source/address format;
-- downstream road recalculation may change exact roads, but not the intended
-  stop sequence.
+- every selected stop appears exactly once;
+- Home is clearly shown as start and finish;
+- route method, road distance, and estimated drive time are shown when available;
+- the user can review the complete order without relying on an external
+  navigation device.
+
+Navigation exports are outside the current optimization milestone.
 
 ## Route size rule
 
@@ -178,8 +186,6 @@ assumptions, and reproducibility must be separately approved.
 - Saved address records remain unchanged.
 - Existing backup and restore formats remain backward-compatible unless a
   separately approved schema change is made.
-- Optimization metadata added to a backup must be optional and safely ignored by
-  older code.
 - Restoring a backup must not call Google automatically.
 
 ## Privacy rule
@@ -205,8 +211,8 @@ It must not send:
 
 ## Workbook boundary
 
-The workbook remains responsible for selecting and exporting jobs. The app
-remains responsible for route selection and optimization.
+The workbook remains one source of jobs. The app remains responsible for route
+selection and optimization.
 
 Google optimization happens after import and does not change the workbook inbox
 contract. No workbook change is planned.
@@ -225,4 +231,4 @@ Any runtime implementation under this contract is Level 3 and requires:
 - complete tests and syntax checks;
 - private-backend validation;
 - explicit operator approval before merge;
-- post-publication live verification.
+- post-publication live optimization verification.
