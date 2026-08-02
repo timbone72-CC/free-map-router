@@ -310,6 +310,7 @@ const els = {
     saveGoogleDrive: document.getElementById("saveGoogleDrive"),
     restoreGoogleDrive: document.getElementById("restoreGoogleDrive"),
     googleDriveStatus: document.getElementById("googleDriveStatus"),
+    googleDriveInboxStatus: document.getElementById("googleDriveInboxStatus"),
 
     // import
     csvFile: document.getElementById("csvFile"),
@@ -1365,16 +1366,16 @@ if (els.connectGoogleDrive) {
                 jobs = writeStops(localStorage, imported.stops);
                 routeIds = imported.routeIds;
                 renderAll();
-                if (els.googleDriveStatus) {
-                    els.googleDriveStatus.textContent =
+                if (els.googleDriveInboxStatus) {
+                    els.googleDriveInboxStatus.textContent =
                         formatInboxImportStatus(
                             inbox,
                             imported.importedCount,
                         ) + " " +
                         "The current route was replaced and saved addresses were kept.";
                 }
-            } else if (els.googleDriveStatus) {
-                els.googleDriveStatus.textContent =
+            } else if (els.googleDriveInboxStatus) {
+                els.googleDriveInboxStatus.textContent =
                     formatInboxImportStatus(inbox, 0);
             }
             scheduleDriveAutosave();
