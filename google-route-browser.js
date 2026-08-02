@@ -59,6 +59,7 @@
     function duplicateCoordinateGroups(stops) {
         const groups = new Map();
         for (const stop of Array.isArray(stops) ? stops : []) {
+            if (stop?.pinStatus !== "manual") continue;
             const key = coordinateKey(stop);
             if (!key) continue;
             if (!groups.has(key)) groups.set(key, []);
@@ -93,11 +94,18 @@
         return contract.buildBackendRequest({
             requestId: id,
             home: snapshot?.home,
-            stops: stops.map((stop) => ({
-                id: stop?.id,
-                latitude: stop?.latitude,
-                longitude: stop?.longitude,
-            })),
+            stops: stops.map((stop) =>
+                stop?.pinStatus === "manual"
+                    ? {
+                          id: stop?.id,
+                          latitude: stop?.latitude,
+                          longitude: stop?.longitude,
+                      }
+                    : {
+                          id: stop?.id,
+                          address: stop?.address,
+                      },
+            ),
         });
     }
 
