@@ -2,7 +2,6 @@
 
 const {
     buildBackendRequest,
-    buildCoordinateRequest,
     validateBackendResponse,
 } = require("./google-route-contract.js");
 
@@ -13,7 +12,7 @@ function durationSeconds(value) {
 }
 
 function buildGoogleOptimizeToursRequest(backendRequest) {
-    const request = buildCoordinateRequest(backendRequest);
+    const request = buildBackendRequest(backendRequest);
 
     return {
         timeout: "30s",

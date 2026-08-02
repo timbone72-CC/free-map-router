@@ -15,13 +15,9 @@ test("Optimize Route prepares selected addresses with Geoapify", () => {
     assert.match(html, /id="routeStatus"/);
 });
 
-test("Google Optimize sends selected addresses to its private backend", () => {
+test("Google Optimize prepares all selected addresses before its request", () => {
     assert.match(app, /async prepareSelectedRouteSnapshot/);
-    assert.match(app, /stops: selectedRouteJobs\(\)\.map/);
-    assert.doesNotMatch(
-        app.slice(app.indexOf("async prepareSelectedRouteSnapshot")),
-        /prepareMissingRouteCoordinates\(selected, apiKey\)/,
-    );
+    assert.match(app, /await prepareMissingRouteCoordinates\(selected, apiKey\)/);
 });
 
 test("Geoapify attribution is visible", () => {

@@ -1687,9 +1687,31 @@ globalThis.FMRRouteBridge = Object.freeze({
             throw new Error("Verify the Home location before optimizing the route.");
         }
 
+        let selected = selectedRouteJobs();
+        const hasMissingCoordinates = selected.some(
+            (job) => job.latitude == null || job.longitude == null,
+        );
+
+        if (hasMissingCoordinates) {
+            const apiKey = readGeoapifyKey(localStorage);
+            if (!apiKey) {
+                throw new Error(
+                    "Save the Geoapify key in Settings before Google optimization can locate missing addresses.",
+                );
+            }
+
+            try {
+                selected = await prepareMissingRouteCoordinates(selected, apiKey);
+            } catch (error) {
+                writeJobs(jobs);
+                renderAll();
+                throw error;
+            }
+        }
+
         return {
             home: home ? { ...home } : null,
-            stops: selectedRouteJobs().map((job) => ({ ...job })),
+            stops: selected.map((job) => ({ ...job })),
         };
     },
 
