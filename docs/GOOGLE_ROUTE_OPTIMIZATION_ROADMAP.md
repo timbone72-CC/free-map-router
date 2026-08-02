@@ -1,20 +1,39 @@
 # Google Route Optimization Roadmap
 
+## Operator priority
+
+The primary purpose of this project is better route optimization. Google
+road-aware optimization is the first required working milestone. Cloud address
+memory and standalone file import are also required, but they must not postpone
+the first usable optimization release.
+
+The approved operating goals are:
+
+1. optimize the complete selected batch using roads rather than straight-line
+   distance;
+2. keep one complete Garmin route in the same stop order;
+3. make the app usable from workbook jobs, local files, or manual entry;
+4. correct and remember routing addresses safely;
+5. move permanent address memory out of browser-only storage;
+6. keep the workbook as a separate optional source.
+
+Nothing in this roadmap treats optimization as optional or as a final
+convenience feature.
+
 ## Purpose
 
-Add an optional Google road-aware optimizer to Free Map Router while preserving
-the existing workbook handoff, standalone file import plan, cloud address memory,
-route controls, Google Maps sections, Garmin GPX workflow, saved addresses,
-manual pins, and current free optimizer.
+Add Google road-aware route ordering to Free Map Router first, then complete the
+same system with durable cloud address memory and independent file import. The
+existing workbook handoff, route controls, Google Maps sections, Garmin GPX
+workflow, saved addresses, manual pins, and free optimizer remain protected.
 
-This is a Level 3 project because it adds a billed external API, a private cloud
-service, authentication, new permissions, and a second route-ordering method.
-Implementation requires a dedicated runtime branch, complete testing, and
-explicit operator approval before merge.
+The runtime work is Level 3 because it adds a billed external API, a private
+cloud service, authentication, routing-algorithm replacement, new storage, and
+migration. Each runtime stage uses its own branch, impact record, tests,
+rollback, and explicit pre-merge operator approval.
 
-Planning is documentation-only. Nothing in this roadmap authorizes direct work
-on `main`, Cloud billing changes, API enablement, deployment, or live-data
-changes.
+Planning is documentation-only. It does not enable billing, create Cloud
+resources, alter browser data, or change the live application.
 
 ## Account and ownership plan
 
@@ -26,297 +45,275 @@ Recommended ownership:
 - `InandOutInspections2026@gmail.com`
   - permanent business owner of the Google Cloud project;
   - permanent Cloud Billing administrator;
-  - recovery account for the service;
+  - recovery account;
   - recipient of billing and budget alerts.
 - `timbone72@gmail.com`
   - daily operator and development administrator;
-  - project access sufficient to deploy, inspect logs, and manage the service;
+  - permission to deploy, test, inspect logs, and operate the service;
   - billing visibility without making the business depend solely on a personal
     account.
-- dedicated service account
-  - runtime identity used only by the private backend;
-  - receives only the permissions required to call Route Optimization and access
-    the approved cloud address-memory store;
-  - no Gmail, workbook, GitHub, or billing-administration access.
+- dedicated runtime service account
+  - calls Route Optimization and, in the later storage stage, accesses only the
+    approved address-memory records;
+  - no Gmail, workbook, GitHub, or billing-administration access;
+  - no downloadable long-lived key when platform-managed identity is available.
 
-The existing workbook and router Drive sign-in may continue using
-`timbone72@gmail.com`. The router backend will allow both approved operator
-accounts. No business workflow must be migrated merely to enable routing.
+The workbook and current Drive sign-in may continue using `timbone72@gmail.com`.
 
 ## Target architecture
 
 ```text
 Workbook inbox ---------+
-Local file import ------+--> Free Map Router --> Cloud address memory
+Local file import ------+--> Free Map Router
 Manual entry/paste -----+          |
-                                    | user selects one complete batch
+                                    | selected complete batch
                                     v
                          Private authenticated backend
                                     |
                                     v
-                         Google Route Optimization API
+                         Google Route Optimization
                                     |
                                     v
-                         Validated ordered stop IDs
+                         Validated complete stop order
                                     |
                          +----------+----------+
                          |                     |
                    Google Maps            Garmin GPX
+
+Later durable-memory stage:
+Free Map Router <------> Cloud address memory
+Browser storage = cache, not the only copy
 ```
 
-The cloud address memory is the authoritative source for reusable router
-addresses. Browser storage is only a cache after migration. Google Route
-Optimization reads selected stable stop IDs and coordinates; it does not own or
-rewrite address-memory records.
+Google determines the stop order for the complete selected batch. Garmin remains
+the turn-by-turn navigation device. The workflow never becomes one job at a
+time.
 
-The Google service determines stop order for the full selected batch. Garmin
-continues to provide turn-by-turn navigation. The workflow must never degrade
-into one-job-at-a-time navigation.
+## Non-negotiable behavior
 
-## Protected behavior
+- Home is the unnumbered start and finish.
+- The complete selected batch is sent together for one vehicle.
+- Every selected job must return exactly once.
+- Missing, skipped, duplicated, unknown, or extra jobs invalidate the result.
+- An invalid or failed response leaves the current route unchanged.
+- Google Maps and Garmin use the final visible route order.
+- Garmin receives one complete route.
+- GIS and DCFS remain the only dedicated route-source labels; blank is allowed.
+- MCS is not introduced as a dedicated source label.
+- Manual pins remain stronger than automatic geocoding.
+- Up, Down, Remove, Clear Route, and the free optimizer remain available.
+- Google optimization runs only after an explicit operator action.
+- No credential is placed in public JavaScript, browser storage, Drive files, or
+  the workbook.
+- Optimization cannot rewrite address text, notes, source, coordinates, pins,
+  workbook data, or cloud memory.
 
-The project must preserve all of the following:
-
-- Home remains the unnumbered start and finish.
-- Every selected job appears exactly once in the returned route.
-- The app rejects a response containing skipped, duplicated, missing, unknown,
-  or extra jobs.
-- GIS and DCFS labels remain available; MCS is never introduced as a dedicated
-  route source.
-- Manual pins remain stronger than ordinary geocoded coordinates.
-- Manual Up, Down, and Remove controls continue to work after optimization.
-- Google Maps sections and Garmin GPX use the same final visible order.
-- Garmin export remains one complete route, not separate navigation requests.
-- The existing free straight-line optimizer remains available as a fallback.
-- A failed Google request leaves the current route unchanged and recoverable.
-- No optimization runs automatically during workbook import, file import, cloud
-  sync, or app startup.
-- Google may read selected stop IDs and coordinates but may not alter saved
-  address text, source, notes, coordinates, pin status, or cloud records.
-- No API secret, service-account key, or unrestricted credential is placed in
-  GitHub Pages, source control, browser storage, Drive backups, or the workbook.
-
-## Phase 0 — planning and contracts
+## Stage 0 — contracts and baseline
 
 Deliverables:
 
-- this roadmap;
-- behavior contract;
+- Google optimization behavior contract;
 - security and billing contract;
 - testing and rollback contract;
 - cloud address-memory roadmap and contract;
-- standalone import roadmap and contract;
-- documented account-ownership model;
-- exact Level 3 impact record before runtime implementation begins.
+- standalone import and correction roadmap and contract;
+- exact production baseline and rollback commit;
+- Level 3 impact record for the first runtime stage.
 
 Exit condition:
 
 - documentation reviewed;
-- no runtime code changed;
-- no Cloud project or billing account created by automation.
+- current app suite and Garmin behavior recorded;
+- no runtime or Cloud change made.
 
-## Phase 1 — operator-owned Google Cloud setup
+## Stage 1 — Google Cloud ownership and cost protection
 
 Operator actions:
 
-1. Sign in with `InandOutInspections2026@gmail.com`.
-2. Create a dedicated Google Cloud project named for Free Map Router.
-3. Create or select the business billing account.
-4. Add `timbone72@gmail.com` with the approved project role.
-5. Configure the cloud address-memory database in an isolated test state.
-6. Enable Route Optimization API only after ownership is verified.
-7. Configure conservative quotas, budgets, and billing alerts.
-8. Record project ID, region, account owners, and recovery procedure without
-   storing payment data or secrets in the repository.
+1. Create the dedicated project under business control.
+2. Connect the business billing account.
+3. Add the daily operator account with approved roles.
+4. Enable only the services needed for the private routing prototype.
+5. Configure a conservative budget, alerts, request limits, and quotas.
+6. Record project ID, region, owners, and nonsecret recovery instructions.
+
+This stage does not require Firestore or address migration before the first
+routing prototype.
 
 Exit condition:
 
-- both accounts can access the project as intended;
+- both accounts have their intended access;
 - company account controls billing and recovery;
-- no credential has been downloaded into the repository;
-- cloud address-memory and routing permissions are separated and minimal.
+- no secret has been placed in the repository;
+- billing protection is active.
 
-## Phase 2 — cloud address memory first
+## Stage 2 — optimization-first backend prototype
 
-Before Google becomes a route source, implement and verify cloud-backed address
-memory under its own Level 3 impact record.
-
-Required result:
-
-- cloud is authoritative for reusable addresses;
-- browser storage is cache only;
-- browser clearing does not erase memory;
-- stable IDs, corrected aliases, GIS/DCFS/blank source, notes, coordinates, and
-  manual pins are preserved;
-- stale writes cannot overwrite newer records;
-- a pre-migration recovery snapshot exists;
-- workbook remains a separate optional source.
-
-Google routing must not become dependent on unproven browser-only identity.
-
-## Phase 3 — isolated backend prototype
-
-Preferred first backend: a small authenticated Cloud Run service.
+Build a small authenticated Cloud Run service that works with the app's current
+selected stop IDs and coordinates. Current browser storage and workbook import
+may supply those stops during this temporary stage; neither becomes the final
+permanent memory design.
 
 Prototype responsibilities:
 
-- accept one Home point and one selected batch of stable stop IDs and
-  coordinates;
-- permit one vehicle only;
-- enforce an app-owned hard limit of 100 jobs per request;
-- call Google Route Optimization through the backend service identity;
-- return only ordered stop IDs, method metadata, and basic totals needed by the
-  app;
-- reject skipped or incomplete results;
-- avoid receiving job notes, customer names, workbook history, or unnecessary
-  address text;
-- write sanitized operational logs without route addresses or coordinates;
-- never write Google results into cloud address-memory records.
-
-The prototype must not be called by the live app.
+- accept Home and one complete selected batch;
+- use one vehicle;
+- enforce the approved hard stop-count limit;
+- call Google Route Optimization;
+- return only ordered stop IDs and approved route totals;
+- reject incomplete or skipped results;
+- avoid receiving notes, customer names, workbook history, or unnecessary text;
+- log no addresses or coordinates;
+- never write to saved addresses.
 
 Exit condition:
 
-- fixed test fixtures return complete, deterministic-enough ordered job sets;
-- malformed and incomplete responses fail closed;
-- cost and quota behavior is measured rather than assumed.
+- fixed small and large fixtures return complete validated orders;
+- failure paths leave the original order unchanged;
+- actual request usage and cost are measured;
+- no live app publication yet.
 
-## Phase 4 — app integration behind an explicit control
+## Stage 3 — first usable optimization release
 
-Add a separate action such as `Optimize with Google Roads` while retaining the
-existing `Optimize Route` control.
+Add an explicit **Optimize with Google Roads** control while keeping the current
+free **Optimize Route** control.
 
-Required app behavior:
+Required result:
 
-- user initiates every Google optimization;
-- app shows which method produced the current order;
-- app shows request success, failure, fallback, and timestamp clearly;
-- route is replaced only after full response validation;
-- old route remains intact during the request;
-- cloud address-memory records remain unchanged;
-- exports remain disabled only when the returned job set is invalid, not merely
-  because the Google service is unavailable;
-- the user may choose the existing free optimizer after any Google failure.
+- Google optimization works on jobs already available in the app;
+- the complete batch is optimized together;
+- the app visibly identifies the method used;
+- exports preserve the optimized order;
+- the current route survives timeout, quota, authentication, and provider
+  failure;
+- the free optimizer remains usable at all times.
 
-Exit condition:
-
-- focused tests pass;
-- no workbook change is required;
-- app route order, Google Maps order, and Garmin order match.
-
-## Phase 5 — real-route comparison
-
-Use representative GIS and DCFS batches, including:
+Real-route validation must include:
 
 - a normal 15–25 job route;
 - a scattered 40–50 job route;
-- a 60–70 job route;
-- rural roads, divided highways, bridges, dead ends, and manually corrected
-  pins where available.
+- a 60–70 job GIS/DCFS batch;
+- comparison of road miles, estimated drive time, backtracking, Google Maps
+  continuity, BaseCamp order, Garmin order, and API usage.
 
-Compare:
-
-- all jobs present exactly once;
-- road miles;
-- estimated drive time;
-- obvious backtracking;
-- route practicality;
-- Google Maps section continuity;
-- BaseCamp and Garmin stop order after recalculation;
-- API usage and cost;
-- confirmation that address-memory records did not change.
-
-The current free optimizer is the control result. Google does not become the
-default merely because it returns successfully.
+Google does not become the default until the operator confirms it produces a
+meaningfully better practical route.
 
 Exit condition:
 
-- route quality demonstrates a meaningful practical benefit;
-- no missing or duplicated jobs;
-- Garmin workflow remains complete and usable;
-- operator accepts the real-route results.
+- complete tests and security gates pass;
+- explicit Level 3 pre-merge approval is recorded;
+- published app smoke test passes;
+- Garmin receives the full route in visible order.
 
-## Phase 6 — production release
+This is the first operational milestone and the first priority of the project.
 
-Before merge:
+## Stage 4 — durable cloud address memory
 
-- final Level 3 impact record complete;
-- focused tests, full suite, syntax checks, and contract gates pass on the exact
-  final head;
-- Cloud backend rollback revision identified;
-- current app rollback commit identified;
-- billing quota and budget protection verified;
-- cloud address-memory backup and rollback path verified;
-- explicit operator approval obtained.
+After optimization is working, move reusable address memory from browser-only
+storage to the authenticated cloud store under a separate Level 3 change.
 
-Deployment order:
+Required result:
 
-1. Deploy private backend in disabled or allowlisted test mode.
-2. Verify authentication and fixed fixture.
-3. Publish app integration.
-4. Perform one live route smoke test.
-5. Confirm cloud records remain unchanged.
-6. Keep the free optimizer available.
+- cloud records become authoritative;
+- browser storage becomes a cache and offline aid;
+- browser clearing or changing computers does not erase permanent memory;
+- stable IDs used by optimization are preserved;
+- corrected addresses and original aliases are retained;
+- notes, GIS/DCFS/blank source, coordinates, and manual pins are preserved;
+- stale writes cannot overwrite newer records;
+- deletion is recoverable;
+- a dated pre-migration snapshot exists.
 
-## Phase 7 — post-release controls
+Optimization must continue to work during and after migration, and it may read
+selected stable IDs and coordinates without changing memory records.
 
-Monitor:
+## Stage 5 — independent CSV import and address review
 
-- request count and shipment usage;
-- failed and rejected responses;
-- latency;
-- quota exhaustion;
-- unexpected billing;
-- incomplete-route attempts;
-- operator fallback frequency;
-- route quality compared with field results;
-- any attempted write to protected address-memory fields.
+Make the app independently usable without the workbook.
 
-Review after the first three real batches and again after the first full month.
-Do not increase quotas automatically.
+Supported origins:
+
+- Workbook Drive inbox;
+- local InspectorADE CSV;
+- manual entry or paste.
+
+Required result:
+
+- file parsing occurs locally before accepted records are saved;
+- the app shows an Import Review;
+- safe formatting and governed exact corrections may be automatic;
+- house number, city, state, or ZIP changes require review;
+- duplicates and uncertain matches are shown rather than silently merged;
+- original and corrected address values are retained;
+- accepted jobs are saved to cloud memory and can be routed immediately;
+- the workbook remains a separate optional source and is never rewritten.
+
+CSV is the first required file format. `.xlsx` follows after CSV works with real
+sanitized files. Legacy `.xls` follows only after a safe bundled parser is
+reviewed.
+
+## Stage 6 — recovery and convenience
+
+After the required operating path is proven:
+
+- create dated Drive recovery snapshots;
+- complete the separate route-backup document and email workflow;
+- add optional human-readable Obsidian reports;
+- add Excel import support;
+- add route analytics only when they help field decisions.
+
+Obsidian remains outside the app's required operating path.
+
+## Required project order
+
+The runtime projects are separate so one large change cannot damage every
+surface:
+
+1. **Google road-aware optimization — first and highest priority.**
+2. **Cloud address memory and safe migration.**
+3. **Standalone CSV import and address correction.**
+4. **Excel and optional reporting conveniences.**
+
+The later stages are not removed. They are required follow-on projects, but they
+are not allowed to hold the first useful optimization release hostage.
 
 ## Success criteria
 
-The project succeeds only when:
+The plan succeeds only when:
 
-- a selected batch is optimized together as one vehicle route;
-- Home starts and ends the route;
+- Google produces a complete road-aware route for the selected batch;
 - every selected job appears exactly once;
-- no skipped shipment is silently accepted;
-- the app, Google Maps links, printed order, BaseCamp, and Garmin show the same
-  stop sequence;
-- the current free optimizer remains functional;
-- a Google outage or authentication failure does not destroy the active route;
-- cloud address-memory records remain unchanged by optimization;
-- browser clearing does not erase the address memory;
-- credentials remain private;
-- company ownership and billing recovery do not depend solely on one personal
-  account;
-- measured cost remains within the operator-approved budget.
+- Home starts and finishes the route;
+- app, Google Maps, printed order, BaseCamp, and Garmin agree on stop sequence;
+- the free optimizer remains available;
+- provider failure does not destroy the current route;
+- permanent addresses survive browser loss after the memory stage;
+- local CSV jobs can be imported without the workbook after the import stage;
+- address corrections preserve original values and manual pins;
+- company ownership and billing recovery do not depend on one personal account;
+- measured cost stays within the approved budget.
 
-## Workbook impact
+## Workbook boundary
 
-The workbook continues to send the same selected addresses, source values, and
-order through `Free Map Router Address Inbox.json`. It remains one optional
-source beside local file import and manual entry.
+The workbook remains responsible for forecasting, completion history, printing,
+and its own job workflow. It remains one supported source of route jobs.
 
-Google optimization occurs after the app has loaded cloud address-memory records
-and selected stops. It does not change workbook data or the inbox contract.
+Free Map Router owns address review, reusable route memory, route selection,
+optimization, Google Maps output, and Garmin GPX output.
 
-A companion workbook change is required only if later scope changes the inbox
-schema, exported address text, source values, order meaning, duplicate handling,
-or import-preservation rules.
+The current workbook inbox contract remains unchanged unless a later separately
+approved integration change modifies its schema or meaning.
 
 ## Rollback direction
 
-At every runtime phase, the system must be able to return to:
+At every stage the system must be able to return to:
 
 - the last known-good app commit;
-- the existing free optimizer;
-- the cloud address-memory recovery snapshot;
+- the current free optimizer;
 - the current workbook inbox contract;
-- the existing Garmin export workflow.
+- the current Garmin export workflow;
+- the pre-migration address snapshot once cloud migration begins.
 
-Disabling or deleting the Cloud routing service must not prevent the app from
-loading cloud address memory or using the free optimizer. Disabling cloud
-address-memory writes must not delete the stored records.
+Disabling Google routing must not prevent the free optimizer from working.
+Disabling cloud-memory writes must not delete stored addresses.
