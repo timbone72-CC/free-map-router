@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const {
     applyAddressInbox,
     formatInboxImportStatus,
+    isAddressInboxExportedToday,
     parseAddressInbox,
 } = require("../inbox.js");
 
@@ -87,6 +88,23 @@ test("nonempty inbox without a valid export time is rejected", () => {
             /valid export time/,
         );
     }
+});
+
+test("inbox freshness uses the operator's local calendar date", () => {
+    const now = new Date(2026, 7, 2, 0, 1);
+    const exportedToday = {
+        updatedAt: new Date(2026, 7, 2, 23, 59).toISOString(),
+    };
+    const exportedYesterday = {
+        updatedAt: new Date(2026, 7, 1, 23, 59).toISOString(),
+    };
+    const exportedTomorrow = {
+        updatedAt: new Date(2026, 7, 3, 0, 1).toISOString(),
+    };
+
+    assert.equal(isAddressInboxExportedToday(exportedToday, now), true);
+    assert.equal(isAddressInboxExportedToday(exportedYesterday, now), false);
+    assert.equal(isAddressInboxExportedToday(exportedTomorrow, now), false);
 });
 
 test("inbox adds new addresses and replaces only the route selection", () => {
