@@ -55,7 +55,12 @@ function visitStopId(request, visit) {
     const label = String(visit?.shipmentLabel ?? "").trim();
     if (label) return label;
 
-    const shipmentIndex = Number(visit?.shipmentIndex);
+    // Protocol Buffer JSON omits integer fields when their value is zero.
+    // For the first shipment, an absent shipmentIndex therefore means index 0.
+    const shipmentIndex =
+        visit?.shipmentIndex === undefined
+            ? 0
+            : Number(visit.shipmentIndex);
     if (
         Number.isInteger(shipmentIndex) &&
         shipmentIndex >= 0 &&
