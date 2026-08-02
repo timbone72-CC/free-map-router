@@ -28,3 +28,16 @@ test("Settings explains the active-session auto-save boundary", () => {
     assert.match(html, /while the app is[\s\S]*open/);
     assert.match(contract, /short-lived Google connection remains active/);
 });
+
+
+test("workbook inbox result stays separate from backup auto-save status", () => {
+    assert.match(html, /id="googleDriveInboxStatus"/);
+    assert.match(
+        app,
+        /googleDriveInboxStatus: document\.getElementById\("googleDriveInboxStatus"\)/,
+    );
+    assert.match(
+        app,
+        /els\.googleDriveInboxStatus\.textContent =[\s\S]*formatInboxImportStatus/,
+    );
+});
