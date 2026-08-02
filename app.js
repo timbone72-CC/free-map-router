@@ -1022,6 +1022,22 @@ async function findFormLocation() {
         return;
     }
 
+    const currentLatitude = toNumberOrNull(els.latitude?.value);
+    const currentLongitude = toNumberOrNull(els.longitude?.value);
+    if (
+        formPinStatus === "manual" &&
+        currentLatitude !== null &&
+        currentLongitude !== null
+    ) {
+        showLocationMap(currentLatitude, currentLongitude);
+        updateLocationPreview(currentLatitude, currentLongitude);
+        if (els.locationStatus) {
+            els.locationStatus.textContent =
+                "Manual pin protected. Move the pin on the map to change it, or change the address for a new lookup.";
+        }
+        return;
+    }
+
     els.findLocation.disabled = true;
     if (els.locationStatus) {
         els.locationStatus.textContent = "Finding the location…";
