@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 
 const {
     applyAddressInbox,
+    formatInboxImportStatus,
     parseAddressInbox,
 } = require("../inbox.js");
 
@@ -31,6 +32,61 @@ test("valid workbook inbox is parsed in print order", () => {
             "100 First St, Weatherford, OK 73096",
         ],
     );
+});
+
+test("inbox status shows export time, source, job count, and import result", () => {
+    const inbox = parseAddressInbox(
+        inboxText([
+            { address: "300 Third St, Elk City, OK 73644" },
+            { address: "100 First St, Weatherford, OK 73096" },
+        ]),
+    );
+
+    assert.equal(
+        formatInboxImportStatus(
+            inbox,
+            2,
+            (date) => date.toISOString(),
+        ),
+        "Import successful — 2 of 2 jobs. Source: InspectorADE Repeat Job Predictor - LIVE. Updated: 2026-07-30T18:00:00.000Z.",
+    );
+});
+
+test("empty inbox status is explicit without inventing an export time", () => {
+    const inbox = parseAddressInbox(
+        JSON.stringify({
+            app: "free-map-router",
+            inboxVersion: 1,
+            source: "InspectorADE Repeat Job Predictor - LIVE",
+            updatedAt: null,
+            addresses: [],
+        }),
+    );
+
+    assert.equal(
+        formatInboxImportStatus(inbox, 0),
+        "Inbox ready — 0 jobs. Source: InspectorADE Repeat Job Predictor - LIVE. Updated: not yet exported. Import status: no jobs to import.",
+    );
+});
+
+test("nonempty inbox without a valid export time is rejected", () => {
+    for (const updatedAt of [null, "not-a-date"]) {
+        assert.throws(
+            () =>
+                parseAddressInbox(
+                    JSON.stringify({
+                        app: "free-map-router",
+                        inboxVersion: 1,
+                        source: "InspectorADE Repeat Job Predictor - LIVE",
+                        updatedAt,
+                        addresses: [
+                            { address: "300 Third St, Elk City, OK 73644" },
+                        ],
+                    }),
+                ),
+            /valid export time/,
+        );
+    }
 });
 
 test("inbox adds new addresses and replaces only the route selection", () => {
