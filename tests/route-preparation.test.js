@@ -9,9 +9,15 @@ const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
 
 test("Optimize Route prepares selected addresses with Geoapify", () => {
     assert.match(app, /async function optimizeSelectedRoute/);
+    assert.match(app, /async function prepareMissingRouteCoordinates/);
     assert.match(app, /findAddressWithGeoapify/);
     assert.match(app, /pinStatus:\s*"geocoded"/);
     assert.match(html, /id="routeStatus"/);
+});
+
+test("Google Optimize prepares all selected addresses before its request", () => {
+    assert.match(app, /async prepareSelectedRouteSnapshot/);
+    assert.match(app, /await prepareMissingRouteCoordinates\(selected, apiKey\)/);
 });
 
 test("Geoapify attribution is visible", () => {

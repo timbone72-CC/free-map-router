@@ -16,12 +16,13 @@ test("Build Route exposes separate free and Google road optimizers", () => {
     assert.doesNotMatch(html, /Google Optimize \(Test\)/);
     assert.match(html, /id="googleRouteSignIn"/);
     assert.match(html, /google-route-contract\.js\?v=1\.0\.0/);
-    assert.match(html, /google-route-browser\.js\?v=1\.0\.0/);
+    assert.match(html, /google-route-browser\.js\?v=1\.1\.0/);
 });
 
 test("app owns Google route application through a narrow bridge", () => {
     const app = read("app.js");
     assert.match(app, /globalThis\.FMRRouteBridge = Object\.freeze/);
+    assert.match(app, /async prepareSelectedRouteSnapshot/);
     assert.match(app, /validateBackendResponse/);
     assert.match(app, /applyOrderedStopIds/);
     assert.match(app, /routeIds = ordered\.map/);

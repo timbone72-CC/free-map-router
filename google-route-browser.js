@@ -40,6 +40,16 @@
     }
 
     function coordinateKey(stop) {
+        if (
+            stop?.latitude === null ||
+            stop?.latitude === undefined ||
+            stop?.latitude === "" ||
+            stop?.longitude === null ||
+            stop?.longitude === undefined ||
+            stop?.longitude === ""
+        ) {
+            return "";
+        }
         const latitude = Number(stop?.latitude);
         const longitude = Number(stop?.longitude);
         if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return "";
@@ -146,6 +156,13 @@
         };
     }
 
+    async function prepareSnapshotForGoogle(bridge) {
+        if (typeof bridge?.prepareSelectedRouteSnapshot !== "function") {
+            throw new Error("Google route preparation is unavailable. Refresh the app.");
+        }
+        return bridge.prepareSelectedRouteSnapshot();
+    }
+
     function formatMetrics(response) {
         const meters = Number(response?.totalDistanceMeters);
         const seconds = Number(response?.totalDurationSeconds);
@@ -225,10 +242,11 @@
             }
 
             optimizeButton.disabled = true;
-            setStatus("Google is calculating a road-aware route…");
+            setStatus("Preparing selected addresses for Google…");
 
             try {
-                const snapshot = bridge.selectedRouteSnapshot();
+                const snapshot = await prepareSnapshotForGoogle(bridge);
+                setStatus("Google is calculating a road-aware route…");
                 const result = await optimizeWithGoogle({
                     snapshot,
                     idToken,
@@ -272,6 +290,7 @@
         formatMetrics,
         initializeBrowserUi,
         optimizeWithGoogle,
+        prepareSnapshotForGoogle,
         requestId,
     };
 });
