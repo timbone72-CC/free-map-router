@@ -8,11 +8,12 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
-test("Build Route exposes separate free and test-only Google optimizers", () => {
+test("Build Route exposes separate free and Google road optimizers", () => {
     const html = read("index.html");
     assert.match(html, /id="optimizeRoute"/);
     assert.match(html, /id="googleOptimizeRoute"/);
-    assert.match(html, /Google Optimize \(Test\)/);
+    assert.match(html, /Google Optimize/);
+    assert.doesNotMatch(html, /Google Optimize \(Test\)/);
     assert.match(html, /id="googleRouteSignIn"/);
     assert.match(html, /google-route-contract\.js\?v=1\.0\.0/);
     assert.match(html, /google-route-browser\.js\?v=1\.0\.0/);
