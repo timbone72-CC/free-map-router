@@ -46,6 +46,7 @@ const {
 } = globalThis.FMRGeocoder;
 const {
     buildGoogleMapsDirectionsUrl,
+    buildGoogleMapsNavigationUrl,
     buildGoogleMapsRouteSections,
     optimizeRoundTripOrder,
 } = globalThis.FMRRouting;
@@ -352,6 +353,9 @@ const els = {
     routeStatus: document.getElementById("routeStatus"),
     routeMapLinks: document.getElementById("routeMapLinks"),
     clearRoute: document.getElementById("clearRoute"),
+    completeAndNavigateNext: document.getElementById(
+        "completeAndNavigateNext",
+    ),
 
     // actions
     optimizeRoute: document.getElementById("optimizeRoute"),
@@ -659,6 +663,10 @@ function renderRouteList() {
     if (!list) return;
     list.innerHTML = "";
     renderGoogleMapsActions();
+
+    if (els.completeAndNavigateNext) {
+        els.completeAndNavigateNext.disabled = !home || routeIds.length === 0;
+    }
 
     if (!home) {
         const li = document.createElement("li");
@@ -1236,6 +1244,50 @@ function exportToGoogleMaps() {
     window.open(url, "_blank");
 }
 
+function completeCurrentStopAndNavigate() {
+    if (!home) {
+        alert("Save your Home / Route Base first.");
+        return;
+    }
+
+    if (routeIds.length === 0) {
+        alert("No current stop remains in this route.");
+        return;
+    }
+
+    const currentStopId = routeIds[0];
+    const currentStop = jobs.find((job) => job.id === currentStopId);
+    if (!currentStop) {
+        alert("The current route stop could not be found.");
+        return;
+    }
+
+    const nextRouteIds = routeIds.slice(1);
+    const nextStop = nextRouteIds
+        .map((id) => jobs.find((job) => job.id === id))
+        .find(Boolean);
+    const destination = nextStop || home;
+    const url = buildGoogleMapsNavigationUrl(destination);
+
+    if (!url) {
+        alert("The next destination needs a readable address or corrected pin.");
+        return;
+    }
+
+    routeIds = nextRouteIds;
+    renderRouteList();
+    renderJobsList();
+    scheduleDriveAutosave();
+
+    if (els.routeStatus) {
+        els.routeStatus.textContent = nextStop
+            ? `Completed ${currentStop.address}. Navigating to ${nextStop.address}. ${nextRouteIds.length} stop${nextRouteIds.length === 1 ? "" : "s"} remain.`
+            : `Completed ${currentStop.address}. Route complete — navigating Home.`;
+    }
+
+    window.open(url, "_blank");
+}
+
 // ============================================================================
 // SECTION 13 — Event Wiring
 // ============================================================================
@@ -1611,6 +1663,13 @@ if (els.clearRoute) {
 
 if (els.exportRoute) {
     els.exportRoute.addEventListener("click", exportToGoogleMaps);
+}
+
+if (els.completeAndNavigateNext) {
+    els.completeAndNavigateNext.addEventListener(
+        "click",
+        completeCurrentStopAndNavigate,
+    );
 }
 
 // CSV import (file picker)
