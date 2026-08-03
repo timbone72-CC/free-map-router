@@ -2,11 +2,38 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
     buildGoogleMapsDirectionsUrl,
+    buildGoogleMapsNavigationUrl,
     buildGoogleMapsRouteSections,
     improveWithTwoOpt,
     optimizeRoundTripOrder,
     roundTripMiles,
 } = require("../routing.js");
+
+test("next-stop navigation uses current location and starts driving navigation", () => {
+    const url = buildGoogleMapsNavigationUrl({
+        address: "123 Main St, Elk City, OK 73644",
+    });
+
+    assert.equal(
+        url,
+        "https://www.google.com/maps/dir/?api=1" +
+            "&destination=123%20Main%20St%2C%20Elk%20City%2C%20OK%2073644" +
+            "&travelmode=driving&dir_action=navigate",
+    );
+    assert.doesNotMatch(url, /origin=/);
+});
+
+test("next-stop navigation honors a manually corrected exact pin", () => {
+    const url = buildGoogleMapsNavigationUrl({
+        address: "Ambiguous Address",
+        latitude: 35.4111,
+        longitude: -99.4042,
+        pinStatus: "manual",
+    });
+
+    assert.match(url, /destination=35\.4111%2C-99\.4042/);
+    assert.doesNotMatch(url, /Ambiguous/);
+});
 
 test("optimization starts with the stop nearest verified Home", () => {
     const home = { latitude: 35, longitude: -99 };

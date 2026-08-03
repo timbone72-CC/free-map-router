@@ -157,6 +157,17 @@
         return buildGoogleMapsDirectionsUrlFromPoints(points);
     }
 
+    function buildGoogleMapsNavigationUrl(destination) {
+        const point = routePoint(destination);
+        if (!point) return "";
+
+        return (
+            "https://www.google.com/maps/dir/?api=1" +
+            `&destination=${encodeURIComponent(point)}` +
+            "&travelmode=driving&dir_action=navigate"
+        );
+    }
+
     function buildGoogleMapsRouteSections(home, stops, maxWaypoints = 9) {
         const selectedStops = Array.isArray(stops) ? stops : [];
         if (!home || selectedStops.length === 0) return [];
@@ -198,6 +209,7 @@
 
     return {
         buildGoogleMapsDirectionsUrl,
+        buildGoogleMapsNavigationUrl,
         buildGoogleMapsRouteSections,
         distanceMiles,
         roundTripMiles,
