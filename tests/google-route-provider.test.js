@@ -29,7 +29,10 @@ test("Google request models one vehicle returning to Home", () => {
         latitude: 35,
         longitude: -99,
     });
-    assert.equal(request.model.vehicles[0].costPerTraveledHour, 1);
+    assert.equal(request.model.vehicles[0].costPerKilometer, 1);
+    assert.equal(request.model.vehicles[0].costPerTraveledHour, undefined);
+    assert.equal(request.searchMode, "CONSUME_ALL_AVAILABLE_TIME");
+    assert.equal(request.timeout, "30s");
     assert.equal(request.considerRoadTraffic, false);
 });
 
