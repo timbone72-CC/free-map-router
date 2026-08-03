@@ -17,6 +17,7 @@ function buildGoogleOptimizeToursRequest(backendRequest) {
 
     return {
         timeout: "30s",
+        searchMode: "CONSUME_ALL_AVAILABLE_TIME",
         model: {
             shipments: request.stops.map((stop) => ({
                 label: stop.id,
@@ -42,7 +43,7 @@ function buildGoogleOptimizeToursRequest(backendRequest) {
                         latitude: request.home.latitude,
                         longitude: request.home.longitude,
                     },
-                    costPerTraveledHour: 1,
+                    costPerKilometer: 1,
                 },
             ],
         },
