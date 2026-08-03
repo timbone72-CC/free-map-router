@@ -8,9 +8,128 @@ const {
     buildBrowserRequest,
     duplicateCoordinateGroups,
     formatMetrics,
+    initializeBrowserUi,
     optimizeWithGoogle,
     prepareSnapshotForGoogle,
 } = require("../google-route-browser.js");
+
+test("successful Google sign-in hides the stale personalized sign-in control", () => {
+    const signInContainer = { hidden: false };
+    const optimizeButton = {
+        disabled: true,
+        addEventListener() {},
+    };
+    const authStatus = { textContent: "" };
+    let credentialCallback = null;
+    let renderedInto = null;
+    const elements = {
+        googleRouteSignIn: signInContainer,
+        googleOptimizeRoute: optimizeButton,
+        googleRouteAuthStatus: authStatus,
+    };
+    const root = {
+        document: {
+            readyState: "complete",
+            getElementById(id) {
+                return elements[id] || null;
+            },
+        },
+        FMRRouteBridge: {
+            setRouteStatus() {},
+        },
+        google: {
+            accounts: {
+                id: {
+                    initialize(options) {
+                        credentialCallback = options.callback;
+                    },
+                    renderButton(container) {
+                        renderedInto = container;
+                    },
+                },
+            },
+        },
+    };
+
+    assert.equal(initializeBrowserUi(root), true);
+    assert.equal(renderedInto, signInContainer);
+    assert.equal(signInContainer.hidden, false);
+
+    credentialCallback({ credential: "company-google-id-token" });
+
+    assert.equal(optimizeButton.disabled, false);
+    assert.equal(signInContainer.hidden, true);
+    assert.equal(
+        authStatus.textContent,
+        "Signed in for this browser session. Google Optimize will verify the approved company account.",
+    );
+});
+
+test("rejected Google sign-in restores the account chooser", async (t) => {
+    const originalFetch = globalThis.fetch;
+    t.after(() => {
+        globalThis.fetch = originalFetch;
+    });
+
+    const signInContainer = { hidden: false };
+    let optimizeClick = null;
+    const optimizeButton = {
+        disabled: true,
+        addEventListener(eventName, callback) {
+            if (eventName === "click") optimizeClick = callback;
+        },
+    };
+    const authStatus = { textContent: "" };
+    let credentialCallback = null;
+    const elements = {
+        googleRouteSignIn: signInContainer,
+        googleOptimizeRoute: optimizeButton,
+        googleRouteAuthStatus: authStatus,
+    };
+    const root = {
+        document: {
+            readyState: "complete",
+            getElementById(id) {
+                return elements[id] || null;
+            },
+        },
+        FMRRouteBridge: {
+            setRouteStatus() {},
+            prepareSelectedRouteSnapshot: async () => snapshot(),
+        },
+        google: {
+            accounts: {
+                id: {
+                    initialize(options) {
+                        credentialCallback = options.callback;
+                    },
+                    renderButton() {},
+                },
+            },
+        },
+    };
+    globalThis.fetch = async () => ({
+        ok: false,
+        status: 403,
+        json: async () => ({
+            code: "ACCOUNT_NOT_ALLOWED",
+            message: "Use the approved company Google account.",
+        }),
+    });
+
+    assert.equal(initializeBrowserUi(root), true);
+    credentialCallback({ credential: "personal-google-id-token" });
+    assert.equal(signInContainer.hidden, true);
+
+    await optimizeClick();
+
+    assert.equal(signInContainer.hidden, false);
+    assert.equal(optimizeButton.disabled, true);
+    assert.equal(
+        authStatus.textContent,
+        "Sign-in expired or the account was not approved. Sign in again with the company account.",
+    );
+});
 
 function snapshot() {
     return {

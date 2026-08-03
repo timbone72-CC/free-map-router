@@ -203,6 +203,10 @@
             bridge.setRouteStatus(String(message || ""));
         }
 
+        function showSignInControl(show) {
+            signInContainer.hidden = !show;
+        }
+
         function initializeIdentity() {
             if (identityInitialized) return;
             const identity = root?.google?.accounts?.id;
@@ -222,13 +226,15 @@
                 callback: (credentialResponse) => {
                     idToken = String(credentialResponse?.credential ?? "").trim();
                     optimizeButton.disabled = !idToken;
+                    showSignInControl(!idToken);
                     if (authStatus) {
                         authStatus.textContent = idToken
-                            ? "Signed in for this browser session. The server will verify the company account."
+                            ? "Signed in for this browser session. Google Optimize will verify the approved company account."
                             : "Google sign-in was not completed.";
                     }
                 },
             });
+            showSignInControl(true);
             identity.renderButton(signInContainer, {
                 type: "standard",
                 theme: "outline",
@@ -269,6 +275,7 @@
                 setStatus(error?.message || "Google road optimization failed.");
                 if (error?.statusCode === 401 || error?.statusCode === 403) {
                     idToken = "";
+                    showSignInControl(true);
                     if (authStatus) {
                         authStatus.textContent =
                             "Sign-in expired or the account was not approved. Sign in again with the company account.";
