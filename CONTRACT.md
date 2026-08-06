@@ -129,15 +129,24 @@ that route in Google Maps.
    replaced without approval.
 5. Only files and behavior required for the approved change may be modified.
 6. Experimental behavior may not be written directly to `main`.
-7. The user's approval of a documented Level 1 or Level 2 scope counts once; do
-   not require duplicate approval unless the scope changes.
-8. Level 3 changes require explicit pre-merge approval because they can broadly
-   affect data, permissions, routing, or deployment.
-9. New features, fields, pages, services, paid APIs, or workflow changes require
-   approval before implementation.
-10. A change is incomplete if its risk-matched regression checks fail or if it
+7. The user's approval of a documented Level 1 or Level 2 scope counts once and
+   authorizes the complete unchanged release transaction.
+8. Level 3 changes require one explicit **PUBLISH** or equally clear release
+   instruction after the material scope is described and before merge. That one
+   approval authorizes final testing, branch, commit, push, pull request,
+   in-scope review corrections, merge, publication, live verification, and
+   rollback if needed.
+9. A valid approval survives tool changes and session handoffs. Do not ask for
+   the same approval again unless the repository destination changes, material
+   scope expands, a new destructive consequence is discovered, or the user
+   stops or withdraws approval.
+10. An established repository destination does not need to be restated in a
+    longer approval phrase.
+11. New features, fields, pages, services, paid APIs, or workflow changes require
+    approval before implementation.
+12. A change is incomplete if its risk-matched regression checks fail or if it
     violates this contract.
-11. Guardrails must not be expanded merely to slow development. They exist to
+13. Guardrails must not be expanded merely to slow development. They exist to
     make forward progress safer and more reliable.
 
 ## 7. Required regression protection
