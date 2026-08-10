@@ -91,6 +91,10 @@ that route in Google Maps.
     Current with no Previous Route.
 14. Automatic Drive backup writes are serialized so the latest queued state is
     written last.
+15. Settings provides an **Update App** control that works only while online,
+    removes only Free Map Router's app cache and service-worker registration,
+    and reloads a cache-busted app URL. It does not delete Home, saved
+    addresses, pins, Current, Previous, backups, or browser settings.
 
 ## 5. Route rules
 
