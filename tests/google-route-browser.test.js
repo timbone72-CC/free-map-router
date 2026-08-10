@@ -22,6 +22,8 @@ test("successful Google sign-in loads the backend workbook inbox through the app
     };
     const authStatus = { textContent: "" };
     let credentialCallback = null;
+    let identityOptions = null;
+    let promptCount = 0;
     let renderedInto = null;
     let appliedInbox = null;
     const elements = {
@@ -47,10 +49,14 @@ test("successful Google sign-in loads the backend workbook inbox through the app
             accounts: {
                 id: {
                     initialize(options) {
+                        identityOptions = options;
                         credentialCallback = options.callback;
                     },
                     renderButton(container) {
                         renderedInto = container;
+                    },
+                    prompt() {
+                        promptCount += 1;
                     },
                 },
             },
@@ -74,6 +80,10 @@ test("successful Google sign-in loads the backend workbook inbox through the app
         assert.equal(initializeBrowserUi(root), true);
         assert.equal(renderedInto, signInContainer);
         assert.equal(signInContainer.hidden, false);
+        assert.equal(identityOptions.auto_select, true);
+        assert.equal(identityOptions.button_auto_select, true);
+        assert.equal(identityOptions.use_fedcm_for_button, true);
+        assert.equal(promptCount, 1);
 
         await credentialCallback({ credential: "company-google-id-token" });
     } finally {
@@ -91,7 +101,7 @@ test("successful Google sign-in loads the backend workbook inbox through the app
     });
     assert.equal(
         authStatus.textContent,
-        "Signed in for this browser session. Google Optimize will verify the approved company account.",
+        "Connected with the approved company Google account.",
     );
 });
 
@@ -158,7 +168,100 @@ test("rejected Google sign-in restores the account chooser", async (t) => {
     assert.equal(optimizeButton.disabled, true);
     assert.equal(
         authStatus.textContent,
-        "Sign-in expired or the account was not approved. Sign in again with the company account.",
+        "The account was not approved. Sign in again with the company account.",
+    );
+});
+
+test("expired identity requests one automatic Google renewal and keeps the sign-in fallback", async (t) => {
+    const originalFetch = globalThis.fetch;
+    t.after(() => {
+        globalThis.fetch = originalFetch;
+    });
+
+    const signInContainer = { hidden: false };
+    const optimizeButton = {
+        disabled: true,
+        addEventListener() {},
+    };
+    const authStatus = { textContent: "" };
+    let credentialCallback = null;
+    let focusListener = null;
+    let promptCount = 0;
+    const elements = {
+        googleRouteSignIn: signInContainer,
+        googleOptimizeRoute: optimizeButton,
+        googleRouteAuthStatus: authStatus,
+    };
+    const root = {
+        addEventListener(eventName, callback) {
+            if (eventName === "focus") focusListener = callback;
+        },
+        document: {
+            readyState: "complete",
+            visibilityState: "visible",
+            getElementById(id) {
+                return elements[id] || null;
+            },
+            addEventListener() {},
+        },
+        FMRRouteBridge: {
+            setRouteStatus() {},
+            async applyWorkbookInboxFromBackend() {},
+        },
+        google: {
+            accounts: {
+                id: {
+                    initialize(options) {
+                        credentialCallback = options.callback;
+                    },
+                    renderButton() {},
+                    prompt() {
+                        promptCount += 1;
+                    },
+                },
+            },
+        },
+    };
+
+    let requestCount = 0;
+    globalThis.fetch = async () => {
+        requestCount += 1;
+        if (requestCount === 1) {
+            return {
+                ok: true,
+                status: 200,
+                json: async () => ({
+                    app: "free-map-router",
+                    inboxVersion: 1,
+                    source: "InspectorADE Repeat Job Predictor - LIVE",
+                    updatedAt: "2026-08-10T18:00:00.000Z",
+                    addresses: [{ address: "101 Main St, Elk City, OK" }],
+                }),
+            };
+        }
+        return {
+            ok: false,
+            status: 401,
+            json: async () => ({
+                code: "INVALID_SIGN_IN",
+                message: "Google sign-in could not be verified. Sign in again.",
+            }),
+        };
+    };
+
+    assert.equal(initializeBrowserUi(root), true);
+    assert.equal(promptCount, 1);
+    await credentialCallback({ credential: "company-google-id-token" });
+    assert.equal(signInContainer.hidden, true);
+
+    await focusListener();
+
+    assert.equal(promptCount, 2);
+    assert.equal(signInContainer.hidden, false);
+    assert.equal(optimizeButton.disabled, true);
+    assert.equal(
+        authStatus.textContent,
+        "Google sign-in expired. Reconnecting with the approved company account…",
     );
 });
 

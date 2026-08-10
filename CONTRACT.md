@@ -144,6 +144,11 @@ that route in Google Maps.
 17. Optimize, Google Optimize, Up, Down, Remove, Clear Route, Done, Google Maps,
     and Garmin operate on the Current or Previous slot selected in Build Route.
     A new workbook route always switches the app back to Current.
+18. After the approved business account signs in once, the app asks Google to
+    renew that identity automatically when the app loads again. If Google
+    cannot renew it, the existing company-account sign-in control remains
+    available. Google identity credentials are never stored in browser storage,
+    app backups, or Drive files.
 
 ## 6. Change control
 
