@@ -9,11 +9,12 @@ const {
     duplicateCoordinateGroups,
     formatMetrics,
     initializeBrowserUi,
+    loadWorkbookInboxFromBackend,
     optimizeWithGoogle,
     prepareSnapshotForGoogle,
 } = require("../google-route-browser.js");
 
-test("successful Google sign-in hides the stale personalized sign-in control", () => {
+test("successful Google sign-in loads the backend workbook inbox through the app bridge", async () => {
     const signInContainer = { hidden: false };
     const optimizeButton = {
         disabled: true,
@@ -22,6 +23,7 @@ test("successful Google sign-in hides the stale personalized sign-in control", (
     const authStatus = { textContent: "" };
     let credentialCallback = null;
     let renderedInto = null;
+    let appliedInbox = null;
     const elements = {
         googleRouteSignIn: signInContainer,
         googleOptimizeRoute: optimizeButton,
@@ -30,12 +32,16 @@ test("successful Google sign-in hides the stale personalized sign-in control", (
     const root = {
         document: {
             readyState: "complete",
+            visibilityState: "visible",
             getElementById(id) {
                 return elements[id] || null;
             },
         },
         FMRRouteBridge: {
             setRouteStatus() {},
+            async applyWorkbookInboxFromBackend(inbox, options) {
+                appliedInbox = { inbox, options };
+            },
         },
         google: {
             accounts: {
@@ -51,14 +57,38 @@ test("successful Google sign-in hides the stale personalized sign-in control", (
         },
     };
 
-    assert.equal(initializeBrowserUi(root), true);
-    assert.equal(renderedInto, signInContainer);
-    assert.equal(signInContainer.hidden, false);
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+            app: "free-map-router",
+            inboxVersion: 1,
+            source: "InspectorADE Repeat Job Predictor - LIVE",
+            updatedAt: "2026-08-10T18:00:00.000Z",
+            addresses: [{ address: "101 Main St, Elk City, OK" }],
+        }),
+    });
 
-    credentialCallback({ credential: "company-google-id-token" });
+    try {
+        assert.equal(initializeBrowserUi(root), true);
+        assert.equal(renderedInto, signInContainer);
+        assert.equal(signInContainer.hidden, false);
+
+        await credentialCallback({ credential: "company-google-id-token" });
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
 
     assert.equal(optimizeButton.disabled, false);
     assert.equal(signInContainer.hidden, true);
+    assert.equal(
+        appliedInbox.inbox.addresses[0].address,
+        "101 Main St, Elk City, OK",
+    );
+    assert.deepEqual(appliedInbox.options, {
+        allowStaleConfirmation: true,
+    });
     assert.equal(
         authStatus.textContent,
         "Signed in for this browser session. Google Optimize will verify the approved company account.",
@@ -89,6 +119,7 @@ test("rejected Google sign-in restores the account chooser", async (t) => {
     const root = {
         document: {
             readyState: "complete",
+            visibilityState: "visible",
             getElementById(id) {
                 return elements[id] || null;
             },
@@ -118,7 +149,7 @@ test("rejected Google sign-in restores the account chooser", async (t) => {
     });
 
     assert.equal(initializeBrowserUi(root), true);
-    credentialCallback({ credential: "personal-google-id-token" });
+    await credentialCallback({ credential: "personal-google-id-token" });
     assert.equal(signInContainer.hidden, true);
 
     await optimizeClick();
@@ -129,6 +160,104 @@ test("rejected Google sign-in restores the account chooser", async (t) => {
         authStatus.textContent,
         "Sign-in expired or the account was not approved. Sign in again with the company account.",
     );
+});
+
+test("returning to the signed-in app refreshes the backend inbox once", async (t) => {
+    const originalFetch = globalThis.fetch;
+    t.after(() => {
+        globalThis.fetch = originalFetch;
+    });
+
+    const signInContainer = { hidden: false };
+    const optimizeButton = {
+        disabled: true,
+        addEventListener() {},
+    };
+    const authStatus = { textContent: "" };
+    let credentialCallback = null;
+    let focusListener = null;
+    let visibilityListener = null;
+    let releaseRefresh = null;
+    let fetchCount = 0;
+    const applied = [];
+    const elements = {
+        googleRouteSignIn: signInContainer,
+        googleOptimizeRoute: optimizeButton,
+        googleRouteAuthStatus: authStatus,
+    };
+    const root = {
+        addEventListener(eventName, callback) {
+            if (eventName === "focus") focusListener = callback;
+        },
+        document: {
+            readyState: "complete",
+            visibilityState: "visible",
+            getElementById(id) {
+                return elements[id] || null;
+            },
+            addEventListener(eventName, callback) {
+                if (eventName === "visibilitychange") {
+                    visibilityListener = callback;
+                }
+            },
+        },
+        FMRRouteBridge: {
+            setRouteStatus() {},
+            async applyWorkbookInboxFromBackend(inbox, options) {
+                applied.push({ inbox, options });
+            },
+        },
+        google: {
+            accounts: {
+                id: {
+                    initialize(options) {
+                        credentialCallback = options.callback;
+                    },
+                    renderButton() {},
+                },
+            },
+        },
+    };
+
+    globalThis.fetch = async () => {
+        fetchCount += 1;
+        if (fetchCount === 2) {
+            await new Promise((resolve) => {
+                releaseRefresh = resolve;
+            });
+        }
+        return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+                app: "free-map-router",
+                inboxVersion: 1,
+                source: "InspectorADE Repeat Job Predictor - LIVE",
+                updatedAt:
+                    fetchCount === 1
+                        ? "2026-08-10T18:00:00.000Z"
+                        : "2026-08-10T19:00:00.000Z",
+                addresses: [{ address: `${fetchCount} Main St, Elk City, OK` }],
+            }),
+        };
+    };
+
+    assert.equal(initializeBrowserUi(root), true);
+    await credentialCallback({ credential: "company-google-id-token" });
+    assert.equal(fetchCount, 1);
+    assert.equal(applied.length, 1);
+
+    const focusRefresh = focusListener();
+    visibilityListener();
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(fetchCount, 2);
+
+    releaseRefresh();
+    await focusRefresh;
+    assert.equal(applied.length, 2);
+    assert.deepEqual(applied[1].options, {
+        allowStaleConfirmation: false,
+    });
 });
 
 function snapshot() {
@@ -281,6 +410,41 @@ test("browser sends the memory-only token and validates the complete response", 
     );
     assert.deepEqual(result.response.orderedStopIds, ["job-b", "job-a"]);
     assert.equal(formatMetrics(result.response), "10.0 road miles · 1.0 hours estimated driving");
+});
+
+test("backend workbook inbox read uses GET, no-store, and the memory-only company token", async () => {
+    const calls = [];
+    const inbox = {
+        app: "free-map-router",
+        inboxVersion: 1,
+        source: "InspectorADE Repeat Job Predictor - LIVE",
+        updatedAt: "2026-08-10T18:00:00.000Z",
+        addresses: [{ address: "101 Main St, Elk City, OK" }],
+    };
+
+    const result = await loadWorkbookInboxFromBackend({
+        idToken: "company-google-id-token",
+        backendUrl: "https://optimizer.example",
+        fetchImpl: async (url, options) => {
+            calls.push({ url, options });
+            return {
+                ok: true,
+                status: 200,
+                json: async () => inbox,
+            };
+        },
+    });
+
+    assert.deepEqual(result, inbox);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url, "https://optimizer.example/workbook-inbox");
+    assert.equal(calls[0].options.method, "GET");
+    assert.equal(calls[0].options.cache, "no-store");
+    assert.equal(
+        calls[0].options.headers.authorization,
+        "Bearer company-google-id-token",
+    );
+    assert.equal(JSON.stringify(calls[0]).includes("body"), false);
 });
 
 test("missing sign-in and backend account rejection fail closed", async () => {

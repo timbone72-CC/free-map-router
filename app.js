@@ -1617,13 +1617,14 @@ function scheduleDriveAutosave() {
     }, 750);
 }
 
-async function syncWorkbookInbox(token, { allowStaleConfirmation = true } = {}) {
+async function syncWorkbookInboxFrom(
+    loadInbox,
+    { allowStaleConfirmation = true } = {},
+) {
     if (driveInboxSyncPromise) return driveInboxSyncPromise;
 
     driveInboxSyncPromise = (async () => {
-        const inbox = parseAddressInbox(
-            await loadAddressInboxFromDrive(token),
-        );
+        const inbox = parseAddressInbox(await loadInbox());
 
         const currentSourceUpdatedAt =
             routeHistory.current?.sourceUpdatedAt || null;
@@ -1715,6 +1716,16 @@ async function syncWorkbookInbox(token, { allowStaleConfirmation = true } = {}) 
     }
 }
 
+function syncWorkbookInboxFromDrive(
+    token,
+    { allowStaleConfirmation = true } = {},
+) {
+    return syncWorkbookInboxFrom(
+        () => loadAddressInboxFromDrive(token),
+        { allowStaleConfirmation },
+    );
+}
+
 async function refreshWorkbookInboxIfConnected() {
     if (!driveAutosaveEnabled || document.visibilityState === "hidden") return;
 
@@ -1729,7 +1740,7 @@ async function refreshWorkbookInboxIfConnected() {
     }
 
     try {
-        const result = await syncWorkbookInbox(token, {
+        const result = await syncWorkbookInboxFromDrive(token, {
             allowStaleConfirmation: false,
         });
         if (result === "newer") scheduleDriveAutosave();
@@ -1753,7 +1764,7 @@ if (els.connectGoogleDrive) {
         try {
             const token = await connectDrive();
             await ensureAddressInbox(token);
-            await syncWorkbookInbox(token);
+            await syncWorkbookInboxFromDrive(token);
             scheduleDriveAutosave();
         } catch (error) {
             if (els.googleDriveStatus) {
@@ -2027,6 +2038,16 @@ globalThis.FMRRouteBridge = Object.freeze({
             totalDistanceMeters: validated.totalDistanceMeters,
             totalDurationSeconds: validated.totalDurationSeconds,
         };
+    },
+
+    async applyWorkbookInboxFromBackend(
+        inbox,
+        { allowStaleConfirmation = true } = {},
+    ) {
+        return syncWorkbookInboxFrom(
+            async () => JSON.stringify(inbox),
+            { allowStaleConfirmation },
+        );
     },
 
     setRouteStatus(message) {

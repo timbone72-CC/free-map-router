@@ -25,8 +25,20 @@ test("Drive connection imports the workbook inbox into the current route", () =>
     assert.match(app, /saved addresses were kept/i);
 });
 
+test("business-authenticated backend inbox reuses the protected app import path", () => {
+    assert.match(app, /async function syncWorkbookInboxFrom/);
+    assert.match(app, /applyWorkbookInboxFromBackend/);
+    assert.match(
+        app,
+        /applyWorkbookInboxFromBackend[\s\S]*syncWorkbookInboxFrom/,
+    );
+    assert.match(app, /JSON\.stringify\(inbox\)/);
+    assert.match(app, /applyAddressInbox\(jobs, inbox\)/);
+    assert.match(app, /applyWorkbookRoute\([\s\S]*imported\.routeIds/);
+});
+
 test("returning to a connected app refreshes a newer workbook route", () => {
-    assert.match(app, /function syncWorkbookInbox/);
+    assert.match(app, /function syncWorkbookInboxFrom/);
     assert.match(app, /function refreshWorkbookInboxIfConnected/);
     assert.match(
         app,
