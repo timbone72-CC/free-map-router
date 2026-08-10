@@ -14,6 +14,10 @@ const {
     RouteAuthenticationError,
     authenticateRequest,
 } = require("./google-route-auth.js");
+const {
+    WorkbookInboxError,
+    readWorkbookInbox,
+} = require("./workbook-inbox-reader.js");
 
 const DEFAULT_MAX_BODY_BYTES = 256 * 1024;
 const METADATA_TOKEN_URL =
@@ -68,7 +72,7 @@ function corsHeaders(request, allowedOrigin) {
 
     return {
         "access-control-allow-origin": configuredOrigin,
-        "access-control-allow-methods": "POST, OPTIONS",
+        "access-control-allow-methods": "GET, POST, OPTIONS",
         "access-control-allow-headers": "Authorization, Content-Type",
         "access-control-max-age": "3600",
         vary: "Origin",
@@ -81,7 +85,7 @@ function safeCorsHeaders(request, allowedOrigin) {
     return configuredOrigin && requestOrigin === configuredOrigin
         ? {
               "access-control-allow-origin": configuredOrigin,
-              "access-control-allow-methods": "POST, OPTIONS",
+              "access-control-allow-methods": "GET, POST, OPTIONS",
               "access-control-allow-headers": "Authorization, Content-Type",
               vary: "Origin",
           }
@@ -284,6 +288,7 @@ async function callGoogleOptimizeTours(
 
 function createRequestHandler({
     optimize = callGoogleOptimizeTours,
+    readInbox = readWorkbookInbox,
     authenticate = null,
     allowedOrigin = "",
 } = {}) {
@@ -296,7 +301,7 @@ function createRequestHandler({
                 return;
             }
 
-            if (url.pathname !== "/optimize") {
+            if (!["/optimize", "/workbook-inbox"].includes(url.pathname)) {
                 throw new HttpError(404, "NOT_FOUND", "Route not found.");
             }
 
@@ -308,6 +313,19 @@ function createRequestHandler({
                     return;
                 }
                 await authenticate(request);
+            }
+
+            if (url.pathname === "/workbook-inbox") {
+                if (request.method !== "GET") {
+                    throw new HttpError(
+                        405,
+                        "METHOD_NOT_ALLOWED",
+                        "Use GET for the workbook inbox.",
+                    );
+                }
+                const inbox = await readInbox();
+                writeJson(response, 200, inbox, responseCorsHeaders);
+                return;
             }
 
             if (request.method !== "POST") {
@@ -346,6 +364,7 @@ function createRequestHandler({
 
             if (
                 error instanceof HttpError ||
+                error instanceof WorkbookInboxError ||
                 error instanceof RouteAuthenticationError
             ) {
                 writeJson(
@@ -361,7 +380,7 @@ function createRequestHandler({
                 return;
             }
 
-            console.error("Route optimization request failed:", error?.message || error);
+            console.error("Free Map Router backend request failed:", error?.message || error);
             writeJson(
                 response,
                 500,
@@ -409,6 +428,7 @@ module.exports = {
     geocodeAddressWithGoogle,
     metadataAccessToken,
     readJsonBody,
+    readWorkbookInbox,
     resolveGoogleRouteRequest,
     safeCorsHeaders,
     startServer,

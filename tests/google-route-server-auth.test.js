@@ -79,12 +79,73 @@ test("approved GitHub Pages origin receives a narrow CORS preflight", async () =
         );
         assert.equal(
             response.headers.get("access-control-allow-methods"),
-            "POST, OPTIONS",
+            "GET, POST, OPTIONS",
         );
         assert.equal(
             response.headers.get("access-control-allow-headers"),
             "Authorization, Content-Type",
         );
+    });
+});
+
+test("authenticated company account can read the backend workbook inbox", async () => {
+    const inbox = {
+        app: "free-map-router",
+        inboxVersion: 1,
+        source: "InspectorADE Repeat Job Predictor - LIVE",
+        updatedAt: "2026-08-10T18:00:00.000Z",
+        addresses: [{ address: "100 Main St, Elk City, OK 73644" }],
+    };
+    const handler = createRequestHandler({
+        allowedOrigin: ALLOWED_ORIGIN,
+        authenticate: async () => ({
+            subject: "company-account-subject",
+            email: "inandoutinspections2026@gmail.com",
+        }),
+        readInbox: async () => inbox,
+    });
+
+    await withServer(handler, async (baseUrl) => {
+        const response = await fetch(`${baseUrl}/workbook-inbox`, {
+            headers: {
+                origin: ALLOWED_ORIGIN,
+                authorization: "Bearer company-google-token",
+            },
+        });
+
+        assert.equal(response.status, 200);
+        assert.equal(
+            response.headers.get("access-control-allow-origin"),
+            ALLOWED_ORIGIN,
+        );
+        assert.deepEqual(await response.json(), inbox);
+    });
+});
+
+test("workbook inbox is not read before company authentication", async () => {
+    let readerCalled = false;
+    const handler = createRequestHandler({
+        allowedOrigin: ALLOWED_ORIGIN,
+        authenticate: async () => {
+            throw new RouteAuthenticationError(
+                401,
+                "SIGN_IN_REQUIRED",
+                "Sign in with the approved company Google account.",
+            );
+        },
+        readInbox: async () => {
+            readerCalled = true;
+            return {};
+        },
+    });
+
+    await withServer(handler, async (baseUrl) => {
+        const response = await fetch(`${baseUrl}/workbook-inbox`, {
+            headers: { origin: ALLOWED_ORIGIN },
+        });
+
+        assert.equal(response.status, 401);
+        assert.equal(readerCalled, false);
     });
 });
 
