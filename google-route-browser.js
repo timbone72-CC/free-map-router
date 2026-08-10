@@ -248,6 +248,28 @@
             signInContainer.hidden = !show;
         }
 
+        function requestReturningGoogleIdentity() {
+            const identity = root?.google?.accounts?.id;
+            if (typeof identity?.prompt !== "function") return false;
+            identity.prompt();
+            return true;
+        }
+
+        function rejectGoogleIdentity(error) {
+            idToken = "";
+            optimizeButton.disabled = true;
+            showSignInControl(true);
+            if (authStatus) {
+                authStatus.textContent =
+                    error?.statusCode === 401
+                        ? "Google sign-in expired. Reconnecting with the approved company account…"
+                        : "The account was not approved. Sign in again with the company account.";
+            }
+            if (error?.statusCode === 401) {
+                requestReturningGoogleIdentity();
+            }
+        }
+
         async function refreshBackendWorkbookInbox({
             allowStaleConfirmation = false,
         } = {}) {
@@ -282,13 +304,7 @@
                         "The workbook route could not be refreshed.",
                 );
                 if (error?.statusCode === 401 || error?.statusCode === 403) {
-                    idToken = "";
-                    optimizeButton.disabled = true;
-                    showSignInControl(true);
-                    if (authStatus) {
-                        authStatus.textContent =
-                            "Sign-in expired or the account was not approved. Sign in again with the company account.";
-                    }
+                    rejectGoogleIdentity(error);
                 }
             }
         }
@@ -307,7 +323,9 @@
             identityInitialized = true;
             identity.initialize({
                 client_id: CLIENT_ID,
-                auto_select: false,
+                auto_select: true,
+                button_auto_select: true,
+                use_fedcm_for_button: true,
                 cancel_on_tap_outside: true,
                 callback: async (credentialResponse) => {
                     idToken = String(credentialResponse?.credential ?? "").trim();
@@ -315,7 +333,7 @@
                     showSignInControl(!idToken);
                     if (authStatus) {
                         authStatus.textContent = idToken
-                            ? "Signed in for this browser session. Google Optimize will verify the approved company account."
+                            ? "Connected with the approved company Google account."
                             : "Google sign-in was not completed.";
                     }
                     if (idToken) {
@@ -332,13 +350,7 @@
                                 error?.statusCode === 401 ||
                                 error?.statusCode === 403
                             ) {
-                                idToken = "";
-                                optimizeButton.disabled = true;
-                                showSignInControl(true);
-                                if (authStatus) {
-                                    authStatus.textContent =
-                                        "Sign-in expired or the account was not approved. Sign in again with the company account.";
-                                }
+                                rejectGoogleIdentity(error);
                             }
                         }
                     }
@@ -354,8 +366,9 @@
             });
             if (authStatus) {
                 authStatus.textContent =
-                    "Sign in with InandOutInspections2026@gmail.com to test Google road optimization.";
+                    "Checking the saved business Google sign-in…";
             }
+            requestReturningGoogleIdentity();
         }
 
         optimizeButton.disabled = true;
@@ -384,12 +397,7 @@
             } catch (error) {
                 setStatus(error?.message || "Google road optimization failed.");
                 if (error?.statusCode === 401 || error?.statusCode === 403) {
-                    idToken = "";
-                    showSignInControl(true);
-                    if (authStatus) {
-                        authStatus.textContent =
-                            "Sign-in expired or the account was not approved. Sign in again with the company account.";
-                    }
+                    rejectGoogleIdentity(error);
                 }
             } finally {
                 optimizeButton.disabled = !idToken;
