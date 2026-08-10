@@ -279,11 +279,20 @@
                 return null;
             }
 
+            setStatus("Checking for new route…");
             backendInboxRefreshPromise = (async () => {
                 const inbox = await loadWorkbookInboxFromBackend({ idToken });
-                return bridge.applyWorkbookInboxFromBackend(inbox, {
-                    allowStaleConfirmation,
-                });
+                const result = await bridge.applyWorkbookInboxFromBackend(
+                    inbox,
+                    { allowStaleConfirmation },
+                );
+                setStatus(
+                    result === "newer"
+                        ? `Route updated — ${inbox.addresses.length} ` +
+                          `address${inbox.addresses.length === 1 ? "" : "es"}`
+                        : "Current Route is up to date.",
+                );
+                return result;
             })();
 
             try {

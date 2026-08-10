@@ -149,6 +149,10 @@ that route in Google Maps.
     cannot renew it, the existing company-account sign-in control remains
     available. Google identity credentials are never stored in browser storage,
     app backups, or Drive files.
+19. When the business-authenticated app checks the workbook inbox, Build Route
+    shows that the check is in progress. A newly accepted route reports its
+    address count; a completed check with no newer route reports that Current
+    Route is up to date.
 
 ## 6. Change control
 
