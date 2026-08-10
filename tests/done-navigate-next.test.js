@@ -33,6 +33,7 @@ function runDoneAndNext({ home, jobs, routeIds }) {
         renderRouteCalls: 0,
         renderJobsCalls: 0,
         autosaveCalls: 0,
+        persistRouteCalls: 0,
     };
 
     vm.runInNewContext(
@@ -49,6 +50,7 @@ function runDoneAndNext({ home, jobs, routeIds }) {
                 : "";
         const renderRouteList = () => { renderRouteCalls += 1; };
         const renderJobsList = () => { renderJobsCalls += 1; };
+        const persistActiveRoute = () => { persistRouteCalls += 1; };
         const scheduleDriveAutosave = () => { autosaveCalls += 1; };
         ${extractFunction(app, "completeCurrentStopAndNavigate")}
         completeCurrentStopAndNavigate();
@@ -96,6 +98,7 @@ test("Done removes only the current route stop and navigates to the next", () =>
     assert.equal(context.renderRouteCalls, 1);
     assert.equal(context.renderJobsCalls, 1);
     assert.equal(context.autosaveCalls, 1);
+    assert.equal(context.persistRouteCalls, 1);
     assert.match(context.result.status, /Completed 100 First St/);
     assert.match(context.result.status, /1 stop remain/);
 });
@@ -112,6 +115,7 @@ test("Done on the last stop keeps saved addresses and navigates Home", () => {
     assert.equal(context.opens.length, 1);
     assert.equal(context.opens[0].url, "navigate:222 Blackburn Blvd");
     assert.equal(context.opens[0].target, "_blank");
+    assert.equal(context.persistRouteCalls, 1);
     assert.match(context.result.status, /Route complete/);
 });
 
@@ -126,6 +130,7 @@ test("Done does nothing when no current route stop exists", () => {
     assert.equal(context.opens.length, 0);
     assert.equal(context.renderRouteCalls, 0);
     assert.equal(context.autosaveCalls, 0);
+    assert.equal(context.persistRouteCalls, 0);
     assert.deepEqual(context.alerts, [
         "No current stop remains in this route.",
     ]);

@@ -38,11 +38,16 @@ that route in Google Maps.
    automatic lookups.
 10. Pin placement provides free **Aerial** and **Roads** views, with Aerial
     shown first so the user can identify the physical property.
-11. **Clear Route** removes every stop from the current route selection without
+11. **Clear Route** removes every stop from the selected route slot without
     deleting any saved address, pin, note, Home value, or setting.
 12. **Delete All Addresses** requires confirmation and removes all currently
-    saved stops plus the current route from this app. It does not delete Home,
+    saved stops plus Current and Previous from this app. It does not delete Home,
     settings, workbook history, Google Doc history, or older backup files.
+13. The app retains exactly two route selections: **Current Route** and
+    **Previous Route**. Both remain saved in the current browser until replaced
+    or cleared under the approved route controls.
+14. The app always opens on Current Route. The operator may select Previous
+    Route inside Build Route; the last selected slot is not restored on reload.
 
 ## 4. Page and menu rules
 
@@ -58,7 +63,7 @@ that route in Google Maps.
    never be committed to GitHub, included in route links, or displayed in full
    after saving.
 6. Settings provides a downloadable backup and restore. The backup contains
-   Home, saved addresses, pins, and the selected route, but never the Geoapify
+   Home, saved addresses, pins, Current, and Previous, but never the Geoapify
    key.
 7. Google Drive backup uses the limited `drive.file` permission and may access
    only files created or selected for this app. It must never request access to
@@ -72,9 +77,18 @@ that route in Google Maps.
 10. The app folder contains one workbook handoff file named **Free Map Router
     Address Inbox.json**. It is reserved for Daily Print jobs from
     **InspectorADE Repeat Job Predictor - LIVE**.
-11. Connecting Google Drive reads that inbox. Valid Daily Print addresses are
-    added to saved addresses without weakening existing pins, and only the
-    current route selection is replaced in workbook print order.
+11. Connecting Google Drive reads that inbox. Valid Daily Print addresses from
+    an accepted current or newer export are added to saved addresses without
+    weakening existing pins. A newly accepted route uses workbook print order.
+12. A newer workbook inbox moves the former Current Route to Previous Route and
+    becomes Current Route. Reconnecting to the same export preserves the
+    Current Route's optimized order. An older export never replaces Current
+    automatically.
+13. Downloaded and Google Drive backups preserve Current and Previous. Older
+    valid backups containing only one selected route restore that route as
+    Current with no Previous Route.
+14. Automatic Drive backup writes are serialized so the latest queued state is
+    written last.
 
 ## 5. Route rules
 
@@ -116,6 +130,9 @@ that route in Google Maps.
     `DCFS` with an address. That authoritative source is stored separately from
     client labels and notes, updates the matching physical address, and is used
     first by Build Route and Garmin. Older inboxes without `source` remain valid.
+17. Optimize, Google Optimize, Up, Down, Remove, Clear Route, Done, Google Maps,
+    and Garmin operate on the Current or Previous slot selected in Build Route.
+    A new workbook route always switches the app back to Current.
 
 ## 6. Change control
 
