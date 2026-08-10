@@ -164,6 +164,46 @@
         };
     }
 
+    async function loadWorkbookInboxFromBackend({
+        idToken,
+        fetchImpl = globalThis.fetch,
+        backendUrl = BACKEND_URL,
+    }) {
+        const token = String(idToken ?? "").trim();
+        if (!token) {
+            throw new GoogleRouteBrowserError(
+                "SIGN_IN_REQUIRED",
+                "Sign in with the company Google account first.",
+                401,
+            );
+        }
+        if (typeof fetchImpl !== "function") {
+            throw new Error("A fetch implementation is required.");
+        }
+
+        const response = await fetchImpl(`${backendUrl}/workbook-inbox`, {
+            method: "GET",
+            headers: {
+                authorization: `Bearer ${token}`,
+            },
+            cache: "no-store",
+        });
+        const body = await responseJson(response);
+
+        if (!response.ok) {
+            throw new GoogleRouteBrowserError(
+                String(body?.code || "WORKBOOK_INBOX_FAILED"),
+                String(
+                    body?.message ||
+                        "The workbook route could not be loaded.",
+                ),
+                response.status,
+            );
+        }
+
+        return body;
+    }
+
     async function prepareSnapshotForGoogle(bridge) {
         if (typeof bridge?.prepareSelectedRouteSnapshot !== "function") {
             throw new Error("Google route preparation is unavailable. Refresh the app.");
@@ -198,6 +238,7 @@
 
         let idToken = "";
         let identityInitialized = false;
+        let backendInboxRefreshPromise = null;
 
         function setStatus(message) {
             bridge.setRouteStatus(String(message || ""));
@@ -205,6 +246,51 @@
 
         function showSignInControl(show) {
             signInContainer.hidden = !show;
+        }
+
+        async function refreshBackendWorkbookInbox({
+            allowStaleConfirmation = false,
+        } = {}) {
+            if (!idToken || document.visibilityState === "hidden") return null;
+            if (backendInboxRefreshPromise) return backendInboxRefreshPromise;
+            if (typeof bridge.applyWorkbookInboxFromBackend !== "function") {
+                return null;
+            }
+
+            backendInboxRefreshPromise = (async () => {
+                const inbox = await loadWorkbookInboxFromBackend({ idToken });
+                return bridge.applyWorkbookInboxFromBackend(inbox, {
+                    allowStaleConfirmation,
+                });
+            })();
+
+            try {
+                return await backendInboxRefreshPromise;
+            } finally {
+                backendInboxRefreshPromise = null;
+            }
+        }
+
+        async function refreshBackendWorkbookInboxOnReturn() {
+            try {
+                await refreshBackendWorkbookInbox({
+                    allowStaleConfirmation: false,
+                });
+            } catch (error) {
+                setStatus(
+                    error?.message ||
+                        "The workbook route could not be refreshed.",
+                );
+                if (error?.statusCode === 401 || error?.statusCode === 403) {
+                    idToken = "";
+                    optimizeButton.disabled = true;
+                    showSignInControl(true);
+                    if (authStatus) {
+                        authStatus.textContent =
+                            "Sign-in expired or the account was not approved. Sign in again with the company account.";
+                    }
+                }
+            }
         }
 
         function initializeIdentity() {
@@ -223,7 +309,7 @@
                 client_id: CLIENT_ID,
                 auto_select: false,
                 cancel_on_tap_outside: true,
-                callback: (credentialResponse) => {
+                callback: async (credentialResponse) => {
                     idToken = String(credentialResponse?.credential ?? "").trim();
                     optimizeButton.disabled = !idToken;
                     showSignInControl(!idToken);
@@ -231,6 +317,30 @@
                         authStatus.textContent = idToken
                             ? "Signed in for this browser session. Google Optimize will verify the approved company account."
                             : "Google sign-in was not completed.";
+                    }
+                    if (idToken) {
+                        try {
+                            await refreshBackendWorkbookInbox({
+                                allowStaleConfirmation: true,
+                            });
+                        } catch (error) {
+                            setStatus(
+                                error?.message ||
+                                    "The workbook route could not be loaded.",
+                            );
+                            if (
+                                error?.statusCode === 401 ||
+                                error?.statusCode === 403
+                            ) {
+                                idToken = "";
+                                optimizeButton.disabled = true;
+                                showSignInControl(true);
+                                if (authStatus) {
+                                    authStatus.textContent =
+                                        "Sign-in expired or the account was not approved. Sign in again with the company account.";
+                                }
+                            }
+                        }
                     }
                 },
             });
@@ -286,6 +396,13 @@
             }
         });
 
+        root.addEventListener?.("focus", refreshBackendWorkbookInboxOnReturn);
+        document.addEventListener?.("visibilitychange", () => {
+            if (document.visibilityState === "visible") {
+                refreshBackendWorkbookInboxOnReturn();
+            }
+        });
+
         if (document.readyState === "complete") {
             initializeIdentity();
         } else {
@@ -304,6 +421,7 @@
         duplicateCoordinateGroups,
         formatMetrics,
         initializeBrowserUi,
+        loadWorkbookInboxFromBackend,
         optimizeWithGoogle,
         prepareSnapshotForGoogle,
         requestId,
