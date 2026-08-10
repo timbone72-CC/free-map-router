@@ -34,10 +34,65 @@
         return `Key saved in this browser ••••${ending}`;
     }
 
+    function isFreeMapRouterCache(name) {
+        const normalized = String(name || "").toLowerCase();
+        return (
+            normalized.startsWith("free-map-router") ||
+            normalized.startsWith("fmr-")
+        );
+    }
+
+    async function updateApp(options = {}) {
+        const {
+            online = true,
+            serviceWorker,
+            cacheStorage,
+            location,
+            now = Date.now,
+        } = options;
+
+        if (!online) {
+            return { updated: false, reason: "offline" };
+        }
+
+        if (!location?.href || typeof location.replace !== "function") {
+            throw new Error("App location is unavailable.");
+        }
+
+        const appBaseUrl = new URL("./", location.href).href;
+
+        try {
+            const registrations =
+                (await serviceWorker?.getRegistrations?.()) || [];
+            await Promise.allSettled(
+                registrations
+                    .filter((registration) =>
+                        String(registration?.scope || "").startsWith(appBaseUrl),
+                    )
+                    .map((registration) => registration.unregister()),
+            );
+
+            const cacheNames = (await cacheStorage?.keys?.()) || [];
+            await Promise.allSettled(
+                cacheNames
+                    .filter(isFreeMapRouterCache)
+                    .map((name) => cacheStorage.delete(name)),
+            );
+        } finally {
+            const updateUrl = new URL(location.href);
+            updateUrl.searchParams.set("update", String(now()));
+            location.replace(updateUrl.toString());
+        }
+
+        return { updated: true };
+    }
+
     return {
         GEOAPIFY_KEY,
+        isFreeMapRouterCache,
         maskedKey,
         readGeoapifyKey,
+        updateApp,
         writeGeoapifyKey,
     };
 });

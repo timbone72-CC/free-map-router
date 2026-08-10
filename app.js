@@ -57,6 +57,7 @@ const {
 const {
     maskedKey,
     readGeoapifyKey,
+    updateApp,
     writeGeoapifyKey,
 } = globalThis.FMRSettings;
 const {
@@ -368,6 +369,8 @@ const els = {
     geoapifyKey: document.getElementById("geoapifyKey"),
     geoapifyKeyStatus: document.getElementById("geoapifyKeyStatus"),
     clearGeoapifyKey: document.getElementById("clearGeoapifyKey"),
+    updateApp: document.getElementById("updateApp"),
+    updateAppStatus: document.getElementById("updateAppStatus"),
     downloadBackup: document.getElementById("downloadBackup"),
     restoreBackup: document.getElementById("restoreBackup"),
     backupFile: document.getElementById("backupFile"),
@@ -1460,6 +1463,38 @@ if (els.clearGeoapifyKey) {
     els.clearGeoapifyKey.addEventListener("click", () => {
         writeGeoapifyKey(localStorage, "");
         renderSettings();
+    });
+}
+
+if (els.updateApp) {
+    els.updateApp.addEventListener("click", async () => {
+        els.updateApp.disabled = true;
+        if (els.updateAppStatus) {
+            els.updateAppStatus.textContent = "Checking for the newest app…";
+        }
+
+        try {
+            const result = await updateApp({
+                online: navigator.onLine !== false,
+                serviceWorker: navigator.serviceWorker,
+                cacheStorage: globalThis.caches,
+                location: globalThis.location,
+            });
+
+            if (!result.updated) {
+                els.updateApp.disabled = false;
+                if (els.updateAppStatus) {
+                    els.updateAppStatus.textContent =
+                        "Connect to the internet before updating the app.";
+                }
+            }
+        } catch (error) {
+            els.updateApp.disabled = false;
+            if (els.updateAppStatus) {
+                els.updateAppStatus.textContent =
+                    error?.message || "The app could not be updated.";
+            }
+        }
     });
 }
 
