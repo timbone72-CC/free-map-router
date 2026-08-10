@@ -8,6 +8,7 @@ const {
     DRIVE_INBOX_NAME,
     DRIVE_SCOPE,
     currentDriveToken,
+    createLatestDriveSaveQueue,
     ensureAddressInbox,
     ensureBackupFolder,
     findBackupFolder,
@@ -17,6 +18,26 @@ const {
     loadBackupFromDrive,
     saveBackupToDrive,
 } = require("../google-drive.js");
+
+test("Drive save queue always writes the latest queued backup last", async () => {
+    const calls = [];
+    let finishFirst;
+    const firstBlocked = new Promise((resolve) => {
+        finishFirst = resolve;
+    });
+    const queue = createLatestDriveSaveQueue(async (_token, backup) => {
+        calls.push(backup.route);
+        if (backup.route === "old") await firstBlocked;
+        return backup.route;
+    });
+
+    const oldSave = queue.enqueue("token", { route: "old" });
+    const newSave = queue.enqueue("token", { route: "new" });
+    finishFirst();
+    await Promise.all([oldSave, newSave, queue.whenIdle()]);
+
+    assert.deepEqual(calls, ["old", "new"]);
+});
 
 test("Google Drive connection uses the limited drive.file permission", () => {
     assert.equal(DRIVE_SCOPE, "https://www.googleapis.com/auth/drive.file");

@@ -1,5 +1,9 @@
 (function attachFreeMapRouterBackup(root, factory) {
-    const backup = factory();
+    const routeHistory =
+        typeof module === "object" && module.exports
+            ? require("./route-history.js")
+            : root?.FMRRouteHistory;
+    const backup = factory(routeHistory);
 
     if (typeof module === "object" && module.exports) {
         module.exports = backup;
@@ -8,19 +12,38 @@
     if (root) {
         root.FMRBackup = backup;
     }
-})(typeof globalThis !== "undefined" ? globalThis : this, function buildBackup() {
+})(typeof globalThis !== "undefined" ? globalThis : this, function buildBackup(routeHistory) {
     "use strict";
 
     const BACKUP_VERSION = 1;
 
-    function createBackup({ home, stops, routeIds }) {
+    if (!routeHistory) {
+        throw new Error("Free Map Router route history failed to load.");
+    }
+
+    const { normalizeRouteHistory } = routeHistory;
+
+    function createBackup({ home, stops, routeIds, routes }) {
+        const validIds = new Set(
+            (Array.isArray(stops) ? stops : [])
+                .map((stop) => stop?.id)
+                .filter((id) => typeof id === "string" && id.trim()),
+        );
+        const normalizedRoutes = normalizeRouteHistory(
+            routes || {
+                current: { routeIds },
+                previous: null,
+            },
+            validIds,
+        );
         return {
             app: "free-map-router",
             backupVersion: BACKUP_VERSION,
             createdAt: new Date().toISOString(),
             home: home || null,
             stops: Array.isArray(stops) ? stops : [],
-            routeIds: Array.isArray(routeIds) ? routeIds : [],
+            routeIds: normalizedRoutes.current?.routeIds || [],
+            routes: normalizedRoutes,
         };
     }
 
@@ -41,12 +64,24 @@
             throw new Error("That file is not a valid Free Map Router backup.");
         }
 
+        const validIds = new Set(
+            parsed.stops
+                .map((stop) => stop?.id)
+                .filter((id) => typeof id === "string" && id.trim()),
+        );
+        const routes = normalizeRouteHistory(
+            parsed.routes || {
+                current: { routeIds: parsed.routeIds },
+                previous: null,
+            },
+            validIds,
+        );
+
         return {
             home: parsed.home || null,
             stops: parsed.stops,
-            routeIds: parsed.routeIds.filter(
-                (id) => typeof id === "string" && id.trim(),
-            ),
+            routeIds: routes.current?.routeIds || [],
+            routes,
         };
     }
 

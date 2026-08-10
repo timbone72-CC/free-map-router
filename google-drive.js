@@ -257,6 +257,51 @@
             : createDriveBackup(token, folder.id, contents, fetchFn);
     }
 
+    function createLatestDriveSaveQueue(saveFn = saveBackupToDrive) {
+        let active = false;
+        let pending = null;
+        let idleResolvers = [];
+
+        function finishIdleWaiters() {
+            const resolvers = idleResolvers;
+            idleResolvers = [];
+            resolvers.forEach((resolve) => resolve());
+        }
+
+        async function drain() {
+            if (active) return;
+            active = true;
+
+            while (pending) {
+                const task = pending;
+                pending = null;
+                try {
+                    task.resolve(await saveFn(task.token, task.backup));
+                } catch (error) {
+                    task.reject(error);
+                }
+            }
+
+            active = false;
+            finishIdleWaiters();
+        }
+
+        function enqueue(token, backup) {
+            return new Promise((resolve, reject) => {
+                if (pending) pending.resolve({ superseded: true });
+                pending = { token, backup, resolve, reject };
+                void drain();
+            });
+        }
+
+        function whenIdle() {
+            if (!active && !pending) return Promise.resolve();
+            return new Promise((resolve) => idleResolvers.push(resolve));
+        }
+
+        return { enqueue, whenIdle };
+    }
+
     async function loadBackupFromDrive(
         token,
         fetchFn = globalThis.fetch,
@@ -359,6 +404,7 @@
         DRIVE_FOLDER_NAME,
         DRIVE_INBOX_NAME,
         DRIVE_SCOPE,
+        createLatestDriveSaveQueue,
         ensureAddressInbox,
         ensureBackupFolder,
         findAddressInbox,

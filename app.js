@@ -29,6 +29,10 @@ if (!globalThis.FMRInbox) {
     throw new Error("Free Map Router workbook inbox failed to load.");
 }
 
+if (!globalThis.FMRRouteHistory) {
+    throw new Error("Free Map Router route history failed to load.");
+}
+
 const {
     normalizeAddress,
     addressKey,
@@ -67,6 +71,13 @@ const {
     parseAddressInbox,
 } = globalThis.FMRInbox;
 const {
+    applyWorkbookRoute,
+    readRouteHistory,
+    replaceRoute,
+    writeRouteHistory,
+} = globalThis.FMRRouteHistory;
+const {
+    createLatestDriveSaveQueue,
     currentDriveToken,
     ensureAddressInbox,
     loadAddressInboxFromDrive,
@@ -281,7 +292,12 @@ function importJobsFromCsvText(csvText) {
 const initialRead = readStops(localStorage);
 let jobs = initialRead.stops;
 let home = readHome(localStorage);
-let routeIds = [];
+let routeHistory = readRouteHistory(
+    localStorage,
+    new Set(jobs.map((job) => job.id)),
+);
+let activeRouteSlot = "current";
+let routeIds = routeHistory.current?.routeIds.slice() || [];
 let editingJobId = null;
 let formPinStatus = "unverified";
 let locationMap = null;
@@ -293,6 +309,42 @@ let homeDraftLongitude = null;
 let homeDraftPinStatus = "unverified";
 let driveAutosaveEnabled = false;
 let driveAutosaveTimer = null;
+let driveSaveRevision = 0;
+const driveSaveQueue = createLatestDriveSaveQueue(saveBackupToDrive);
+
+function savedJobIds() {
+    return new Set(jobs.map((job) => job.id));
+}
+
+function persistActiveRoute() {
+    routeHistory = replaceRoute(
+        routeHistory,
+        activeRouteSlot,
+        routeIds,
+        savedJobIds(),
+    );
+    routeHistory = writeRouteHistory(
+        localStorage,
+        routeHistory,
+        savedJobIds(),
+    );
+    routeIds = routeHistory[activeRouteSlot]?.routeIds.slice() || [];
+}
+
+function filterRoutesForSavedJobs() {
+    routeHistory = writeRouteHistory(
+        localStorage,
+        routeHistory,
+        savedJobIds(),
+    );
+    routeIds = routeHistory[activeRouteSlot]?.routeIds.slice() || [];
+}
+
+function restoreRoutes(routes) {
+    routeHistory = writeRouteHistory(localStorage, routes, savedJobIds());
+    activeRouteSlot = "current";
+    routeIds = routeHistory.current?.routeIds.slice() || [];
+}
 
 // ============================================================================
 // SECTION 6 — DOM
@@ -350,6 +402,7 @@ const els = {
     // lists
     jobList: document.getElementById("jobList"),
     routeList: document.getElementById("routeList"),
+    routeChoice: document.getElementById("routeChoice"),
     routeStatus: document.getElementById("routeStatus"),
     routeMapLinks: document.getElementById("routeMapLinks"),
     clearRoute: document.getElementById("clearRoute"),
@@ -392,6 +445,7 @@ function showPage(pageName) {
 // ============================================================================
 function clearRouteSelection() {
     routeIds = [];
+    persistActiveRoute();
     renderJobsList();
     renderRouteList();
     scheduleDriveAutosave();
@@ -416,6 +470,9 @@ function deleteAllAddresses() {
 
     jobs = [];
     routeIds = [];
+    routeHistory = { current: null, previous: null };
+    routeHistory = writeRouteHistory(localStorage, routeHistory);
+    activeRouteSlot = "current";
     editingJobId = null;
     writeJobs(jobs);
     resetForm();
@@ -452,6 +509,7 @@ function deleteSelectedJobs() {
     routeIds = [];
 
     writeJobs(jobs);
+    filterRoutesForSavedJobs();
     renderAll();
 }
 
@@ -500,6 +558,7 @@ function ensureSelectionControls() {
         const set = new Set(routeIds);
         for (const j of filtered) set.add(j.id);
         routeIds = Array.from(set);
+        persistActiveRoute();
         renderJobsList();
         renderRouteList();
         scheduleDriveAutosave();
@@ -618,6 +677,7 @@ function renderJobsList() {
             } else {
                 routeIds = routeIds.filter((id) => id !== job.id);
             }
+            persistActiveRoute();
             renderRouteList();
             scheduleDriveAutosave();
         });
@@ -643,6 +703,8 @@ function renderJobsList() {
             }
 
             writeJobs(jobs);
+            persistActiveRoute();
+            filterRoutesForSavedJobs();
             renderAll();
         });
 
@@ -661,6 +723,7 @@ function renderJobsList() {
 function renderRouteList() {
     const list = els.routeList;
     if (!list) return;
+    renderRouteChoice();
     list.innerHTML = "";
     renderGoogleMapsActions();
 
@@ -704,6 +767,7 @@ function renderRouteList() {
                 const tmp = routeIds[i - 1];
                 routeIds[i - 1] = routeIds[i];
                 routeIds[i] = tmp;
+                persistActiveRoute();
                 renderRouteList();
                 scheduleDriveAutosave();
             });
@@ -717,6 +781,7 @@ function renderRouteList() {
                 const tmp = routeIds[i + 1];
                 routeIds[i + 1] = routeIds[i];
                 routeIds[i] = tmp;
+                persistActiveRoute();
                 renderRouteList();
                 scheduleDriveAutosave();
             });
@@ -726,6 +791,7 @@ function renderRouteList() {
             removeBtn.style.width = "auto";
             removeBtn.addEventListener("click", () => {
                 routeIds = routeIds.filter((id) => id !== jobId);
+                persistActiveRoute();
                 renderRouteList();
                 renderJobsList();
                 scheduleDriveAutosave();
@@ -746,6 +812,19 @@ function renderRouteList() {
     const finish = document.createElement("li");
     finish.textContent = `Finish — ${home.address}`;
     list.appendChild(finish);
+}
+
+function renderRouteChoice() {
+    if (!els.routeChoice) return;
+    els.routeChoice.value = activeRouteSlot;
+    const previousOption = els.routeChoice.querySelector(
+        'option[value="previous"]',
+    );
+    if (previousOption) {
+        previousOption.disabled =
+            !routeHistory.previous ||
+            routeHistory.previous.routeIds.length === 0;
+    }
 }
 
 function renderHome() {
@@ -772,6 +851,7 @@ function renderAll() {
     ensureSelectionControls();
     renderHome();
     renderJobsList();
+    renderRouteChoice();
     renderRouteList();
     renderSettings();
 }
@@ -782,6 +862,33 @@ function renderSettings() {
     if (els.geoapifyKeyStatus) {
         els.geoapifyKeyStatus.textContent = maskedKey(savedKey);
     }
+}
+
+if (els.routeChoice) {
+    els.routeChoice.addEventListener("change", () => {
+        const requested =
+            els.routeChoice.value === "previous" ? "previous" : "current";
+        if (
+            requested === "previous" &&
+            (!routeHistory.previous ||
+                routeHistory.previous.routeIds.length === 0)
+        ) {
+            els.routeChoice.value = activeRouteSlot;
+            return;
+        }
+
+        activeRouteSlot = requested;
+        routeIds = routeHistory[activeRouteSlot]?.routeIds.slice() || [];
+        renderJobsList();
+        renderRouteList();
+        renderRouteChoice();
+        if (els.routeStatus) {
+            els.routeStatus.textContent =
+                activeRouteSlot === "current"
+                    ? "Current Route selected."
+                    : "Previous Route selected.";
+        }
+    });
 }
 
 // ============================================================================
@@ -1200,6 +1307,7 @@ async function optimizeSelectedRoute() {
 
     const ordered = optimizeRoundTripOrder(home, selected);
     routeIds = ordered.map((j) => j.id);
+    persistActiveRoute();
     renderRouteList();
     scheduleDriveAutosave();
     if (els.routeStatus) {
@@ -1275,6 +1383,7 @@ function completeCurrentStopAndNavigate() {
     }
 
     routeIds = nextRouteIds;
+    persistActiveRoute();
     renderRouteList();
     renderJobsList();
     scheduleDriveAutosave();
@@ -1359,6 +1468,7 @@ if (els.downloadBackup) {
             home,
             stops: jobs,
             routeIds,
+            routes: routeHistory,
         });
         const blob = new Blob([JSON.stringify(backup, null, 2)], {
             type: "application/json",
@@ -1394,7 +1504,7 @@ if (els.backupFile) {
             }
             if (
                 !confirm(
-                    "Replace the saved Home, addresses, pins, and current route with this backup?",
+                    "Replace the saved Home, addresses, pins, Current Route, and Previous Route with this backup?",
                 )
             ) {
                 return;
@@ -1402,8 +1512,7 @@ if (els.backupFile) {
 
             jobs = writeStops(localStorage, backup.stops);
             home = writeHome(localStorage, backup.home);
-            const savedIds = new Set(jobs.map((job) => job.id));
-            routeIds = backup.routeIds.filter((id) => savedIds.has(id));
+            restoreRoutes(backup.routes);
             renderAll();
             if (els.backupStatus) {
                 els.backupStatus.textContent =
@@ -1444,21 +1553,27 @@ function scheduleDriveAutosave() {
             return;
         }
 
+        const revision = ++driveSaveRevision;
         try {
             if (els.googleDriveStatus) {
                 els.googleDriveStatus.textContent =
                     "Saving changes to Google Drive…";
             }
-            await saveBackupToDrive(
+            await driveSaveQueue.enqueue(
                 token,
-                createBackup({ home, stops: jobs, routeIds }),
+                createBackup({
+                    home,
+                    stops: jobs,
+                    routeIds,
+                    routes: routeHistory,
+                }),
             );
-            if (els.googleDriveStatus) {
+            if (els.googleDriveStatus && revision === driveSaveRevision) {
                 els.googleDriveStatus.textContent =
                     "All changes saved automatically in the Free Map Router folder.";
             }
         } catch (error) {
-            if (els.googleDriveStatus) {
+            if (els.googleDriveStatus && revision === driveSaveRevision) {
                 els.googleDriveStatus.textContent =
                     error?.message || "Automatic Google Drive save failed.";
             }
@@ -1475,9 +1590,22 @@ if (els.connectGoogleDrive) {
                 await loadAddressInboxFromDrive(token),
             );
 
+            const currentSourceUpdatedAt =
+                routeHistory.current?.sourceUpdatedAt || null;
+            const inboxRelation = currentSourceUpdatedAt
+                ? new Date(inbox.updatedAt).getTime() <
+                  new Date(currentSourceUpdatedAt).getTime()
+                    ? "older"
+                    : inbox.updatedAt === currentSourceUpdatedAt
+                      ? "same"
+                      : "newer"
+                : "newer";
+
             const exportedToday = isAddressInboxExportedToday(inbox);
             const importApproved =
                 inbox.addresses.length === 0 ||
+                inboxRelation === "same" ||
+                inboxRelation === "older" ||
                 exportedToday ||
                 confirm(
                     `This workbook inbox was exported on ${new Date(inbox.updatedAt).toLocaleString()}, not today. ` +
@@ -1485,7 +1613,14 @@ if (els.connectGoogleDrive) {
                     "Importing it will replace your current route selection but keep saved addresses. Import it anyway?",
                 );
 
-            if (inbox.addresses.length > 0 && !importApproved) {
+            if (inbox.addresses.length > 0 && inboxRelation === "older") {
+                if (els.googleDriveInboxStatus) {
+                    els.googleDriveInboxStatus.textContent =
+                        `Older inbox ignored — ${inbox.addresses.length} job${inbox.addresses.length === 1 ? "" : "s"} ` +
+                        `were exported ${new Date(inbox.updatedAt).toLocaleString()}. ` +
+                        "Current Route was kept.";
+                }
+            } else if (inbox.addresses.length > 0 && !importApproved) {
                 if (els.googleDriveInboxStatus) {
                     els.googleDriveInboxStatus.textContent =
                         `Inbox not imported — ${inbox.addresses.length} job${inbox.addresses.length === 1 ? "" : "s"} ` +
@@ -1495,7 +1630,21 @@ if (els.connectGoogleDrive) {
             } else if (inbox.addresses.length > 0) {
                 const imported = applyAddressInbox(jobs, inbox);
                 jobs = writeStops(localStorage, imported.stops);
-                routeIds = imported.routeIds;
+                const hadCurrentRoute =
+                    (routeHistory.current?.routeIds.length || 0) > 0;
+                const appliedRoute = applyWorkbookRoute(
+                    routeHistory,
+                    imported.routeIds,
+                    inbox.updatedAt,
+                    savedJobIds(),
+                );
+                routeHistory = writeRouteHistory(
+                    localStorage,
+                    appliedRoute.history,
+                    savedJobIds(),
+                );
+                activeRouteSlot = "current";
+                routeIds = routeHistory.current?.routeIds.slice() || [];
                 renderAll();
                 if (els.googleDriveInboxStatus) {
                     els.googleDriveInboxStatus.textContent =
@@ -1503,7 +1652,11 @@ if (els.connectGoogleDrive) {
                             inbox,
                             imported.importedCount,
                         ) + " " +
-                        "The current route was replaced and saved addresses were kept.";
+                        (appliedRoute.result === "same"
+                            ? "Current Route was already loaded, so its optimized order was kept. Saved addresses were kept."
+                            : hadCurrentRoute
+                              ? "The former Current Route is now Previous Route, and the new Current Route was loaded. Saved addresses were kept."
+                              : "The new Current Route was loaded. Saved addresses were kept.");
                 }
             } else if (els.googleDriveInboxStatus) {
                 els.googleDriveInboxStatus.textContent =
@@ -1523,9 +1676,15 @@ if (els.saveGoogleDrive) {
     els.saveGoogleDrive.addEventListener("click", async () => {
         try {
             const token = await connectDrive();
-            const backup = createBackup({ home, stops: jobs, routeIds });
-            await saveBackupToDrive(token, backup);
-            if (els.googleDriveStatus) {
+            const revision = ++driveSaveRevision;
+            const backup = createBackup({
+                home,
+                stops: jobs,
+                routeIds,
+                routes: routeHistory,
+            });
+            await driveSaveQueue.enqueue(token, backup);
+            if (els.googleDriveStatus && revision === driveSaveRevision) {
                 els.googleDriveStatus.textContent =
                     "Saved in Google Drive: Free Map Router / Free Map Router Backup.json.";
             }
@@ -1542,13 +1701,15 @@ if (els.restoreGoogleDrive) {
     els.restoreGoogleDrive.addEventListener("click", async () => {
         try {
             const token = await connectDrive();
+            clearTimeout(driveAutosaveTimer);
+            await driveSaveQueue.whenIdle();
             const backup = parseBackup(await loadBackupFromDrive(token));
             if (!backup.home) {
                 throw new Error("The Google Drive backup has no Home address.");
             }
             if (
                 !confirm(
-                    "Replace the saved Home, addresses, pins, and current route with the Google Drive backup?",
+                    "Replace the saved Home, addresses, pins, Current Route, and Previous Route with the Google Drive backup?",
                 )
             ) {
                 return;
@@ -1556,8 +1717,7 @@ if (els.restoreGoogleDrive) {
 
             jobs = writeStops(localStorage, backup.stops);
             home = writeHome(localStorage, backup.home);
-            const savedIds = new Set(jobs.map((job) => job.id));
-            routeIds = backup.routeIds.filter((id) => savedIds.has(id));
+            restoreRoutes(backup.routes);
             renderAll();
             if (els.googleDriveStatus) {
                 els.googleDriveStatus.textContent =
@@ -1765,6 +1925,7 @@ globalThis.FMRRouteBridge = Object.freeze({
         );
 
         routeIds = ordered.map((job) => job.id);
+        persistActiveRoute();
         renderRouteList();
         renderJobsList();
         scheduleDriveAutosave();

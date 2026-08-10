@@ -19,8 +19,25 @@ test("Drive connection imports the workbook inbox into the current route", () =>
     assert.match(app, /loadAddressInboxFromDrive/);
     assert.match(app, /parseAddressInbox/);
     assert.match(app, /applyAddressInbox\(jobs, inbox\)/);
-    assert.match(app, /routeIds = imported\.routeIds/);
-    assert.match(app, /saved addresses were kept/);
+    assert.match(app, /applyWorkbookRoute\([\s\S]*imported\.routeIds/);
+    assert.match(app, /activeRouteSlot = "current"/);
+    assert.match(app, /routeHistory\.current\?\.routeIds\.slice\(\)/);
+    assert.match(app, /saved addresses were kept/i);
+});
+
+test("same and older workbook exports cannot replace the optimized current route", () => {
+    assert.match(app, /inboxRelation === "same"/);
+    assert.match(app, /inboxRelation === "older"/);
+    assert.match(app, /Older inbox ignored[\s\S]*Current Route was kept/);
+    assert.match(app, /optimized order was kept/);
+});
+
+test("Build Route allows Current or Previous and always initializes Current", () => {
+    assert.match(html, /id="routeChoice"/);
+    assert.match(html, />Current Route</);
+    assert.match(html, />Previous Route</);
+    assert.match(app, /let activeRouteSlot = "current"/);
+    assert.match(app, /Previous Route selected/);
 });
 
 test("an inbox not exported today requires confirmation before route replacement", () => {
