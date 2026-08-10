@@ -95,6 +95,11 @@ that route in Google Maps.
     removes only Free Map Router's app cache and service-worker registration,
     and reloads a cache-busted app URL. It does not delete Home, saved
     addresses, pins, Current, Previous, backups, or browser settings.
+16. The private backend may read the existing workbook inbox from the exact
+    approved Drive folder through its dedicated service account. That reader is
+    available only to the approved business Google identity, uses read-only
+    Drive access, validates the existing inbox contract, and never creates,
+    edits, moves, or deletes a Drive file.
 
 ## 5. Route rules
 
