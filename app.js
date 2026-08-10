@@ -310,6 +310,7 @@ let homeDraftPinStatus = "unverified";
 let driveAutosaveEnabled = false;
 let driveAutosaveTimer = null;
 let driveSaveRevision = 0;
+let driveInboxSyncPromise = null;
 const driveSaveQueue = createLatestDriveSaveQueue(saveBackupToDrive);
 
 function savedJobIds() {
@@ -1581,87 +1582,143 @@ function scheduleDriveAutosave() {
     }, 750);
 }
 
+async function syncWorkbookInbox(token, { allowStaleConfirmation = true } = {}) {
+    if (driveInboxSyncPromise) return driveInboxSyncPromise;
+
+    driveInboxSyncPromise = (async () => {
+        const inbox = parseAddressInbox(
+            await loadAddressInboxFromDrive(token),
+        );
+
+        const currentSourceUpdatedAt =
+            routeHistory.current?.sourceUpdatedAt || null;
+        const inboxRelation = currentSourceUpdatedAt
+            ? new Date(inbox.updatedAt).getTime() <
+              new Date(currentSourceUpdatedAt).getTime()
+                ? "older"
+                : inbox.updatedAt === currentSourceUpdatedAt
+                  ? "same"
+                  : "newer"
+            : "newer";
+
+        const exportedToday = isAddressInboxExportedToday(inbox);
+        const importApproved =
+            inbox.addresses.length === 0 ||
+            inboxRelation === "same" ||
+            inboxRelation === "older" ||
+            exportedToday ||
+            (allowStaleConfirmation &&
+                confirm(
+                    `This workbook inbox was exported on ${new Date(inbox.updatedAt).toLocaleString()}, not today. ` +
+                    `It contains ${inbox.addresses.length} job${inbox.addresses.length === 1 ? "" : "s"}. ` +
+                    "Importing it will replace your current route selection but keep saved addresses. Import it anyway?",
+                ));
+
+        if (inbox.addresses.length > 0 && inboxRelation === "older") {
+            if (els.googleDriveInboxStatus) {
+                els.googleDriveInboxStatus.textContent =
+                    `Older inbox ignored — ${inbox.addresses.length} job${inbox.addresses.length === 1 ? "" : "s"} ` +
+                    `were exported ${new Date(inbox.updatedAt).toLocaleString()}. ` +
+                    "Current Route was kept.";
+            }
+            return "older";
+        }
+        if (inbox.addresses.length > 0 && !importApproved) {
+            if (els.googleDriveInboxStatus) {
+                els.googleDriveInboxStatus.textContent =
+                    `Inbox not imported — ${inbox.addresses.length} job${inbox.addresses.length === 1 ? "" : "s"} ` +
+                    `were exported ${new Date(inbox.updatedAt).toLocaleString()}, not today. ` +
+                    "The current route was kept.";
+            }
+            return "not-approved";
+        }
+        if (inbox.addresses.length === 0) {
+            if (els.googleDriveInboxStatus) {
+                els.googleDriveInboxStatus.textContent =
+                    formatInboxImportStatus(inbox, 0);
+            }
+            return "empty";
+        }
+
+        const imported = applyAddressInbox(jobs, inbox);
+        jobs = writeStops(localStorage, imported.stops);
+        const hadCurrentRoute =
+            (routeHistory.current?.routeIds.length || 0) > 0;
+        const appliedRoute = applyWorkbookRoute(
+            routeHistory,
+            imported.routeIds,
+            inbox.updatedAt,
+            savedJobIds(),
+        );
+        routeHistory = writeRouteHistory(
+            localStorage,
+            appliedRoute.history,
+            savedJobIds(),
+        );
+        activeRouteSlot = "current";
+        routeIds = routeHistory.current?.routeIds.slice() || [];
+        renderAll();
+        if (els.googleDriveInboxStatus) {
+            els.googleDriveInboxStatus.textContent =
+                formatInboxImportStatus(
+                    inbox,
+                    imported.importedCount,
+                ) + " " +
+                (appliedRoute.result === "same"
+                    ? "Current Route was already loaded, so its optimized order was kept. Saved addresses were kept."
+                    : hadCurrentRoute
+                      ? "The former Current Route is now Previous Route, and the new Current Route was loaded. Saved addresses were kept."
+                      : "The new Current Route was loaded. Saved addresses were kept.");
+        }
+        return appliedRoute.result;
+    })();
+
+    try {
+        return await driveInboxSyncPromise;
+    } finally {
+        driveInboxSyncPromise = null;
+    }
+}
+
+async function refreshWorkbookInboxIfConnected() {
+    if (!driveAutosaveEnabled || document.visibilityState === "hidden") return;
+
+    const token = currentDriveToken();
+    if (!token) {
+        driveAutosaveEnabled = false;
+        if (els.googleDriveStatus) {
+            els.googleDriveStatus.textContent =
+                "Google Drive connection expired. Click Connect & Auto-Save.";
+        }
+        return;
+    }
+
+    try {
+        const result = await syncWorkbookInbox(token, {
+            allowStaleConfirmation: false,
+        });
+        if (result === "newer") scheduleDriveAutosave();
+    } catch (error) {
+        if (els.googleDriveInboxStatus) {
+            els.googleDriveInboxStatus.textContent =
+                error?.message || "The workbook route could not be refreshed.";
+        }
+    }
+}
+
+window.addEventListener("focus", refreshWorkbookInboxIfConnected);
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+        refreshWorkbookInboxIfConnected();
+    }
+});
+
 if (els.connectGoogleDrive) {
     els.connectGoogleDrive.addEventListener("click", async () => {
         try {
             const token = await connectDrive();
             await ensureAddressInbox(token);
-            const inbox = parseAddressInbox(
-                await loadAddressInboxFromDrive(token),
-            );
-
-            const currentSourceUpdatedAt =
-                routeHistory.current?.sourceUpdatedAt || null;
-            const inboxRelation = currentSourceUpdatedAt
-                ? new Date(inbox.updatedAt).getTime() <
-                  new Date(currentSourceUpdatedAt).getTime()
-                    ? "older"
-                    : inbox.updatedAt === currentSourceUpdatedAt
-                      ? "same"
-                      : "newer"
-                : "newer";
-
-            const exportedToday = isAddressInboxExportedToday(inbox);
-            const importApproved =
-                inbox.addresses.length === 0 ||
-                inboxRelation === "same" ||
-                inboxRelation === "older" ||
-                exportedToday ||
-                confirm(
-                    `This workbook inbox was exported on ${new Date(inbox.updatedAt).toLocaleString()}, not today. ` +
-                    `It contains ${inbox.addresses.length} job${inbox.addresses.length === 1 ? "" : "s"}. ` +
-                    "Importing it will replace your current route selection but keep saved addresses. Import it anyway?",
-                );
-
-            if (inbox.addresses.length > 0 && inboxRelation === "older") {
-                if (els.googleDriveInboxStatus) {
-                    els.googleDriveInboxStatus.textContent =
-                        `Older inbox ignored — ${inbox.addresses.length} job${inbox.addresses.length === 1 ? "" : "s"} ` +
-                        `were exported ${new Date(inbox.updatedAt).toLocaleString()}. ` +
-                        "Current Route was kept.";
-                }
-            } else if (inbox.addresses.length > 0 && !importApproved) {
-                if (els.googleDriveInboxStatus) {
-                    els.googleDriveInboxStatus.textContent =
-                        `Inbox not imported — ${inbox.addresses.length} job${inbox.addresses.length === 1 ? "" : "s"} ` +
-                        `were exported ${new Date(inbox.updatedAt).toLocaleString()}, not today. ` +
-                        "The current route was kept.";
-                }
-            } else if (inbox.addresses.length > 0) {
-                const imported = applyAddressInbox(jobs, inbox);
-                jobs = writeStops(localStorage, imported.stops);
-                const hadCurrentRoute =
-                    (routeHistory.current?.routeIds.length || 0) > 0;
-                const appliedRoute = applyWorkbookRoute(
-                    routeHistory,
-                    imported.routeIds,
-                    inbox.updatedAt,
-                    savedJobIds(),
-                );
-                routeHistory = writeRouteHistory(
-                    localStorage,
-                    appliedRoute.history,
-                    savedJobIds(),
-                );
-                activeRouteSlot = "current";
-                routeIds = routeHistory.current?.routeIds.slice() || [];
-                renderAll();
-                if (els.googleDriveInboxStatus) {
-                    els.googleDriveInboxStatus.textContent =
-                        formatInboxImportStatus(
-                            inbox,
-                            imported.importedCount,
-                        ) + " " +
-                        (appliedRoute.result === "same"
-                            ? "Current Route was already loaded, so its optimized order was kept. Saved addresses were kept."
-                            : hadCurrentRoute
-                              ? "The former Current Route is now Previous Route, and the new Current Route was loaded. Saved addresses were kept."
-                              : "The new Current Route was loaded. Saved addresses were kept.");
-                }
-            } else if (els.googleDriveInboxStatus) {
-                els.googleDriveInboxStatus.textContent =
-                    formatInboxImportStatus(inbox, 0);
-            }
+            await syncWorkbookInbox(token);
             scheduleDriveAutosave();
         } catch (error) {
             if (els.googleDriveStatus) {

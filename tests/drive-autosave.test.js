@@ -25,6 +25,26 @@ test("Drive connection imports the workbook inbox into the current route", () =>
     assert.match(app, /saved addresses were kept/i);
 });
 
+test("returning to a connected app refreshes a newer workbook route", () => {
+    assert.match(app, /function syncWorkbookInbox/);
+    assert.match(app, /function refreshWorkbookInboxIfConnected/);
+    assert.match(
+        app,
+        /window\.addEventListener\("focus", refreshWorkbookInboxIfConnected\)/,
+    );
+    assert.match(app, /document\.addEventListener\("visibilitychange"/);
+    assert.match(app, /document\.visibilityState === "visible"[\s\S]*refreshWorkbookInboxIfConnected/);
+    assert.match(app, /if \(!driveAutosaveEnabled \|\| document\.visibilityState === "hidden"\) return/);
+    assert.match(app, /const token = currentDriveToken\(\)/);
+    assert.match(app, /if \(result === "newer"\) scheduleDriveAutosave\(\)/);
+});
+
+test("overlapping focus and visibility refreshes share one inbox read", () => {
+    assert.match(app, /let driveInboxSyncPromise = null/);
+    assert.match(app, /if \(driveInboxSyncPromise\) return driveInboxSyncPromise/);
+    assert.match(app, /finally \{[\s\S]*driveInboxSyncPromise = null/);
+});
+
 test("same and older workbook exports cannot replace the optimized current route", () => {
     assert.match(app, /inboxRelation === "same"/);
     assert.match(app, /inboxRelation === "older"/);

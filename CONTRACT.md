@@ -77,9 +77,11 @@ that route in Google Maps.
 10. The app folder contains one workbook handoff file named **Free Map Router
     Address Inbox.json**. It is reserved for Daily Print jobs from
     **InspectorADE Repeat Job Predictor - LIVE**.
-11. Connecting Google Drive reads that inbox. Valid Daily Print addresses from
-    an accepted current or newer export are added to saved addresses without
-    weakening existing pins. A newly accepted route uses workbook print order.
+11. Connecting Google Drive reads that inbox. While the Drive connection
+    remains active, returning to the app checks the inbox again. Valid Daily
+    Print addresses from an accepted current or newer export are added to saved
+    addresses without weakening existing pins. A newly accepted route uses
+    workbook print order.
 12. A newer workbook inbox moves the former Current Route to Previous Route and
     becomes Current Route. Reconnecting to the same export preserves the
     Current Route's optimized order. An older export never replaces Current
