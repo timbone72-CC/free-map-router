@@ -283,6 +283,7 @@ test("returning to the signed-in app refreshes the backend inbox once", async (t
     let releaseRefresh = null;
     let fetchCount = 0;
     const applied = [];
+    const routeStatuses = [];
     const elements = {
         googleRouteSignIn: signInContainer,
         googleOptimizeRoute: optimizeButton,
@@ -305,9 +306,12 @@ test("returning to the signed-in app refreshes the backend inbox once", async (t
             },
         },
         FMRRouteBridge: {
-            setRouteStatus() {},
+            setRouteStatus(message) {
+                routeStatuses.push(message);
+            },
             async applyWorkbookInboxFromBackend(inbox, options) {
                 applied.push({ inbox, options });
+                return applied.length === 2 ? "newer" : "same";
             },
         },
         google: {
@@ -361,6 +365,77 @@ test("returning to the signed-in app refreshes the backend inbox once", async (t
     assert.deepEqual(applied[1].options, {
         allowStaleConfirmation: false,
     });
+    assert.deepEqual(routeStatuses.slice(-2), [
+        "Checking for new route…",
+        "Route updated — 1 address",
+    ]);
+});
+
+test("a completed check reports when Current Route is up to date", async (t) => {
+    const originalFetch = globalThis.fetch;
+    t.after(() => {
+        globalThis.fetch = originalFetch;
+    });
+
+    const routeStatuses = [];
+    let credentialCallback = null;
+    const elements = {
+        googleRouteSignIn: { hidden: false },
+        googleOptimizeRoute: {
+            disabled: true,
+            addEventListener() {},
+        },
+        googleRouteAuthStatus: { textContent: "" },
+    };
+    const root = {
+        addEventListener() {},
+        document: {
+            readyState: "complete",
+            visibilityState: "visible",
+            getElementById(id) {
+                return elements[id] || null;
+            },
+            addEventListener() {},
+        },
+        FMRRouteBridge: {
+            setRouteStatus(message) {
+                routeStatuses.push(message);
+            },
+            async applyWorkbookInboxFromBackend() {
+                return "same";
+            },
+        },
+        google: {
+            accounts: {
+                id: {
+                    initialize(options) {
+                        credentialCallback = options.callback;
+                    },
+                    renderButton() {},
+                    prompt() {},
+                },
+            },
+        },
+    };
+
+    globalThis.fetch = async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+            app: "free-map-router",
+            inboxVersion: 1,
+            source: "InspectorADE Repeat Job Predictor - LIVE",
+            updatedAt: "2026-08-10T18:00:00.000Z",
+            addresses: [{ address: "101 Main St, Elk City, OK" }],
+        }),
+    });
+
+    assert.equal(initializeBrowserUi(root), true);
+    await credentialCallback({ credential: "company-google-id-token" });
+    assert.deepEqual(routeStatuses, [
+        "Checking for new route…",
+        "Current Route is up to date.",
+    ]);
 });
 
 function snapshot() {
