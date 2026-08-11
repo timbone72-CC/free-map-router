@@ -42,6 +42,27 @@ test("valid backup can be restored", () => {
     assert.equal(restored.routes.pending, null);
 });
 
+test("backup preserves saved address correction aliases", () => {
+    const original = createBackup({
+        home: { id: "home", address: "222 Blackburn Blvd" },
+        stops: [
+            {
+                id: "workbook-rr",
+                address: "11202 N 2020 RD, Elk City, OK 73644",
+                addressAliases: ["RR1 BOX 3240, Elk City, OK 73644"],
+                source: "DCFS",
+            },
+        ],
+        routeIds: ["workbook-rr"],
+    });
+
+    const restored = parseBackup(JSON.stringify(original));
+    assert.deepEqual(restored.stops[0].addressAliases, [
+        "RR1 BOX 3240, Elk City, OK 73644",
+    ]);
+    assert.equal(restored.stops[0].source, "DCFS");
+});
+
 test("backup preserves Google, Basic, and pending route snapshots", () => {
     const stops = [
         { id: "a", address: "A" },

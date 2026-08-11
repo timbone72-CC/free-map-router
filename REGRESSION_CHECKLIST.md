@@ -60,6 +60,8 @@ identity, or a script that can affect the Address page.
 - [ ] Clear clears selection without deleting addresses.
 - [ ] Delete removes only the confirmed selected addresses.
 - [ ] Edit loads the correct address and preserves its saved pin and notes.
+- [ ] Correcting a workbook stop preserves its ID, GIS/DCFS source, strongest
+      pin, route selection, and prior exact address alias.
 - [ ] Refresh preserves saved addresses.
 
 ## Build Route checks
@@ -106,6 +108,11 @@ Required for Level 3 data changes and any Level 2 import or storage change.
 - [ ] Failure or cancellation leaves prior stored data recoverable.
 - [ ] Pending, Google, and Basic snapshots retain their own workbook Order IDs;
       receiving a newer pending route does not rewrite either usable route.
+- [ ] A raw workbook resend that matches a saved correction alias selects the
+      corrected stop once, carries its Order IDs, and does not recreate the old
+      address.
+- [ ] Merging an already-created old-address duplicate remaps all affected
+      route snapshots and Order IDs to the retained workbook stop.
 - [ ] Route-order return happens only after the operator taps its button and
       writes one exact JSON file in the existing app folder.
 

@@ -103,6 +103,80 @@ test("manual pins win when duplicate legacy records are merged", () => {
     assert.equal(stops[0].pinStatus, "manual");
 });
 
+test("address correction keeps hidden workbook metadata and remembers the prior address", () => {
+    const result = contract.applyStopEdit(
+        [
+            {
+                id: "workbook-rr",
+                address: "RR1 BOX 3240, Elk City, OK 73644",
+                source: "DCFS",
+                label: "Guardian",
+                notes: "Keep gate note",
+                latitude: 35.455,
+                longitude: -99.51,
+                pinStatus: "manual",
+            },
+        ],
+        "workbook-rr",
+        {
+            address: "11202 N 2020 RD, Elk City, OK 73644",
+            label: "Guardian",
+            notes: "Keep gate note",
+            latitude: null,
+            longitude: null,
+            pinStatus: "unverified",
+        },
+    );
+
+    assert.equal(result.stops.length, 1);
+    assert.equal(result.stops[0].id, "workbook-rr");
+    assert.equal(result.stops[0].source, "DCFS");
+    assert.equal(result.stops[0].pinStatus, "manual");
+    assert.equal(result.stops[0].latitude, 35.455);
+    assert.equal(result.stops[0].longitude, -99.51);
+    assert.deepEqual(result.stops[0].addressAliases, [
+        "RR1 BOX 3240, Elk City, OK 73644",
+    ]);
+    assert.deepEqual(result.idRemap, {});
+});
+
+test("correcting an already duplicated workbook stop retains its ID and strongest pin", () => {
+    const result = contract.applyStopEdit(
+        [
+            {
+                id: "corrected-manual",
+                address: "11202 N 2020 RD, Elk City, OK 73644",
+                source: "GIS",
+                latitude: 35.455,
+                longitude: -99.51,
+                pinStatus: "manual",
+            },
+            {
+                id: "workbook-rr",
+                address: "RR1 BOX 3240, Elk City, OK 73644",
+                source: "DCFS",
+            },
+        ],
+        "workbook-rr",
+        {
+            address: "11202 N 2020 RD, Elk City, OK 73644",
+            label: "",
+            notes: "",
+        },
+    );
+
+    assert.equal(result.stops.length, 1);
+    assert.equal(result.stops[0].id, "workbook-rr");
+    assert.equal(result.stops[0].source, "DCFS");
+    assert.equal(result.stops[0].pinStatus, "manual");
+    assert.deepEqual(result.stops[0].addressAliases, [
+        "RR1 BOX 3240, Elk City, OK 73644",
+    ]);
+    assert.deepEqual(result.idRemap, {
+        "corrected-manual": "workbook-rr",
+    });
+});
+
 test("a partial or out-of-range coordinate pair is rejected", () => {
     assert.deepEqual(contract.normalizeCoordinates(35.4, null), {
         latitude: null,

@@ -30,6 +30,14 @@ During development, run only focused handoff tests in each repository whose runt
 
 The workbook may send optional `originalAddress` values beside a corrected `address` when output-only formatting changes visible address text. The app retains every distinct exact original alias for the corrected route entry, migrates only saved stops whose normalized full address exactly matches one of those aliases, and then de-duplicates them into one corrected stop while preserving the strongest pin and other saved data. The field is optional, is not stored as a second stop, and older address-only inboxes remain valid.
 
+When the operator corrects an address inside Free Map Router, the app retains
+the prior exact normalized full address as a hidden alias on that same saved
+stop. A later raw workbook address that exactly matches that alias resolves to
+the corrected stop, preserves its dedicated GIS/DCFS source and pin, and
+attaches the inbox's exact Order IDs to that stop's pending route entry. The
+raw address is not recreated as a second stop. Fuzzy, partial, coordinate,
+label, client, and inferred alias matching are prohibited.
+
 ## Route-order return
 
 The workbook may send optional `orderIds` beside one de-duplicated physical

@@ -252,6 +252,46 @@ test("corrected workbook address migrates the saved stop without losing its pin"
     );
 });
 
+test("raw workbook resend resolves through a saved correction alias", () => {
+    const existing = [
+        {
+            id: "workbook-rr",
+            address: "11202 N 2020 RD, Elk City, OK 73644",
+            addressAliases: ["RR1 BOX 3240, Elk City, OK 73644"],
+            source: "DCFS",
+            latitude: 35.455,
+            longitude: -99.51,
+            pinStatus: "manual",
+        },
+    ];
+    const inbox = parseAddressInbox(
+        inboxText([
+            {
+                address: "RR1 BOX 3240, Elk City, OK 73644",
+                source: "DCFS",
+                orderIds: ["112310949"],
+            },
+        ]),
+    );
+    const result = applyAddressInbox(existing, inbox);
+
+    assert.equal(result.stops.length, 1);
+    assert.equal(result.stops[0].id, "workbook-rr");
+    assert.equal(
+        result.stops[0].address,
+        "11202 N 2020 RD, Elk City, OK 73644",
+    );
+    assert.equal(result.stops[0].source, "DCFS");
+    assert.equal(result.stops[0].pinStatus, "manual");
+    assert.deepEqual(result.stops[0].addressAliases, [
+        "RR1 BOX 3240, Elk City, OK 73644",
+    ]);
+    assert.deepEqual(result.routeIds, ["workbook-rr"]);
+    assert.deepEqual(result.orderIdsByStopId, {
+        "workbook-rr": ["112310949"],
+    });
+});
+
 test("all original aliases migrate into one corrected saved stop", () => {
     const existing = [
         {
