@@ -410,6 +410,7 @@ const els = {
     routeStatus: document.getElementById("routeStatus"),
     routeMapLinks: document.getElementById("routeMapLinks"),
     clearRoute: document.getElementById("clearRoute"),
+    startRouteNavigation: document.getElementById("startRouteNavigation"),
     completeAndNavigateNext: document.getElementById(
         "completeAndNavigateNext",
     ),
@@ -733,6 +734,9 @@ function renderRouteList() {
 
     if (els.completeAndNavigateNext) {
         els.completeAndNavigateNext.disabled = !home || routeIds.length === 0;
+    }
+    if (els.startRouteNavigation) {
+        els.startRouteNavigation.disabled = !home || routeIds.length === 0;
     }
 
     if (!home) {
@@ -1401,6 +1405,40 @@ function completeCurrentStopAndNavigate() {
     window.open(url, "_blank");
 }
 
+function startCurrentStopNavigation() {
+    if (!home) {
+        alert("Save your Home / Route Base first.");
+        return;
+    }
+
+    if (routeIds.length === 0) {
+        alert("No current stop remains in this route.");
+        return;
+    }
+
+    const currentStop = jobs.find((job) => job.id === routeIds[0]);
+    if (!currentStop) {
+        alert("The current route stop could not be found.");
+        return;
+    }
+
+    const url = buildGoogleMapsNavigationUrl(currentStop);
+    if (!url) {
+        alert(
+            "The first destination needs a readable address or corrected pin.",
+        );
+        return;
+    }
+
+    if (els.routeStatus) {
+        els.routeStatus.textContent =
+            `Navigating to ${currentStop.address}. ` +
+            "This stop remains first until you tap Done & Navigate Next.";
+    }
+
+    window.open(url, "_blank");
+}
+
 // ============================================================================
 // SECTION 13 — Event Wiring
 // ============================================================================
@@ -1926,6 +1964,13 @@ if (els.clearRoute) {
 
 if (els.exportRoute) {
     els.exportRoute.addEventListener("click", exportToGoogleMaps);
+}
+
+if (els.startRouteNavigation) {
+    els.startRouteNavigation.addEventListener(
+        "click",
+        startCurrentStopNavigation,
+    );
 }
 
 if (els.completeAndNavigateNext) {

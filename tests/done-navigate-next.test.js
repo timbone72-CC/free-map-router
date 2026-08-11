@@ -66,6 +66,46 @@ function runDoneAndNext({ home, jobs, routeIds }) {
     return context;
 }
 
+function runStartNavigation({ home, jobs, routeIds }) {
+    const context = {
+        alerts: [],
+        opens: [],
+        renderRouteCalls: 0,
+        renderJobsCalls: 0,
+        autosaveCalls: 0,
+        persistRouteCalls: 0,
+    };
+
+    vm.runInNewContext(
+        `
+        let home = ${JSON.stringify(home)};
+        let jobs = ${JSON.stringify(jobs)};
+        let routeIds = ${JSON.stringify(routeIds)};
+        const els = { routeStatus: { textContent: "" } };
+        const alert = (message) => alerts.push(message);
+        const window = { open: (url, target) => opens.push({ url, target }) };
+        const buildGoogleMapsNavigationUrl = (destination) =>
+            destination?.address
+                ? "navigate:" + destination.address
+                : "";
+        const renderRouteList = () => { renderRouteCalls += 1; };
+        const renderJobsList = () => { renderJobsCalls += 1; };
+        const persistActiveRoute = () => { persistRouteCalls += 1; };
+        const scheduleDriveAutosave = () => { autosaveCalls += 1; };
+        ${extractFunction(app, "startCurrentStopNavigation")}
+        startCurrentStopNavigation();
+        this.result = {
+            routeIds: routeIds.slice(),
+            jobs: jobs.map((job) => ({ ...job })),
+            status: els.routeStatus.textContent,
+        };
+        `,
+        context,
+    );
+
+    return context;
+}
+
 test("Build Route exposes one Done and Navigate Next control", () => {
     assert.match(html, /id="completeAndNavigateNext"/);
     assert.match(html, /Done &amp; Navigate Next/);
@@ -73,6 +113,63 @@ test("Build Route exposes one Done and Navigate Next control", () => {
         app,
         /els\.completeAndNavigateNext\.addEventListener\([\s\S]*completeCurrentStopAndNavigate/,
     );
+});
+
+test("Build Route exposes Start Navigation before Done and Navigate Next", () => {
+    const startIndex = html.indexOf('id="startRouteNavigation"');
+    const doneIndex = html.indexOf('id="completeAndNavigateNext"');
+
+    assert.notEqual(startIndex, -1);
+    assert.ok(startIndex < doneIndex);
+    assert.match(html, /Start Navigation/);
+    assert.match(
+        app,
+        /els\.startRouteNavigation\.addEventListener\([\s\S]*startCurrentStopNavigation/,
+    );
+});
+
+test("Start navigates to the first stop without changing or saving the route", () => {
+    const jobs = [
+        { id: "a", address: "100 First St" },
+        { id: "b", address: "200 Second St" },
+        { id: "saved", address: "300 Saved St" },
+    ];
+    const context = runStartNavigation({
+        home: { address: "Home" },
+        jobs,
+        routeIds: ["a", "b"],
+    });
+
+    assert.deepEqual(Array.from(context.result.routeIds), ["a", "b"]);
+    assert.deepEqual(
+        Array.from(context.result.jobs, (job) => job.id),
+        ["a", "b", "saved"],
+    );
+    assert.equal(context.opens.length, 1);
+    assert.equal(context.opens[0].url, "navigate:100 First St");
+    assert.equal(context.opens[0].target, "_blank");
+    assert.equal(context.renderRouteCalls, 0);
+    assert.equal(context.renderJobsCalls, 0);
+    assert.equal(context.autosaveCalls, 0);
+    assert.equal(context.persistRouteCalls, 0);
+    assert.match(context.result.status, /Navigating to 100 First St/);
+    assert.match(context.result.status, /remains first/);
+});
+
+test("Start does nothing when no current route stop exists", () => {
+    const context = runStartNavigation({
+        home: { address: "Home" },
+        jobs: [{ id: "saved", address: "300 Saved St" }],
+        routeIds: [],
+    });
+
+    assert.deepEqual(Array.from(context.result.routeIds), []);
+    assert.equal(context.opens.length, 0);
+    assert.equal(context.autosaveCalls, 0);
+    assert.equal(context.persistRouteCalls, 0);
+    assert.deepEqual(context.alerts, [
+        "No current stop remains in this route.",
+    ]);
 });
 
 test("Done removes only the current route stop and navigates to the next", () => {

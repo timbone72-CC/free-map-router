@@ -141,9 +141,11 @@ that route in Google Maps.
     `DCFS` with an address. That authoritative source is stored separately from
     client labels and notes, updates the matching physical address, and is used
     first by Build Route and Garmin. Older inboxes without `source` remain valid.
-17. Optimize, Google Optimize, Up, Down, Remove, Clear Route, Done, Google Maps,
-    and Garmin operate on the Current or Previous slot selected in Build Route.
-    A new workbook route always switches the app back to Current.
+17. Optimize, Google Optimize, Up, Down, Remove, Clear Route, Start Navigation,
+    Done, Google Maps, and Garmin operate on the Current or Previous slot
+    selected in Build Route. **Start Navigation** opens the first displayed job
+    without completing or removing it. A new workbook route always switches the
+    app back to Current.
 18. After the approved business account signs in once, the app asks Google to
     renew that identity automatically when the app loads again. If Google
     cannot renew it, the existing company-account sign-in control remains
