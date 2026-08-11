@@ -20,12 +20,15 @@ function buildTrafficWindow(now = new Date()) {
         throw new TypeError("A valid traffic departure time is required.");
     }
 
+    // Route Optimization requires globalEndTime to omit protobuf nanos.
+    start.setUTCMilliseconds(0);
+
     const end = new Date(
         start.getTime() + TRAFFIC_WINDOW_HOURS * 60 * 60 * 1000,
     );
     return {
-        globalStartTime: start.toISOString(),
-        globalEndTime: end.toISOString(),
+        globalStartTime: start.toISOString().replace(".000Z", "Z"),
+        globalEndTime: end.toISOString().replace(".000Z", "Z"),
     };
 }
 

@@ -19,7 +19,7 @@ function backendRequest() {
 
 test("Google request minimizes traffic-aware driving time and returns Home", () => {
     const request = buildGoogleOptimizeToursRequest(backendRequest(), {
-        now: "2026-08-10T16:30:00.000Z",
+        now: "2026-08-10T16:30:00.789Z",
     });
 
     assert.equal(request.model.vehicles.length, 1);
@@ -36,8 +36,10 @@ test("Google request minimizes traffic-aware driving time and returns Home", () 
     assert.equal(request.searchMode, "CONSUME_ALL_AVAILABLE_TIME");
     assert.equal(request.timeout, "30s");
     assert.equal(request.considerRoadTraffic, true);
-    assert.equal(request.model.globalStartTime, "2026-08-10T16:30:00.000Z");
-    assert.equal(request.model.globalEndTime, "2026-08-11T16:30:00.000Z");
+    assert.equal(request.model.globalStartTime, "2026-08-10T16:30:00Z");
+    assert.equal(request.model.globalEndTime, "2026-08-11T16:30:00Z");
+    assert.equal(request.model.globalStartTime.includes("."), false);
+    assert.equal(request.model.globalEndTime.includes("."), false);
 });
 
 test("Google traffic window requires a valid departure time", () => {
