@@ -123,7 +123,8 @@ that route in Google Maps.
     ordering them.
 11. **Google Optimize** sends each ordinary stop to the private backend as its
     written address. The backend uses Google Geocoding for that request before
-    Google Route Optimization. A manually corrected stop instead uses its
+    Google Route Optimization. Google Optimize minimizes estimated driving time
+    using traffic-aware road travel. A manually corrected stop instead uses its
     protected coordinates. Google results used for optimization do not rewrite
     saved pins or address text.
 12. Automatic lookup never changes address text and never marks a pin as

@@ -43,11 +43,11 @@ function buildGoogleOptimizeToursRequest(backendRequest) {
                         latitude: request.home.latitude,
                         longitude: request.home.longitude,
                     },
-                    costPerKilometer: 1,
+                    costPerTraveledHour: 1,
                 },
             ],
         },
-        considerRoadTraffic: false,
+        considerRoadTraffic: true,
         populatePolylines: false,
         populateTransitionPolylines: false,
     };
