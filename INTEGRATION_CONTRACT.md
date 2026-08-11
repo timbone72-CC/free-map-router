@@ -4,7 +4,8 @@
 
 - Upstream workbook: `timbone72-CC/inspectorade-drop-forecast-workbook-audit`
 - Downstream app: `timbone72-CC/free-map-router`
-- Handoff direction: workbook → `Free Map Router Address Inbox.json` → app
+- Forward handoff: workbook → `Free Map Router Address Inbox.json` → app
+- Return handoff: app → `Free Map Router Route Order.json` → workbook
 
 ## When the other project must be checked
 
@@ -15,7 +16,9 @@ Inspect both repositories before changing either side only when the proposed cha
 - selected-job order;
 - duplicate-address handling;
 - the inbox filename, Drive folder, JSON version, JSON structure, field names, or field meaning; or
-- how the app imports, merges, replaces, or preserves workbook-sent stops.
+- how the app imports, merges, replaces, or preserves workbook-sent stops; or
+- workbook Order IDs, displayed stop numbers, the route-order return filename,
+  or how the workbook clears and applies returned Route Number values.
 
 When triggered, the change record must say whether the other project remains compatible or needs a companion change. Do not merge or deploy an incompatible one-sided change. Keep one side backward-compatible during ordered deployment whenever practical.
 
@@ -26,6 +29,22 @@ During development, run only focused handoff tests in each repository whose runt
 ## Corrected output addresses
 
 The workbook may send optional `originalAddress` values beside a corrected `address` when output-only formatting changes visible address text. The app retains every distinct exact original alias for the corrected route entry, migrates only saved stops whose normalized full address exactly matches one of those aliases, and then de-duplicates them into one corrected stop while preserving the strongest pin and other saved data. The field is optional, is not stored as a second stop, and older address-only inboxes remain valid.
+
+## Route-order return
+
+The workbook may send optional `orderIds` beside one de-duplicated physical
+address. The app preserves them inside the specific pending, Google, and Basic
+route snapshots instead of treating them as permanent address identity. The
+manual return file is named **Free Map Router Route Order.json** and contains
+the selected route slot, optimization status, source export time, sent time,
+and visible stop number with its real Order IDs. Address text is audit context
+only; the workbook must match jobs by exact Order ID.
+
+The app-side file write and workbook-side clear/write/rebuild must remain
+backward-compatible during ordered deployment. The app may create the return
+file before the workbook receiver is published; the workbook must ignore a
+missing file and reject damaged, duplicate, stale, or structurally invalid
+return data without clearing Route Number values.
 
 ## When extra work is not required
 

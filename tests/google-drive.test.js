@@ -6,6 +6,7 @@ const {
     DRIVE_BACKUP_NAME,
     DRIVE_FOLDER_NAME,
     DRIVE_INBOX_NAME,
+    DRIVE_ROUTE_ORDER_NAME,
     DRIVE_SCOPE,
     currentDriveToken,
     createLatestDriveSaveQueue,
@@ -14,9 +15,11 @@ const {
     findBackupFolder,
     findBackupFile,
     findAddressInbox,
+    findRouteOrderFile,
     loadAddressInboxFromDrive,
     loadBackupFromDrive,
     saveBackupToDrive,
+    saveRouteOrderToDrive,
 } = require("../google-drive.js");
 
 test("Drive save queue always writes the latest queued backup last", async () => {
@@ -45,6 +48,7 @@ test("Google Drive connection uses the limited drive.file permission", () => {
     assert.equal(DRIVE_FOLDER_NAME, "Free Map Router");
     assert.equal(DRIVE_BACKUP_NAME, "Free Map Router Backup.json");
     assert.equal(DRIVE_INBOX_NAME, "Free Map Router Address Inbox.json");
+    assert.equal(DRIVE_ROUTE_ORDER_NAME, "Free Map Router Route Order.json");
 });
 
 test("Drive token is not exposed before the user connects", () => {
@@ -93,6 +97,28 @@ test("address inbox search stays inside the app folder", async () => {
     const request = new URL(requestedUrl);
     assert.match(request.searchParams.get("q"), /Address Inbox\.json/);
     assert.match(request.searchParams.get("q"), /'folder-1' in parents/);
+});
+
+test("route order search stays inside the app folder and rejects duplicates", async () => {
+    let requestedUrl = "";
+    await findRouteOrderFile("token", "folder-1", async (url) => {
+        requestedUrl = url;
+        return { ok: true, json: async () => ({ files: [] }) };
+    });
+
+    const request = new URL(requestedUrl);
+    assert.match(request.searchParams.get("q"), /Route Order\.json/);
+    assert.match(request.searchParams.get("q"), /'folder-1' in parents/);
+    assert.equal(request.searchParams.get("pageSize"), "2");
+
+    await assert.rejects(
+        () =>
+            findRouteOrderFile("token", "folder-1", async () => ({
+                ok: true,
+                json: async () => ({ files: [{ id: "one" }, { id: "two" }] }),
+            })),
+        /More than one/,
+    );
 });
 
 test("missing address inbox is created for the live workbook", async () => {
@@ -166,6 +192,61 @@ test("first folder Drive save creates a JSON backup", async () => {
     assert.match(requests[2].options.body, /Free Map Router Backup\.json/);
     assert.match(requests[2].options.body, /"parents":\["folder-1"\]/);
     assert.match(requests[2].options.body, /"address": "Home"/);
+});
+
+test("route order is created once and later overwritten in the app folder", async () => {
+    const payload = {
+        app: "free-map-router",
+        routeOrderVersion: 1,
+        stops: [{ stopNumber: 1, orderIds: ["ORDER-1"] }],
+    };
+    const createRequests = [];
+    const created = await saveRouteOrderToDrive(
+        "token",
+        payload,
+        async (url, options) => {
+            createRequests.push({ url, options });
+            if (createRequests.length === 1) {
+                return {
+                    ok: true,
+                    json: async () => ({ files: [{ id: "folder-1" }] }),
+                };
+            }
+            if (createRequests.length === 2) {
+                return { ok: true, json: async () => ({ files: [] }) };
+            }
+            return {
+                ok: true,
+                json: async () => ({ id: "route-order-1" }),
+            };
+        },
+    );
+
+    assert.equal(created.id, "route-order-1");
+    assert.equal(createRequests[2].options.method, "POST");
+    assert.match(createRequests[2].options.body, /Free Map Router Route Order\.json/);
+    assert.match(createRequests[2].options.body, /"ORDER-1"/);
+
+    const updateRequests = [];
+    await saveRouteOrderToDrive("token", payload, async (url, options) => {
+        updateRequests.push({ url, options });
+        if (updateRequests.length === 1) {
+            return {
+                ok: true,
+                json: async () => ({ files: [{ id: "folder-1" }] }),
+            };
+        }
+        if (updateRequests.length === 2) {
+            return {
+                ok: true,
+                json: async () => ({ files: [{ id: "route-order-1" }] }),
+            };
+        }
+        return { ok: true, json: async () => ({ id: "route-order-1" }) };
+    });
+
+    assert.equal(updateRequests[2].options.method, "PATCH");
+    assert.match(updateRequests[2].url, /route-order-1\?uploadType=media/);
 });
 
 test("Drive restore downloads the existing backup", async () => {

@@ -109,6 +109,60 @@ test("Back Up Now writes the complete current recovery snapshot", async () => {
     assert.match(context.els.googleDriveStatus.textContent, /Backup complete/);
 });
 
+test("Build Route manually sends the displayed Google or Basic order", async () => {
+    assert.match(
+        html,
+        /id="sendRouteOrder"[\s\S]*Send Route Order to Workbook/,
+    );
+    assert.match(html, /id="workbookRouteOrderStatus"/);
+    assert.match(
+        app,
+        /els\.sendRouteOrder\.addEventListener\("click"[\s\S]*sendDisplayedRouteOrderToWorkbook/,
+    );
+
+    const sent = [];
+    const context = {
+        activeRouteSlot: "basic",
+        routeHistory: {
+            basic: {
+                routeIds: ["b"],
+                orderIdsByStopId: { b: ["ORDER-2"] },
+            },
+        },
+        routeOrderSendPromise: null,
+        els: {
+            workbookRouteOrderStatus: { textContent: "" },
+        },
+        selectedRouteJobs: () => [{ id: "b", address: "200 Second St" }],
+        buildWorkbookRouteOrder: ({ routeSlot, routeSnapshot, routeStops }) => ({
+            routeSlot,
+            routeSnapshot,
+            routeStops,
+            stops: [{ stopNumber: 1, orderIds: ["ORDER-2"] }],
+        }),
+        workbookOrderIdCount: () => 1,
+        requestDriveToken: async () => "drive-token",
+        saveRouteOrderToDrive: async (token, payload) => {
+            sent.push({ token, payload });
+        },
+        renderRouteList: () => {},
+    };
+
+    vm.runInNewContext(
+        `${extractFunction(app, "sendDisplayedRouteOrderToWorkbook")}; this.promise = sendDisplayedRouteOrderToWorkbook();`,
+        context,
+    );
+    await context.promise;
+
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].token, "drive-token");
+    assert.equal(sent[0].payload.routeSlot, "basic");
+    assert.match(
+        context.els.workbookRouteOrderStatus.textContent,
+        /Basic Route order sent for 1 workbook job/,
+    );
+});
+
 test("business-authenticated inbox keeps the protected import path", () => {
     assert.match(app, /async function syncWorkbookInboxFrom/);
     assert.match(app, /applyWorkbookInboxFromBackend/);

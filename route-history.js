@@ -12,7 +12,7 @@
     "use strict";
 
     const STORAGE_KEY = "fmr_route_history_v1";
-    const ROUTE_HISTORY_VERSION = 2;
+    const ROUTE_HISTORY_VERSION = 3;
     const OPTIMIZATION_STATUSES = new Set([
         "not_optimized",
         "basic_optimized",
@@ -45,6 +45,32 @@
         return result;
     }
 
+    function normalizedOrderIds(values) {
+        const result = [];
+        const seen = new Set();
+
+        for (const value of Array.isArray(values) ? values : []) {
+            const orderId = String(value ?? "").trim();
+            if (!orderId || seen.has(orderId)) continue;
+            seen.add(orderId);
+            result.push(orderId);
+        }
+
+        return result;
+    }
+
+    function normalizedOrderIdsByStopId(value, routeIds) {
+        const result = {};
+        const source = value && typeof value === "object" ? value : {};
+
+        for (const stopId of routeIds) {
+            const orderIds = normalizedOrderIds(source[stopId]);
+            if (orderIds.length > 0) result[stopId] = orderIds;
+        }
+
+        return result;
+    }
+
     function normalizeRouteSnapshot(value, validIds = null) {
         if (!value || typeof value !== "object") return null;
         const routeIds = normalizedRouteIds(value.routeIds, validIds);
@@ -58,6 +84,10 @@
                 routeIds.length === 0
                     ? "not_optimized"
                     : normalizedOptimizationStatus(value.optimizationStatus),
+            orderIdsByStopId: normalizedOrderIdsByStopId(
+                value.orderIdsByStopId,
+                routeIds,
+            ),
         };
     }
 
@@ -68,6 +98,10 @@
             sourceUpdatedAt: snapshot.sourceUpdatedAt,
             optimizationStatus:
                 optimizationStatus || snapshot.optimizationStatus,
+            orderIdsByStopId: normalizedOrderIdsByStopId(
+                snapshot.orderIdsByStopId,
+                snapshot.routeIds,
+            ),
         };
     }
 
@@ -160,6 +194,7 @@
                 sourceUpdatedAt: existing?.sourceUpdatedAt || null,
                 optimizationStatus:
                     existing?.optimizationStatus || "not_optimized",
+                orderIdsByStopId: existing?.orderIdsByStopId,
             },
             validIds,
         );
@@ -217,6 +252,7 @@
         routeIds,
         sourceUpdatedAt,
         validIds = null,
+        orderIdsByStopId = null,
     ) {
         const normalized = normalizeRouteHistory(history, validIds);
         const result = workbookRouteRelation(normalized, sourceUpdatedAt);
@@ -227,6 +263,7 @@
                 routeIds,
                 sourceUpdatedAt,
                 optimizationStatus: "not_optimized",
+                orderIdsByStopId,
             },
             validIds,
         );

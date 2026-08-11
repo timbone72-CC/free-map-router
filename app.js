@@ -33,6 +33,10 @@ if (!globalThis.FMRRouteHistory) {
     throw new Error("Free Map Router route history failed to load.");
 }
 
+if (!globalThis.FMRRouteOrder) {
+    throw new Error("Free Map Router route order failed to load.");
+}
+
 const {
     normalizeAddress,
     addressKey,
@@ -81,10 +85,15 @@ const {
     writeRouteHistory,
 } = globalThis.FMRRouteHistory;
 const {
+    buildWorkbookRouteOrder,
+    workbookOrderIdCount,
+} = globalThis.FMRRouteOrder;
+const {
     createLatestDriveSaveQueue,
     loadBackupFromDrive,
     requestDriveToken,
     saveBackupToDrive,
+    saveRouteOrderToDrive,
 } = globalThis.FMRGoogleDrive;
 
 // ============================================================================
@@ -309,6 +318,7 @@ let homeDraftLongitude = null;
 let homeDraftPinStatus = "unverified";
 let driveSaveRevision = 0;
 let driveInboxSyncPromise = null;
+let routeOrderSendPromise = null;
 const driveSaveQueue = createLatestDriveSaveQueue(saveBackupToDrive);
 
 function savedJobIds() {
@@ -337,6 +347,9 @@ function persistRouteSlot(slot, nextRouteIds, optimizationStatus = null) {
     );
     if (activeRouteSlot === slot) {
         routeIds = routeHistory[slot]?.routeIds.slice() || [];
+        if (els?.workbookRouteOrderStatus) {
+            els.workbookRouteOrderStatus.textContent = "";
+        }
     }
 }
 
@@ -440,6 +453,10 @@ const els = {
     routeChoice: document.getElementById("routeChoice"),
     routeOptimizationStatus: document.getElementById(
         "routeOptimizationStatus",
+    ),
+    sendRouteOrder: document.getElementById("sendRouteOrder"),
+    workbookRouteOrderStatus: document.getElementById(
+        "workbookRouteOrderStatus",
     ),
     newRouteAvailable: document.getElementById("newRouteAvailable"),
     newRouteAvailableStatus: document.getElementById(
@@ -786,6 +803,10 @@ function renderRouteList() {
     if (els.startRouteNavigation) {
         els.startRouteNavigation.disabled = !home || routeIds.length === 0;
     }
+    if (els.sendRouteOrder) {
+        els.sendRouteOrder.disabled =
+            routeIds.length === 0 || Boolean(routeOrderSendPromise);
+    }
 
     if (!home) {
         const li = document.createElement("li");
@@ -966,6 +987,9 @@ if (els.routeChoice) {
         }
 
         activateRouteSlot(requested);
+        if (els.workbookRouteOrderStatus) {
+            els.workbookRouteOrderStatus.textContent = "";
+        }
         if (els.routeStatus) {
             els.routeStatus.textContent =
                 activeRouteSlot === "basic"
@@ -996,6 +1020,9 @@ if (els.startNewRoute) {
         activeRouteSlot = "google";
         routeIds = routeHistory.google?.routeIds.slice() || [];
         renderAll();
+        if (els.workbookRouteOrderStatus) {
+            els.workbookRouteOrderStatus.textContent = "";
+        }
         if (els.routeStatus) {
             els.routeStatus.textContent =
                 `New route started with ${routeIds.length} job${routeIds.length === 1 ? "" : "s"}. Google Route selected; both versions are Not Optimized.`;
@@ -1743,6 +1770,64 @@ async function backUpNow() {
     }
 }
 
+async function sendDisplayedRouteOrderToWorkbook() {
+    if (routeOrderSendPromise) return routeOrderSendPromise;
+
+    let routeOrder;
+    try {
+        routeOrder = buildWorkbookRouteOrder({
+            routeSlot: activeRouteSlot,
+            routeSnapshot: routeHistory[activeRouteSlot],
+            routeStops: selectedRouteJobs(),
+        });
+    } catch (error) {
+        if (els.workbookRouteOrderStatus) {
+            els.workbookRouteOrderStatus.textContent =
+                error?.message || "The route order could not be prepared.";
+        }
+        return null;
+    }
+
+    const routeName =
+        routeOrder.routeSlot === "basic" ? "Basic Route" : "Google Route";
+    const orderIdCount = workbookOrderIdCount(routeOrder);
+    if (els.workbookRouteOrderStatus) {
+        els.workbookRouteOrderStatus.textContent =
+            `Sending ${routeName} order to the workbook…`;
+    }
+
+    routeOrderSendPromise = (async () => {
+        const token = await requestDriveToken();
+        await saveRouteOrderToDrive(token, routeOrder);
+        return routeOrder;
+    })();
+    renderRouteList();
+
+    try {
+        await routeOrderSendPromise;
+        if (els.workbookRouteOrderStatus) {
+            els.workbookRouteOrderStatus.textContent =
+                `${routeName} order sent for ${orderIdCount} workbook job${orderIdCount === 1 ? "" : "s"}.`;
+        }
+        return routeOrder;
+    } catch (error) {
+        if (els.workbookRouteOrderStatus) {
+            els.workbookRouteOrderStatus.textContent =
+                error?.message || "The route order could not be sent.";
+        }
+        return null;
+    } finally {
+        routeOrderSendPromise = null;
+        renderRouteList();
+    }
+}
+
+if (els.sendRouteOrder) {
+    els.sendRouteOrder.addEventListener("click", () => {
+        void sendDisplayedRouteOrderToWorkbook();
+    });
+}
+
 async function syncWorkbookInboxFrom(
     loadInbox,
     { allowStaleConfirmation = true } = {},
@@ -1804,6 +1889,7 @@ async function syncWorkbookInboxFrom(
             imported.routeIds,
             inbox.updatedAt,
             savedJobIds(),
+            imported.orderIdsByStopId,
         );
         routeHistory = writeRouteHistory(
             localStorage,

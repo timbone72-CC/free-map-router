@@ -36,6 +36,14 @@
             if (value && !values.includes(value)) values.push(value);
         }
 
+        function normalizeOrderIds(values) {
+            const result = [];
+            for (const value of Array.isArray(values) ? values : []) {
+                addUnique(result, String(value ?? "").trim());
+            }
+            return result;
+        }
+
         function originalAliases(raw) {
             const addresses = [];
             const keys = [];
@@ -61,8 +69,12 @@
             const indexByAddress = new Map();
 
             for (const raw of Array.isArray(entries) ? entries : []) {
-                const stop = normalizeStop(raw);
-                if (!stop) continue;
+                const normalizedStop = normalizeStop(raw);
+                if (!normalizedStop) continue;
+                const stop = {
+                    ...normalizedStop,
+                    orderIds: normalizeOrderIds(raw?.orderIds),
+                };
 
                 const aliases = originalAliases(raw);
                 const index = indexByAddress.get(stop.addressKey);
@@ -78,6 +90,7 @@
                 }
 
                 const merged = normalizeStopList([result[index], stop])[0];
+                const orderIds = [...(result[index].orderIds || [])];
                 const originalAddresses = [
                     ...(result[index].originalAddresses || []),
                 ];
@@ -91,9 +104,13 @@
                 for (const key of aliases.keys) {
                     addUnique(originalAddressKeys, key);
                 }
+                for (const orderId of stop.orderIds) {
+                    addUnique(orderIds, orderId);
+                }
 
                 result[index] = {
                     ...merged,
+                    orderIds,
                     originalAddresses,
                     originalAddressKeys,
                 };
@@ -226,6 +243,7 @@
                 stops.map((stop) => [stop.addressKey, stop.id]),
             );
             const routeIds = [];
+            const orderIdsByStopId = {};
             const selected = new Set();
 
             for (const stop of incomingStops) {
@@ -233,11 +251,15 @@
                 if (!id || selected.has(id)) continue;
                 selected.add(id);
                 routeIds.push(id);
+                if (stop.orderIds.length > 0) {
+                    orderIdsByStopId[id] = stop.orderIds.slice();
+                }
             }
 
             return {
                 stops,
                 routeIds,
+                orderIdsByStopId,
                 importedCount: routeIds.length,
             };
         }

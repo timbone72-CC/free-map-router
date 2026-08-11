@@ -105,6 +105,15 @@ versions of one job route, and opens the selected version in Google Maps.
     available only to the approved business Google identity, uses read-only
     Drive access, validates the existing inbox contract, and never creates,
     edits, moves, or deletes a Drive file.
+17. A workbook inbox may include one or more real Order IDs for a physical
+    stop. Those IDs remain attached to the pending route and then to both named
+    route versions; a newer pending workbook route cannot replace the IDs that
+    belong to either usable route.
+18. **Send Route Order to Workbook** writes only the displayed Google or Basic
+    route to **Free Map Router Route Order.json** after the operator taps the
+    button and approves the existing limited Drive connection. It never runs as
+    an automatic Drive write. A duplicate exact route-order file stops the send
+    instead of choosing one silently.
 
 ## 5. Route rules
 
@@ -169,6 +178,11 @@ versions of one job route, and opens the selected version in Google Maps.
     across reloads and backups. Up or Down after optimization marks only that
     selected route as manually changed; Start New Route creates both route
     versions as not optimized.
+21. The route-order return uses the visible stop positions, including any gaps
+    caused by app-only stops, and sends every real workbook Order ID attached to
+    a physical stop. It never guesses an Order ID from address text. The button
+    stops with a clear message when the displayed route contains no workbook
+    Order IDs or one Order ID identifies more than one physical stop.
 
 ## 6. Change control
 
