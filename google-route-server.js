@@ -274,15 +274,43 @@ async function callGoogleOptimizeTours(
         body: JSON.stringify(googleRequest),
     });
 
+    const googleResponse = await response.json().catch(() => null);
+
     if (!response.ok) {
+        const violations = Array.isArray(googleResponse?.error?.details)
+            ? googleResponse.error.details.flatMap((detail) =>
+                  Array.isArray(detail?.fieldViolations)
+                      ? detail.fieldViolations
+                      : [],
+              )
+            : [];
+        const firstViolation = violations[0];
+        const field = String(firstViolation?.field ?? "").trim();
+        const description = String(firstViolation?.description ?? "").trim();
+        const providerMessage = String(googleResponse?.error?.message ?? "").trim();
+        const detail = String(
+            field && description
+                ? `${field}: ${description}`
+                : description || providerMessage,
+        )
+            .replace(/\s+/g, " ")
+            .slice(0, 500);
         throw new HttpError(
             502,
             "GOOGLE_ROUTE_FAILED",
-            `Google Route Optimization failed with status ${response.status}.`,
+            detail
+                ? `Google rejected the route request: ${detail}`
+                : `Google Route Optimization failed with status ${response.status}.`,
         );
     }
 
-    const googleResponse = await response.json();
+    if (!googleResponse) {
+        throw new HttpError(
+            502,
+            "GOOGLE_ROUTE_FAILED",
+            "Google Route Optimization returned an unreadable response.",
+        );
+    }
     return interpretGoogleOptimizeToursResponse(request, googleResponse);
 }
 

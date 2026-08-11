@@ -280,3 +280,70 @@ test("Cloud Run geocodes addresses before calling optimizeTours", async () => {
     assert.equal(JSON.stringify(googleRequest).includes("address"), false);
     assert.equal(JSON.stringify(googleRequest).includes("notes"), false);
 });
+
+test("Google validation detail reaches the app without exposing the request", async () => {
+    const fakeFetch = async (url) => {
+        if (url === METADATA_TOKEN_URL) {
+            return {
+                ok: true,
+                status: 200,
+                json: async () => ({ access_token: "runtime-token" }),
+            };
+        }
+
+        if (String(url).startsWith(GOOGLE_GEOCODE_ENDPOINT)) {
+            return {
+                ok: true,
+                status: 200,
+                json: async () => ({
+                    results: [
+                        {
+                            location: {
+                                latitude: 35.51,
+                                longitude: -99.49,
+                            },
+                        },
+                    ],
+                }),
+            };
+        }
+
+        return {
+            ok: false,
+            status: 400,
+            json: async () => ({
+                error: {
+                    message: "Request contains an invalid argument.",
+                    details: [
+                        {
+                            fieldViolations: [
+                                {
+                                    field: "model.global_start_time",
+                                    description: "Start time must be in the future.",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            }),
+        };
+    };
+
+    await assert.rejects(
+        () =>
+            callGoogleOptimizeTours(sampleRequest(), {
+                fetchImpl: fakeFetch,
+                projectId: "free-map-router",
+            }),
+        (error) => {
+            assert.equal(error.statusCode, 502);
+            assert.equal(error.code, "GOOGLE_ROUTE_FAILED");
+            assert.equal(
+                error.message,
+                "Google rejected the route request: model.global_start_time: Start time must be in the future.",
+            );
+            assert.equal(error.message.includes("101 Main St"), false);
+            return true;
+        },
+    );
+});
