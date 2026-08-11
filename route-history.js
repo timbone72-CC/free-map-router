@@ -13,6 +13,16 @@
 
     const STORAGE_KEY = "fmr_route_history_v1";
     const ROUTE_HISTORY_VERSION = 1;
+    const OPTIMIZATION_STATUSES = new Set([
+        "not_optimized",
+        "basic_optimized",
+        "google_optimized",
+        "manually_changed",
+    ]);
+
+    function normalizedOptimizationStatus(value) {
+        return OPTIMIZATION_STATUSES.has(value) ? value : "not_optimized";
+    }
 
     function normalizedTimestamp(value) {
         if (!value) return null;
@@ -44,6 +54,9 @@
         return {
             routeIds,
             sourceUpdatedAt,
+            optimizationStatus: normalizedOptimizationStatus(
+                value.optimizationStatus,
+            ),
         };
     }
 
@@ -78,6 +91,29 @@
             {
                 routeIds,
                 sourceUpdatedAt: existing?.sourceUpdatedAt || null,
+                optimizationStatus:
+                    existing?.optimizationStatus || "not_optimized",
+            },
+            validIds,
+        );
+        return normalized;
+    }
+
+    function setRouteOptimizationStatus(
+        history,
+        slot,
+        optimizationStatus,
+        validIds = null,
+    ) {
+        const normalized = normalizeRouteHistory(history, validIds);
+        const key = slot === "previous" ? "previous" : "current";
+        const existing = normalized[key];
+        if (!existing) return normalized;
+
+        normalized[key] = normalizeRouteSnapshot(
+            {
+                ...existing,
+                optimizationStatus,
             },
             validIds,
         );
@@ -103,7 +139,11 @@
             history: {
                 version: ROUTE_HISTORY_VERSION,
                 current: normalizeRouteSnapshot(
-                    { routeIds, sourceUpdatedAt: incomingTimestamp },
+                    {
+                        routeIds,
+                        sourceUpdatedAt: incomingTimestamp,
+                        optimizationStatus: "not_optimized",
+                    },
                     validIds,
                 ),
                 previous: normalized.current,
@@ -120,6 +160,7 @@
         normalizeRouteSnapshot,
         readRouteHistory,
         replaceRoute,
+        setRouteOptimizationStatus,
         writeRouteHistory,
     };
 });

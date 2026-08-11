@@ -5,6 +5,7 @@ const {
     applyWorkbookRoute,
     readRouteHistory,
     replaceRoute,
+    setRouteOptimizationStatus,
     writeRouteHistory,
 } = require("../route-history.js");
 
@@ -100,4 +101,60 @@ test("route history persists only valid saved stop IDs", () => {
     const restored = readRouteHistory(storage, validIds);
     assert.deepEqual(restored.current.routeIds, ["a", "b"]);
     assert.equal(restored.previous, null);
+});
+
+test("optimizer status persists and follows Current to Previous", () => {
+    const initial = applyWorkbookRoute(
+        null,
+        ["a", "b"],
+        "2026-08-11T12:00:00.000Z",
+    ).history;
+    const googleOptimized = setRouteOptimizationStatus(
+        initial,
+        "current",
+        "google_optimized",
+    );
+    const next = applyWorkbookRoute(
+        googleOptimized,
+        ["c"],
+        "2026-08-11T13:00:00.000Z",
+    ).history;
+
+    assert.equal(next.current.optimizationStatus, "not_optimized");
+    assert.equal(next.previous.optimizationStatus, "google_optimized");
+});
+
+test("older route history defaults safely and invalid statuses are rejected", () => {
+    const storage = memoryStorage();
+    storage.setItem(
+        "fmr_route_history_v1",
+        JSON.stringify({
+            current: { routeIds: ["a"] },
+            previous: {
+                routeIds: ["b"],
+                optimizationStatus: "untrusted-value",
+            },
+        }),
+    );
+
+    const restored = readRouteHistory(storage, new Set(["a", "b"]));
+    assert.equal(restored.current.optimizationStatus, "not_optimized");
+    assert.equal(restored.previous.optimizationStatus, "not_optimized");
+});
+
+test("manual status replaces an optimizer label without changing route order", () => {
+    const initial = replaceRoute(null, "current", ["a", "b"]);
+    const optimized = setRouteOptimizationStatus(
+        initial,
+        "current",
+        "basic_optimized",
+    );
+    const changed = setRouteOptimizationStatus(
+        optimized,
+        "current",
+        "manually_changed",
+    );
+
+    assert.deepEqual(changed.current.routeIds, ["a", "b"]);
+    assert.equal(changed.current.optimizationStatus, "manually_changed");
 });
