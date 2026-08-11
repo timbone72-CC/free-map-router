@@ -42,7 +42,9 @@
             createdAt: new Date().toISOString(),
             home: home || null,
             stops: Array.isArray(stops) ? stops : [],
-            routeIds: normalizedRoutes.current?.routeIds || [],
+            routeIds: normalizedRoutes.google?.routeIds.length
+                ? normalizedRoutes.google.routeIds
+                : normalizedRoutes.basic?.routeIds || [],
             routes: normalizedRoutes,
         };
     }
@@ -80,7 +82,9 @@
         return {
             home: parsed.home || null,
             stops: parsed.stops,
-            routeIds: routes.current?.routeIds || [],
+            routeIds: routes.google?.routeIds.length
+                ? routes.google.routeIds
+                : routes.basic?.routeIds || [],
             routes,
         };
     }

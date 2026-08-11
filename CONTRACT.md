@@ -5,8 +5,8 @@ features that have not been built.
 
 ## 1. App purpose
 
-Free Map Router stores addresses for one driver, builds one route, and opens
-that route in Google Maps.
+Free Map Router stores addresses for one driver, keeps Google and Basic ordered
+versions of one job route, and opens the selected version in Google Maps.
 
 ## 2. Address rules
 
@@ -38,16 +38,18 @@ that route in Google Maps.
    automatic lookups.
 10. Pin placement provides free **Aerial** and **Roads** views, with Aerial
     shown first so the user can identify the physical property.
-11. **Clear Route** removes every stop from the selected route slot without
-    deleting any saved address, pin, note, Home value, or setting.
+11. **Clear Route** removes every stop from the selected Google or Basic route
+    slot without deleting any saved address, pin, note, Home value, or setting.
 12. **Delete All Addresses** requires confirmation and removes all currently
-    saved stops plus Current and Previous from this app. It does not delete Home,
-    settings, workbook history, Google Doc history, or older backup files.
-13. The app retains exactly two route selections: **Current Route** and
-    **Previous Route**. Both remain saved in the current browser until replaced
-    or cleared under the approved route controls.
-14. The app always opens on Current Route. The operator may select Previous
-    Route inside Build Route; the last selected slot is not restored on reload.
+    saved stops plus Google, Basic, and pending routes from this app. It does not
+    delete Home, settings, workbook history, Google Doc history, or older backup
+    files.
+13. The app retains exactly two usable route versions: **Google Route** and
+    **Basic Route**. Each remains saved in the current browser until replaced or
+    cleared under the approved route controls.
+14. The app opens on Google Route. The operator may switch between Google Route
+    and Basic Route inside Build Route; the last selected slot is not restored
+    on reload.
 
 ## 4. Page and menu rules
 
@@ -63,8 +65,8 @@ that route in Google Maps.
    never be committed to GitHub, included in route links, or displayed in full
    after saving.
 6. Settings provides a downloadable backup and restore. The backup contains
-   Home, saved addresses, pins, Current, and Previous, but never the Geoapify
-   key.
+   Home, saved addresses, pins, Google Route, Basic Route, and any pending new
+   workbook route, but never the Geoapify key.
 7. Google Drive backup uses the limited `drive.file` permission and may access
    only files created or selected for this app. It must never request access to
    every file in Google Drive.
@@ -73,7 +75,7 @@ that route in Google Maps.
    application's filing rules.
 9. Settings provides **Back Up Now** and **Restore from Drive**. Google Drive is
    accessed only after the user taps one of those controls. Ordinary address,
-   pin, Home, Current Route, and Previous Route changes stay on the device and
+   pin, Home, Google Route, and Basic Route changes stay on the device and
    do not trigger an automatic Drive write.
 10. The app folder contains one workbook handoff file named **Free Map Router
     Address Inbox.json**. It is reserved for Daily Print jobs from
@@ -81,20 +83,23 @@ that route in Google Maps.
 11. The approved business-account sign-in uses the private read-only backend to
    check that inbox. Valid Daily Print addresses from an accepted current or
    newer export are added to saved addresses without weakening existing pins.
-   A newly accepted route uses workbook print order.
-12. A newer workbook inbox moves the former Current Route to Previous Route and
-    becomes Current Route. Reconnecting to the same export preserves the
-    Current Route's optimized order. An older export never replaces Current
-    automatically.
-13. Downloaded and Google Drive backups preserve Current and Previous. Older
-    valid backups containing only one selected route restore that route as
-    Current with no Previous Route.
+   A newly accepted route uses workbook print order and waits as **New Route
+   Available** without replacing either usable route.
+12. **Start New Route** requires confirmation, replaces both Google Route and
+    Basic Route with the pending workbook jobs in print order, marks both Not
+    Optimized, and clears the pending snapshot. Reconnecting to the same export
+    preserves both usable route orders. An older export never replaces or
+    stages a route automatically.
+13. Downloaded and Google Drive backups preserve Google Route, Basic Route, and
+    any pending workbook route. Older valid backups containing Current and
+    Previous or only one selected route migrate into the named route slots.
 14. Repeated manual backup requests are serialized so the latest requested
     state is written last.
 15. Settings provides an **Update App** control that works only while online,
     removes only Free Map Router's app cache and service-worker registration,
     and reloads a cache-busted app URL. It does not delete Home, saved
-    addresses, pins, Current, Previous, backups, or browser settings.
+    addresses, pins, Google Route, Basic Route, pending route, backups, or
+    browser settings.
 16. The private backend may read the existing workbook inbox from the exact
     approved Drive folder through its dedicated service account. That reader is
     available only to the approved business Google identity, uses read-only
@@ -142,25 +147,28 @@ that route in Google Maps.
     `DCFS` with an address. That authoritative source is stored separately from
     client labels and notes, updates the matching physical address, and is used
     first by Build Route and Garmin. Older inboxes without `source` remain valid.
-17. Optimize, Google Optimize, Up, Down, Remove, Clear Route, Start Navigation,
-    Done, Google Maps, and Garmin operate on the Current or Previous slot
-    selected in Build Route. **Start Navigation** opens the first displayed job
-    without completing or removing it. A new workbook route always switches the
-    app back to Current.
+17. Up, Down, Remove, Clear Route, Start Navigation, Done, Google Maps, and
+    Garmin operate on the Google or Basic slot selected in Build Route. Basic
+    Optimize always selects and updates only Basic Route. Google Optimize always
+    selects and updates only Google Route. **Start Navigation** opens the first
+    displayed job without completing or removing it. A pending workbook route
+    changes neither slot until confirmed Start New Route creates both versions
+    and selects Google Route.
 18. After the approved business account signs in once, the app asks Google to
     renew that identity automatically when the app loads again. If Google
     cannot renew it, the existing company-account sign-in control remains
     available. Google identity credentials are never stored in browser storage,
     app backups, or Drive files.
 19. When the business-authenticated app checks the workbook inbox, Build Route
-    shows that the check is in progress. A newly accepted route reports its
-    address count; a completed check with no newer route reports that Current
-    Route is up to date.
-20. Build Route shows whether the selected Current or Previous route was last
+    shows that the check is in progress. A newly accepted route reports **New
+    Route Available** with its address count; a completed check with no newer
+    route reports that the workbook route is up to date.
+20. Build Route shows whether the selected Google or Basic route was last
     ordered by Google Optimize, by the basic optimizer, manually changed after
     optimization, or not optimized. This status remains saved with its route
-    across reloads and backups. Up or Down after optimization marks that route
-    as manually changed; a newly loaded workbook route starts as not optimized.
+    across reloads and backups. Up or Down after optimization marks only that
+    selected route as manually changed; Start New Route creates both route
+    versions as not optimized.
 
 ## 6. Change control
 

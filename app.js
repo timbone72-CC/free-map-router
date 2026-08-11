@@ -72,10 +72,12 @@ const {
     parseAddressInbox,
 } = globalThis.FMRInbox;
 const {
-    applyWorkbookRoute,
     readRouteHistory,
     replaceRoute,
     setRouteOptimizationStatus,
+    stageWorkbookRoute,
+    startPendingRoute,
+    workbookRouteRelation,
     writeRouteHistory,
 } = globalThis.FMRRouteHistory;
 const {
@@ -294,8 +296,8 @@ let routeHistory = readRouteHistory(
     localStorage,
     new Set(jobs.map((job) => job.id)),
 );
-let activeRouteSlot = "current";
-let routeIds = routeHistory.current?.routeIds.slice() || [];
+let activeRouteSlot = "google";
+let routeIds = routeHistory.google?.routeIds.slice() || [];
 let editingJobId = null;
 let formPinStatus = "unverified";
 let locationMap = null;
@@ -313,17 +315,17 @@ function savedJobIds() {
     return new Set(jobs.map((job) => job.id));
 }
 
-function persistActiveRoute(optimizationStatus = null) {
+function persistRouteSlot(slot, nextRouteIds, optimizationStatus = null) {
     routeHistory = replaceRoute(
         routeHistory,
-        activeRouteSlot,
-        routeIds,
+        slot,
+        nextRouteIds,
         savedJobIds(),
     );
     if (optimizationStatus) {
         routeHistory = setRouteOptimizationStatus(
             routeHistory,
-            activeRouteSlot,
+            slot,
             optimizationStatus,
             savedJobIds(),
         );
@@ -333,7 +335,13 @@ function persistActiveRoute(optimizationStatus = null) {
         routeHistory,
         savedJobIds(),
     );
-    routeIds = routeHistory[activeRouteSlot]?.routeIds.slice() || [];
+    if (activeRouteSlot === slot) {
+        routeIds = routeHistory[slot]?.routeIds.slice() || [];
+    }
+}
+
+function persistActiveRoute(optimizationStatus = null) {
+    persistRouteSlot(activeRouteSlot, routeIds, optimizationStatus);
 }
 
 function markRouteManuallyChanged() {
@@ -360,8 +368,16 @@ function filterRoutesForSavedJobs() {
 
 function restoreRoutes(routes) {
     routeHistory = writeRouteHistory(localStorage, routes, savedJobIds());
-    activeRouteSlot = "current";
-    routeIds = routeHistory.current?.routeIds.slice() || [];
+    activeRouteSlot = "google";
+    routeIds = routeHistory.google?.routeIds.slice() || [];
+}
+
+function activateRouteSlot(slot) {
+    activeRouteSlot = slot === "basic" ? "basic" : "google";
+    routeIds = routeHistory[activeRouteSlot]?.routeIds.slice() || [];
+    renderJobsList();
+    renderRouteList();
+    renderRouteChoice();
 }
 
 // ============================================================================
@@ -425,6 +441,11 @@ const els = {
     routeOptimizationStatus: document.getElementById(
         "routeOptimizationStatus",
     ),
+    newRouteAvailable: document.getElementById("newRouteAvailable"),
+    newRouteAvailableStatus: document.getElementById(
+        "newRouteAvailableStatus",
+    ),
+    startNewRoute: document.getElementById("startNewRoute"),
     routeStatus: document.getElementById("routeStatus"),
     routeMapLinks: document.getElementById("routeMapLinks"),
     clearRoute: document.getElementById("clearRoute"),
@@ -492,9 +513,13 @@ function deleteAllAddresses() {
 
     jobs = [];
     routeIds = [];
-    routeHistory = { current: null, previous: null };
-    routeHistory = writeRouteHistory(localStorage, routeHistory);
-    activeRouteSlot = "current";
+    routeHistory = { google: null, basic: null, pending: null };
+    routeHistory = writeRouteHistory(
+        localStorage,
+        routeHistory,
+        savedJobIds(),
+    );
+    activeRouteSlot = "google";
     editingJobId = null;
     writeJobs(jobs);
     resetForm();
@@ -852,7 +877,7 @@ function renderRouteOptimizationStatus() {
         not_optimized: "Not Optimized",
     };
     const routeName =
-        activeRouteSlot === "previous" ? "Previous route" : "Current route";
+        activeRouteSlot === "basic" ? "Basic Route" : "Google Route";
     els.routeOptimizationStatus.textContent = `${routeName}: ${
         labels[status] || labels.not_optimized
     }`;
@@ -861,13 +886,32 @@ function renderRouteOptimizationStatus() {
 function renderRouteChoice() {
     if (!els.routeChoice) return;
     els.routeChoice.value = activeRouteSlot;
-    const previousOption = els.routeChoice.querySelector(
-        'option[value="previous"]',
+    const googleOption = els.routeChoice.querySelector(
+        'option[value="google"]',
     );
-    if (previousOption) {
-        previousOption.disabled =
-            !routeHistory.previous ||
-            routeHistory.previous.routeIds.length === 0;
+    const basicOption = els.routeChoice.querySelector(
+        'option[value="basic"]',
+    );
+    if (googleOption) {
+        googleOption.disabled =
+            !routeHistory.google || routeHistory.google.routeIds.length === 0;
+    }
+    if (basicOption) {
+        basicOption.disabled =
+            !routeHistory.basic || routeHistory.basic.routeIds.length === 0;
+    }
+}
+
+function renderNewRouteAvailable() {
+    if (!els.newRouteAvailable) return;
+    const pending = routeHistory.pending;
+    const hasPending = Boolean(pending?.routeIds.length);
+    els.newRouteAvailable.hidden = !hasPending;
+    if (els.startNewRoute) els.startNewRoute.disabled = !hasPending;
+    if (els.newRouteAvailableStatus) {
+        els.newRouteAvailableStatus.textContent = hasPending
+            ? `New Route Available — ${pending.routeIds.length} job${pending.routeIds.length === 1 ? "" : "s"}.`
+            : "";
     }
 }
 
@@ -896,6 +940,7 @@ function renderAll() {
     renderHome();
     renderJobsList();
     renderRouteChoice();
+    renderNewRouteAvailable();
     renderRouteList();
     renderSettings();
 }
@@ -911,26 +956,49 @@ function renderSettings() {
 if (els.routeChoice) {
     els.routeChoice.addEventListener("change", () => {
         const requested =
-            els.routeChoice.value === "previous" ? "previous" : "current";
+            els.routeChoice.value === "basic" ? "basic" : "google";
         if (
-            requested === "previous" &&
-            (!routeHistory.previous ||
-                routeHistory.previous.routeIds.length === 0)
+            !routeHistory[requested] ||
+            routeHistory[requested].routeIds.length === 0
         ) {
             els.routeChoice.value = activeRouteSlot;
             return;
         }
 
-        activeRouteSlot = requested;
-        routeIds = routeHistory[activeRouteSlot]?.routeIds.slice() || [];
-        renderJobsList();
-        renderRouteList();
-        renderRouteChoice();
+        activateRouteSlot(requested);
         if (els.routeStatus) {
             els.routeStatus.textContent =
-                activeRouteSlot === "current"
-                    ? "Current Route selected."
-                    : "Previous Route selected.";
+                activeRouteSlot === "basic"
+                    ? "Basic Route selected."
+                    : "Google Route selected.";
+        }
+    });
+}
+
+if (els.startNewRoute) {
+    els.startNewRoute.addEventListener("click", () => {
+        const pendingCount = routeHistory.pending?.routeIds.length || 0;
+        if (pendingCount === 0) return;
+        if (
+            !confirm(
+                `Start the new ${pendingCount}-job route? This replaces both the saved Google Route and Basic Route. Saved addresses and pins will be kept.`,
+            )
+        ) {
+            return;
+        }
+
+        const started = startPendingRoute(routeHistory, savedJobIds());
+        routeHistory = writeRouteHistory(
+            localStorage,
+            started.history,
+            savedJobIds(),
+        );
+        activeRouteSlot = "google";
+        routeIds = routeHistory.google?.routeIds.slice() || [];
+        renderAll();
+        if (els.routeStatus) {
+            els.routeStatus.textContent =
+                `New route started with ${routeIds.length} job${routeIds.length === 1 ? "" : "s"}. Google Route selected; both versions are Not Optimized.`;
         }
     });
 }
@@ -1272,7 +1340,11 @@ async function findFormLocation() {
 // ============================================================================
 // SECTION 12 — Optimize Route + Export
 // ============================================================================
-async function prepareMissingRouteCoordinates(selected, apiKey) {
+async function prepareMissingRouteCoordinates(
+    selected,
+    apiKey,
+    selectedRouteIds = routeIds,
+) {
     const missingCoords = selected.filter(
         (job) => job.latitude == null || job.longitude == null,
     );
@@ -1300,18 +1372,20 @@ async function prepareMissingRouteCoordinates(selected, apiKey) {
     }
 
     writeJobs(jobs);
-    return routeIds
+    return selectedRouteIds
         .map((id) => jobs.find((job) => job.id === id))
         .filter(Boolean);
 }
 
 async function optimizeSelectedRoute() {
-    if (routeIds.length < 2) {
+    activateRouteSlot("basic");
+    const basicRouteIds = routeIds.slice();
+    if (basicRouteIds.length < 2) {
         alert("Select at least 2 addresses to optimize.");
         return;
     }
 
-    let selected = routeIds
+    let selected = basicRouteIds
         .map((id) => jobs.find((j) => j.id === id))
         .filter(Boolean);
 
@@ -1335,7 +1409,11 @@ async function optimizeSelectedRoute() {
 
         els.optimizeRoute.disabled = true;
         try {
-            selected = await prepareMissingRouteCoordinates(selected, apiKey);
+            selected = await prepareMissingRouteCoordinates(
+                selected,
+                apiKey,
+                basicRouteIds,
+            );
         } catch (error) {
             writeJobs(jobs);
             renderAll();
@@ -1350,9 +1428,17 @@ async function optimizeSelectedRoute() {
     }
 
     const ordered = optimizeRoundTripOrder(home, selected);
-    routeIds = ordered.map((j) => j.id);
-    persistActiveRoute("basic_optimized");
+    const optimizedBasicRouteIds = ordered.map((j) => j.id);
+    persistRouteSlot(
+        "basic",
+        optimizedBasicRouteIds,
+        "basic_optimized",
+    );
+    activeRouteSlot = "basic";
+    routeIds = routeHistory.basic?.routeIds.slice() || [];
     renderRouteList();
+    renderJobsList();
+    renderRouteChoice();
     if (els.routeStatus) {
         const sections = buildGoogleMapsRouteSections(home, ordered);
         const mapsReady =
@@ -1613,7 +1699,7 @@ if (els.backupFile) {
             }
             if (
                 !confirm(
-                    "Replace the saved Home, addresses, pins, Current Route, and Previous Route with this backup?",
+                    "Replace the saved Home, addresses, pins, Google Route, Basic Route, and pending new route with this backup?",
                 )
             ) {
                 return;
@@ -1666,28 +1752,23 @@ async function syncWorkbookInboxFrom(
     driveInboxSyncPromise = (async () => {
         const inbox = parseAddressInbox(await loadInbox());
 
-        const currentSourceUpdatedAt =
-            routeHistory.current?.sourceUpdatedAt || null;
-        const inboxRelation = currentSourceUpdatedAt
-            ? new Date(inbox.updatedAt).getTime() <
-              new Date(currentSourceUpdatedAt).getTime()
-                ? "older"
-                : inbox.updatedAt === currentSourceUpdatedAt
-                  ? "same"
-                  : "newer"
-            : "newer";
+        const inboxRelation = workbookRouteRelation(
+            routeHistory,
+            inbox.updatedAt,
+        );
 
         const exportedToday = isAddressInboxExportedToday(inbox);
         const importApproved =
             inbox.addresses.length === 0 ||
             inboxRelation === "same" ||
+            inboxRelation === "pending" ||
             inboxRelation === "older" ||
             exportedToday ||
             (allowStaleConfirmation &&
                 confirm(
                     `This workbook inbox was exported on ${new Date(inbox.updatedAt).toLocaleString()}, not today. ` +
                     `It contains ${inbox.addresses.length} job${inbox.addresses.length === 1 ? "" : "s"}. ` +
-                    "Importing it will replace your current route selection but keep saved addresses. Import it anyway?",
+                    "Loading it will save the jobs as New Route Available without replacing your Google or Basic route. Load it anyway?",
                 ));
 
         if (inbox.addresses.length > 0 && inboxRelation === "older") {
@@ -1695,7 +1776,7 @@ async function syncWorkbookInboxFrom(
                 els.googleDriveInboxStatus.textContent =
                     `Older inbox ignored — ${inbox.addresses.length} job${inbox.addresses.length === 1 ? "" : "s"} ` +
                     `were exported ${new Date(inbox.updatedAt).toLocaleString()}. ` +
-                    "Current Route was kept.";
+                    "Google Route and Basic Route were kept.";
             }
             return "older";
         }
@@ -1704,7 +1785,7 @@ async function syncWorkbookInboxFrom(
                 els.googleDriveInboxStatus.textContent =
                     `Inbox not imported — ${inbox.addresses.length} job${inbox.addresses.length === 1 ? "" : "s"} ` +
                     `were exported ${new Date(inbox.updatedAt).toLocaleString()}, not today. ` +
-                    "The current route was kept.";
+                    "Google Route and Basic Route were kept.";
             }
             return "not-approved";
         }
@@ -1718,9 +1799,7 @@ async function syncWorkbookInboxFrom(
 
         const imported = applyAddressInbox(jobs, inbox);
         jobs = writeStops(localStorage, imported.stops);
-        const hadCurrentRoute =
-            (routeHistory.current?.routeIds.length || 0) > 0;
-        const appliedRoute = applyWorkbookRoute(
+        const stagedRoute = stageWorkbookRoute(
             routeHistory,
             imported.routeIds,
             inbox.updatedAt,
@@ -1728,11 +1807,10 @@ async function syncWorkbookInboxFrom(
         );
         routeHistory = writeRouteHistory(
             localStorage,
-            appliedRoute.history,
+            stagedRoute.history,
             savedJobIds(),
         );
-        activeRouteSlot = "current";
-        routeIds = routeHistory.current?.routeIds.slice() || [];
+        routeIds = routeHistory[activeRouteSlot]?.routeIds.slice() || [];
         renderAll();
         if (els.googleDriveInboxStatus) {
             els.googleDriveInboxStatus.textContent =
@@ -1740,13 +1818,12 @@ async function syncWorkbookInboxFrom(
                     inbox,
                     imported.importedCount,
                 ) + " " +
-                (appliedRoute.result === "same"
-                    ? "Current Route was already loaded, so its optimized order was kept. Saved addresses were kept."
-                    : hadCurrentRoute
-                      ? "The former Current Route is now Previous Route, and the new Current Route was loaded. Saved addresses were kept."
-                      : "The new Current Route was loaded. Saved addresses were kept.");
+                (stagedRoute.result === "newer" ||
+                stagedRoute.result === "pending"
+                    ? "New Route Available. Google Route and Basic Route were kept until Start New Route. Saved addresses were kept."
+                    : "Workbook route is already loaded. Google Route and Basic Route were kept. Saved addresses were kept.");
         }
-        return appliedRoute.result;
+        return stagedRoute.result;
     })();
 
     try {
@@ -1780,7 +1857,7 @@ if (els.restoreGoogleDrive) {
             }
             if (
                 !confirm(
-                    "Replace the saved Home, addresses, pins, Current Route, and Previous Route with the Google Drive backup?",
+                    "Replace the saved Home, addresses, pins, Google Route, Basic Route, and pending new route with the Google Drive backup?",
                 )
             ) {
                 return;
@@ -1980,6 +2057,7 @@ globalThis.FMRRouteBridge = Object.freeze({
     },
 
     async prepareSelectedRouteSnapshot() {
+        activateRouteSlot("google");
         if (home?.latitude == null || home?.longitude == null) {
             throw new Error("Verify the Home location before optimizing the route.");
         }
@@ -1996,16 +2074,21 @@ globalThis.FMRRouteBridge = Object.freeze({
                 request,
                 response,
             );
-        const currentSelection = selectedRouteJobs();
+        const currentSelection = (routeHistory.google?.routeIds || [])
+            .map((id) => jobs.find((job) => job.id === id))
+            .filter(Boolean);
         const ordered = globalThis.FMRGoogleRouteContract.applyOrderedStopIds(
             currentSelection,
             validated.orderedStopIds,
         );
 
-        routeIds = ordered.map((job) => job.id);
-        persistActiveRoute("google_optimized");
+        const googleRouteIds = ordered.map((job) => job.id);
+        persistRouteSlot("google", googleRouteIds, "google_optimized");
+        activeRouteSlot = "google";
+        routeIds = routeHistory.google?.routeIds.slice() || [];
         renderRouteList();
         renderJobsList();
+        renderRouteChoice();
 
         return {
             orderedStopIds: routeIds.slice(),

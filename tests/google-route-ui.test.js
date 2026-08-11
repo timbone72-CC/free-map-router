@@ -16,7 +16,7 @@ test("Build Route exposes separate free and Google road optimizers", () => {
     assert.doesNotMatch(html, /Google Optimize \(Test\)/);
     assert.match(html, /id="googleRouteSignIn"/);
     assert.match(html, /google-route-contract\.js\?v=1\.1\.0/);
-    assert.match(html, /google-route-browser\.js\?v=1\.5\.0/);
+    assert.match(html, /google-route-browser\.js\?v=1\.6\.0/);
 });
 
 test("app owns Google route application through a narrow bridge", () => {
@@ -25,7 +25,8 @@ test("app owns Google route application through a narrow bridge", () => {
     assert.match(app, /async prepareSelectedRouteSnapshot/);
     assert.match(app, /validateBackendResponse/);
     assert.match(app, /applyOrderedStopIds/);
-    assert.match(app, /routeIds = ordered\.map/);
+    assert.match(app, /googleRouteIds = ordered\.map/);
+    assert.match(app, /persistRouteSlot\("google"/);
 });
 
 test("Google browser adapter does not rewrite route DOM", () => {

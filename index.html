@@ -202,10 +202,16 @@
             <label>
                 Route to use
                 <select id="routeChoice">
-                    <option value="current">Current Route</option>
-                    <option value="previous">Previous Route</option>
+                    <option value="google">Google Route</option>
+                    <option value="basic">Basic Route</option>
                 </select>
             </label>
+            <div id="newRouteAvailable" hidden>
+                <p id="newRouteAvailableStatus" class="tiny"></p>
+                <button id="startNewRoute" type="button" class="btn btnSmall">
+                    Start New Route
+                </button>
+            </div>
             <div class="btnRow">
                 <button id="optimizeRoute" type="button" class="btn btnSmall">
                     Optimize Route
@@ -239,7 +245,7 @@
             </p>
             <div id="routeMapLinks" class="btnRow" hidden></div>
             <p id="routeOptimizationStatus" class="tiny">
-                Current route: Not Optimized
+                Google Route: Not Optimized
             </p>
             <p id="routeStatus" class="tiny muted">
                 Select addresses, then optimize the route.
@@ -371,8 +377,8 @@
         <script src="contract.js?v=2.2.0"></script>
         <script src="geocoder.js?v=2.0.0"></script>
         <script src="settings.js?v=1.1.0"></script>
-        <script src="route-history.js?v=1.1.0"></script>
-        <script src="backup.js?v=1.1.0"></script>
+        <script src="route-history.js?v=2.0.0"></script>
+        <script src="backup.js?v=1.2.0"></script>
         <script src="inbox.js?v=1.3.0"></script>
         <script src="https://accounts.google.com/gsi/client" async></script>
         <script src="google-drive.js?v=1.5.0"></script>
@@ -380,8 +386,8 @@
         <script src="routing.js?v=1.5.0"></script>
         <script src="garmin-gpx.js?v=1.2.0"></script>
         <script src="vendor/leaflet.js?v=1.9.4"></script>
-        <script src="app.js?v=3.25.0"></script>
-        <script src="google-route-browser.js?v=1.5.0"></script>
+        <script src="app.js?v=3.26.0"></script>
+        <script src="google-route-browser.js?v=1.6.0"></script>
         <script src="garmin-export-ui.js?v=1.1.0"></script>
     </body>
 </html>
