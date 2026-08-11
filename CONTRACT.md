@@ -71,17 +71,17 @@ that route in Google Maps.
 8. The app creates and owns one Google Drive folder named **Free Map Router**.
    Its cloud backup is saved inside that folder and is not dependent on another
    application's filing rules.
-9. After the user connects Google Drive, changes save automatically while that
-   short-lived Google connection remains active. If it expires, the app must
-   say that reconnection is required and must not claim the change was saved.
+9. Settings provides **Back Up Now** and **Restore from Drive**. Google Drive is
+   accessed only after the user taps one of those controls. Ordinary address,
+   pin, Home, Current Route, and Previous Route changes stay on the device and
+   do not trigger an automatic Drive write.
 10. The app folder contains one workbook handoff file named **Free Map Router
     Address Inbox.json**. It is reserved for Daily Print jobs from
     **InspectorADE Repeat Job Predictor - LIVE**.
-11. Connecting Google Drive reads that inbox. While the Drive connection
-    remains active, returning to the app checks the inbox again. Valid Daily
-    Print addresses from an accepted current or newer export are added to saved
-    addresses without weakening existing pins. A newly accepted route uses
-    workbook print order.
+11. The approved business-account sign-in uses the private read-only backend to
+   check that inbox. Valid Daily Print addresses from an accepted current or
+   newer export are added to saved addresses without weakening existing pins.
+   A newly accepted route uses workbook print order.
 12. A newer workbook inbox moves the former Current Route to Previous Route and
     becomes Current Route. Reconnecting to the same export preserves the
     Current Route's optimized order. An older export never replaces Current
@@ -89,8 +89,8 @@ that route in Google Maps.
 13. Downloaded and Google Drive backups preserve Current and Previous. Older
     valid backups containing only one selected route restore that route as
     Current with no Previous Route.
-14. Automatic Drive backup writes are serialized so the latest queued state is
-    written last.
+14. Repeated manual backup requests are serialized so the latest requested
+    state is written last.
 15. Settings provides an **Update App** control that works only while online,
     removes only Free Map Router's app cache and service-worker registration,
     and reloads a cache-busted app URL. It does not delete Home, saved
