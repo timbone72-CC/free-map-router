@@ -94,8 +94,11 @@ Required for Level 3 data changes and any Level 2 import or storage change.
 - [ ] Duplicate identity remains address-based.
 - [ ] Home remains separate from job stops.
 - [ ] Backup and restore preserve saved stops and Home.
-- [ ] Workbook inbox import replaces only current route selection and keeps saved
-      addresses.
+- [ ] A newer workbook inbox keeps both usable route orders, saves its jobs as
+      New Route Available, and keeps saved addresses.
+- [ ] Cancelling Start New Route preserves Google Route, Basic Route, and the
+      pending route; confirming it replaces both usable slots with every pending
+      job exactly once and clears the pending snapshot.
 - [ ] Failure or cancellation leaves prior stored data recoverable.
 
 ## Google Maps checks

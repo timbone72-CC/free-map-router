@@ -8,11 +8,35 @@ const {
     buildBrowserRequest,
     duplicateCoordinateGroups,
     formatMetrics,
+    formatWorkbookRefreshStatus,
     initializeBrowserUi,
     loadWorkbookInboxFromBackend,
     optimizeWithGoogle,
     prepareSnapshotForGoogle,
 } = require("../google-route-browser.js");
+
+test("workbook refresh status distinguishes pending, refused, older, and empty routes", () => {
+    assert.equal(
+        formatWorkbookRefreshStatus("newer", 2),
+        "New Route Available — 2 addresses",
+    );
+    assert.equal(
+        formatWorkbookRefreshStatus("pending", 1),
+        "New Route Available — 1 address",
+    );
+    assert.equal(
+        formatWorkbookRefreshStatus("not-approved", 2),
+        "Workbook route was not loaded.",
+    );
+    assert.equal(
+        formatWorkbookRefreshStatus("older", 2),
+        "Older workbook route ignored.",
+    );
+    assert.equal(
+        formatWorkbookRefreshStatus("empty", 0),
+        "Workbook route has no jobs.",
+    );
+});
 
 test("successful Google sign-in loads the backend workbook inbox through the app bridge", async () => {
     const signInContainer = { hidden: false };
@@ -367,11 +391,11 @@ test("returning to the signed-in app refreshes the backend inbox once", async (t
     });
     assert.deepEqual(routeStatuses.slice(-2), [
         "Checking for new route…",
-        "Route updated — 1 address",
+        "New Route Available — 1 address",
     ]);
 });
 
-test("a completed check reports when Current Route is up to date", async (t) => {
+test("a completed check reports when the workbook route is up to date", async (t) => {
     const originalFetch = globalThis.fetch;
     t.after(() => {
         globalThis.fetch = originalFetch;
@@ -434,7 +458,7 @@ test("a completed check reports when Current Route is up to date", async (t) => 
     await credentialCallback({ credential: "company-google-id-token" });
     assert.deepEqual(routeStatuses, [
         "Checking for new route…",
-        "Current Route is up to date.",
+        "Workbook route is up to date.",
     ]);
 });
 

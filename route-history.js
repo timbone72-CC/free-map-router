@@ -12,7 +12,7 @@
     "use strict";
 
     const STORAGE_KEY = "fmr_route_history_v1";
-    const ROUTE_HISTORY_VERSION = 1;
+    const ROUTE_HISTORY_VERSION = 2;
     const OPTIMIZATION_STATUSES = new Set([
         "not_optimized",
         "basic_optimized",
@@ -54,17 +54,80 @@
         return {
             routeIds,
             sourceUpdatedAt,
-            optimizationStatus: normalizedOptimizationStatus(
-                value.optimizationStatus,
-            ),
+            optimizationStatus:
+                routeIds.length === 0
+                    ? "not_optimized"
+                    : normalizedOptimizationStatus(value.optimizationStatus),
+        };
+    }
+
+    function copiedSnapshot(snapshot, optimizationStatus = null) {
+        if (!snapshot) return null;
+        return {
+            routeIds: snapshot.routeIds.slice(),
+            sourceUpdatedAt: snapshot.sourceUpdatedAt,
+            optimizationStatus:
+                optimizationStatus || snapshot.optimizationStatus,
+        };
+    }
+
+    function migrateLegacyHistory(value, validIds = null) {
+        const current = normalizeRouteSnapshot(value?.current, validIds);
+        const previous = normalizeRouteSnapshot(value?.previous, validIds);
+        let google = null;
+        let basic = null;
+
+        if (current?.optimizationStatus === "basic_optimized") {
+            basic = copiedSnapshot(current);
+        } else {
+            google = copiedSnapshot(current);
+        }
+
+        if (previous?.optimizationStatus === "google_optimized" && !google) {
+            google = copiedSnapshot(previous);
+        } else if (
+            previous?.optimizationStatus === "basic_optimized" &&
+            !basic
+        ) {
+            basic = copiedSnapshot(previous);
+        } else if (previous && !basic) {
+            basic = copiedSnapshot(previous);
+        } else if (previous && !google) {
+            google = copiedSnapshot(previous);
+        }
+
+        if (!google && current) {
+            google = copiedSnapshot(current, "not_optimized");
+        }
+        if (!basic && current) {
+            basic = copiedSnapshot(current, "not_optimized");
+        }
+
+        return {
+            version: ROUTE_HISTORY_VERSION,
+            google,
+            basic,
+            pending: null,
         };
     }
 
     function normalizeRouteHistory(value, validIds = null) {
+        const usesNamedSlots =
+            value?.version === ROUTE_HISTORY_VERSION ||
+            Object.hasOwn(value || {}, "google") ||
+            Object.hasOwn(value || {}, "basic") ||
+            Object.hasOwn(value || {}, "pending");
+
+        if (!usesNamedSlots) {
+            return migrateLegacyHistory(value, validIds);
+        }
+
+        const pending = normalizeRouteSnapshot(value?.pending, validIds);
         return {
             version: ROUTE_HISTORY_VERSION,
-            current: normalizeRouteSnapshot(value?.current, validIds),
-            previous: normalizeRouteSnapshot(value?.previous, validIds),
+            google: normalizeRouteSnapshot(value?.google, validIds),
+            basic: normalizeRouteSnapshot(value?.basic, validIds),
+            pending: pending?.routeIds.length ? pending : null,
         };
     }
 
@@ -83,9 +146,13 @@
         return normalized;
     }
 
+    function normalizedSlot(slot) {
+        return slot === "basic" ? "basic" : "google";
+    }
+
     function replaceRoute(history, slot, routeIds, validIds = null) {
         const normalized = normalizeRouteHistory(history, validIds);
-        const key = slot === "previous" ? "previous" : "current";
+        const key = normalizedSlot(slot);
         const existing = normalized[key];
         normalized[key] = normalizeRouteSnapshot(
             {
@@ -106,7 +173,7 @@
         validIds = null,
     ) {
         const normalized = normalizeRouteHistory(history, validIds);
-        const key = slot === "previous" ? "previous" : "current";
+        const key = normalizedSlot(slot);
         const existing = normalized[key];
         if (!existing) return normalized;
 
@@ -120,47 +187,84 @@
         return normalized;
     }
 
-    function applyWorkbookRoute(history, routeIds, sourceUpdatedAt, validIds = null) {
-        const normalized = normalizeRouteHistory(history, validIds);
+    function workbookRouteRelation(history, sourceUpdatedAt) {
+        const normalized = normalizeRouteHistory(history);
         const incomingTimestamp = normalizedTimestamp(sourceUpdatedAt);
         if (!incomingTimestamp) {
             throw new Error("The workbook route is missing a valid export time.");
         }
 
-        const currentTimestamp = normalized.current?.sourceUpdatedAt || null;
-        if (currentTimestamp && incomingTimestamp < currentTimestamp) {
-            return { history: normalized, result: "older" };
+        const timestamps = [
+            normalized.google?.sourceUpdatedAt,
+            normalized.basic?.sourceUpdatedAt,
+            normalized.pending?.sourceUpdatedAt,
+        ]
+            .filter(Boolean)
+            .sort();
+        const latestTimestamp = timestamps[timestamps.length - 1];
+
+        if (!latestTimestamp || incomingTimestamp > latestTimestamp) {
+            return "newer";
         }
-        if (currentTimestamp && incomingTimestamp === currentTimestamp) {
-            return { history: normalized, result: "same" };
+        if (incomingTimestamp < latestTimestamp) return "older";
+        return normalized.pending?.sourceUpdatedAt === incomingTimestamp
+            ? "pending"
+            : "same";
+    }
+
+    function stageWorkbookRoute(
+        history,
+        routeIds,
+        sourceUpdatedAt,
+        validIds = null,
+    ) {
+        const normalized = normalizeRouteHistory(history, validIds);
+        const result = workbookRouteRelation(normalized, sourceUpdatedAt);
+        if (result !== "newer") return { history: normalized, result };
+
+        normalized.pending = normalizeRouteSnapshot(
+            {
+                routeIds,
+                sourceUpdatedAt,
+                optimizationStatus: "not_optimized",
+            },
+            validIds,
+        );
+        return { history: normalized, result };
+    }
+
+    function startPendingRoute(history, validIds = null) {
+        const normalized = normalizeRouteHistory(history, validIds);
+        if (!normalized.pending || normalized.pending.routeIds.length === 0) {
+            return { history: normalized, result: "none" };
         }
 
+        const freshRoute = copiedSnapshot(
+            normalized.pending,
+            "not_optimized",
+        );
         return {
             history: {
                 version: ROUTE_HISTORY_VERSION,
-                current: normalizeRouteSnapshot(
-                    {
-                        routeIds,
-                        sourceUpdatedAt: incomingTimestamp,
-                        optimizationStatus: "not_optimized",
-                    },
-                    validIds,
-                ),
-                previous: normalized.current,
+                google: copiedSnapshot(freshRoute),
+                basic: copiedSnapshot(freshRoute),
+                pending: null,
             },
-            result: "newer",
+            result: "started",
         };
     }
 
     return {
         ROUTE_HISTORY_VERSION,
         STORAGE_KEY,
-        applyWorkbookRoute,
         normalizeRouteHistory,
         normalizeRouteSnapshot,
         readRouteHistory,
         replaceRoute,
         setRouteOptimizationStatus,
+        stageWorkbookRoute,
+        startPendingRoute,
+        workbookRouteRelation,
         writeRouteHistory,
     };
 });

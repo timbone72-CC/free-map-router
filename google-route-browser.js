@@ -227,6 +227,19 @@
         return parts.join(" · ");
     }
 
+    function formatWorkbookRefreshStatus(result, addressCount) {
+        const count = Number.isInteger(addressCount) && addressCount >= 0
+            ? addressCount
+            : 0;
+        if (result === "newer" || result === "pending") {
+            return `New Route Available — ${count} address${count === 1 ? "" : "es"}`;
+        }
+        if (result === "older") return "Older workbook route ignored.";
+        if (result === "not-approved") return "Workbook route was not loaded.";
+        if (result === "empty") return "Workbook route has no jobs.";
+        return "Workbook route is up to date.";
+    }
+
     function initializeBrowserUi(root = globalThis) {
         const document = root?.document;
         const bridge = root?.FMRRouteBridge;
@@ -287,10 +300,10 @@
                     { allowStaleConfirmation },
                 );
                 setStatus(
-                    result === "newer"
-                        ? `Route updated — ${inbox.addresses.length} ` +
-                          `address${inbox.addresses.length === 1 ? "" : "es"}`
-                        : "Current Route is up to date.",
+                    formatWorkbookRefreshStatus(
+                        result,
+                        inbox.addresses.length,
+                    ),
                 );
                 return result;
             })();
@@ -437,6 +450,7 @@
         coordinateKey,
         duplicateCoordinateGroups,
         formatMetrics,
+        formatWorkbookRefreshStatus,
         initializeBrowserUi,
         loadWorkbookInboxFromBackend,
         optimizeWithGoogle,

@@ -55,8 +55,9 @@ test("Back Up Now writes the complete current recovery snapshot", async () => {
         jobs: [{ id: "a", address: "100 First St" }],
         routeIds: ["a"],
         routeHistory: {
-            current: { routeIds: ["a"] },
-            previous: { routeIds: ["old"] },
+            google: { routeIds: ["a"] },
+            basic: { routeIds: ["old"] },
+            pending: { routeIds: ["new"] },
         },
         driveSaveRevision: 0,
         tokens: 0,
@@ -94,12 +95,16 @@ test("Back Up Now writes the complete current recovery snapshot", async () => {
         ["a"],
     );
     assert.deepEqual(
-        Array.from(context.saved[0].backup.routes.current.routeIds),
+        Array.from(context.saved[0].backup.routes.google.routeIds),
         ["a"],
     );
     assert.deepEqual(
-        Array.from(context.saved[0].backup.routes.previous.routeIds),
+        Array.from(context.saved[0].backup.routes.basic.routeIds),
         ["old"],
+    );
+    assert.deepEqual(
+        Array.from(context.saved[0].backup.routes.pending.routeIds),
+        ["new"],
     );
     assert.match(context.els.googleDriveStatus.textContent, /Backup complete/);
 });
@@ -112,7 +117,9 @@ test("business-authenticated inbox keeps the protected import path", () => {
         /applyWorkbookInboxFromBackend[\s\S]*syncWorkbookInboxFrom/,
     );
     assert.match(app, /applyAddressInbox\(jobs, inbox\)/);
-    assert.match(app, /applyWorkbookRoute\([\s\S]*imported\.routeIds/);
+    assert.match(app, /stageWorkbookRoute\([\s\S]*imported\.routeIds/);
+    assert.match(app, /New Route Available/);
+    assert.match(app, /startPendingRoute/);
     assert.match(html, /id="googleDriveInboxStatus"/);
 });
 
@@ -123,6 +130,6 @@ test("manual restore still waits for a pending backup and requires confirmation"
     );
     assert.match(
         app,
-        /Replace the saved Home, addresses, pins, Current Route, and Previous Route/,
+        /Replace the saved Home, addresses, pins, Google Route, Basic Route, and pending new route/,
     );
 });
