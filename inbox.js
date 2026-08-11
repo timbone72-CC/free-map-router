@@ -232,12 +232,50 @@
                 return normalizeStop({
                     ...stop,
                     address: incoming.address,
+                    addressAliases: [
+                        ...(stop.addressAliases || []),
+                        stop.address,
+                    ],
                     source: incoming.source || stop.source,
                 });
             });
+
+            const savedAliasOwnerByKey = new Map();
+            const ambiguousSavedAliases = new Set();
+            for (const stop of migratedSavedStops) {
+                for (const alias of stop.addressAliases || []) {
+                    const aliasKey = addressKey(alias);
+                    const currentOwner = savedAliasOwnerByKey.get(aliasKey);
+                    if (currentOwner && currentOwner.id !== stop.id) {
+                        ambiguousSavedAliases.add(aliasKey);
+                        savedAliasOwnerByKey.delete(aliasKey);
+                    } else if (!ambiguousSavedAliases.has(aliasKey)) {
+                        savedAliasOwnerByKey.set(aliasKey, stop);
+                    }
+                }
+            }
+
+            const resolvedIncomingStops = incomingStops.map((incoming) => {
+                const aliasOwner = savedAliasOwnerByKey.get(
+                    incoming.addressKey,
+                );
+                if (!aliasOwner) return incoming;
+
+                return {
+                    ...aliasOwner,
+                    source: incoming.source || aliasOwner.source,
+                    orderIds: incoming.orderIds.slice(),
+                    originalAddresses: [
+                        ...(incoming.originalAddresses || []),
+                    ],
+                    originalAddressKeys: [
+                        ...(incoming.originalAddressKeys || []),
+                    ],
+                };
+            });
             const stops = normalizeStopList([
                 ...migratedSavedStops,
-                ...incomingStops,
+                ...resolvedIncomingStops,
             ]);
             const idByAddress = new Map(
                 stops.map((stop) => [stop.addressKey, stop.id]),
@@ -246,7 +284,7 @@
             const orderIdsByStopId = {};
             const selected = new Set();
 
-            for (const stop of incomingStops) {
+            for (const stop of resolvedIncomingStops) {
                 const id = idByAddress.get(addressKey(stop.address));
                 if (!id || selected.has(id)) continue;
                 selected.add(id);

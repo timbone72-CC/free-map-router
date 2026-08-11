@@ -15,6 +15,13 @@ versions of one job route, and opens the selected version in Google Maps.
 3. Company, client, label, and notes are optional display information. They
    never determine duplicates, saved locations, route order, or optimization.
 4. One normalized physical address represents one saved stop.
+5. Correcting a saved stop's written address retains that stop's ID, dedicated
+   GIS/DCFS source, saved metadata, strongest pin, selection, and route
+   membership. The prior exact normalized full address is remembered as a
+   hidden alias of the corrected stop.
+6. A later workbook address that exactly matches a saved correction alias uses
+   the corrected stop. It must not recreate the prior address as a second stop
+   or detach that workbook stop's Order IDs.
 
 ## 3. Saved-data rules
 
@@ -114,6 +121,8 @@ versions of one job route, and opens the selected version in Google Maps.
     button and approves the existing limited Drive connection. It never runs as
     an automatic Drive write. A duplicate exact route-order file stops the send
     instead of choosing one silently.
+19. Downloaded and Drive backups retain each saved stop's optional address
+    correction aliases. Older backups without aliases remain valid.
 
 ## 5. Route rules
 
@@ -183,6 +192,10 @@ versions of one job route, and opens the selected version in Google Maps.
     a physical stop. It never guesses an Order ID from address text. The button
     stops with a clear message when the displayed route contains no workbook
     Order IDs or one Order ID identifies more than one physical stop.
+22. Correcting or de-duplicating a workbook-linked stop preserves its Order IDs
+    in the pending, Google, and Basic snapshots. When an existing duplicate is
+    merged, every affected snapshot is remapped to the retained workbook stop
+    without changing route status or source export time.
 
 ## 6. Change control
 

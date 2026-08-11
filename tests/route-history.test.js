@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 
 const {
     readRouteHistory,
+    remapRouteStopIds,
     replaceRoute,
     setRouteOptimizationStatus,
     stageWorkbookRoute,
@@ -108,6 +109,49 @@ test("workbook Order IDs stay with the pending route and both started variants",
         n1: ["ORDER-1"],
         n2: ["ORDER-2", "ORDER-3"],
     });
+});
+
+test("merging an old corrected duplicate remaps every route and keeps workbook IDs", () => {
+    const history = {
+        google: {
+            routeIds: ["corrected-manual", "workbook-rr", "next"],
+            sourceUpdatedAt: "2026-08-11T16:00:00.000Z",
+            optimizationStatus: "google_optimized",
+            orderIdsByStopId: {
+                "corrected-manual": ["OLDER-ID"],
+                "workbook-rr": ["112310949"],
+            },
+        },
+        basic: {
+            routeIds: ["workbook-rr", "corrected-manual"],
+            sourceUpdatedAt: "2026-08-11T16:00:00.000Z",
+            optimizationStatus: "basic_optimized",
+            orderIdsByStopId: {
+                "workbook-rr": ["112310949"],
+            },
+        },
+        pending: null,
+    };
+
+    const remapped = remapRouteStopIds(
+        history,
+        { "corrected-manual": "workbook-rr" },
+        new Set(["workbook-rr", "next"]),
+    );
+
+    assert.deepEqual(remapped.google.routeIds, ["workbook-rr", "next"]);
+    assert.deepEqual(remapped.basic.routeIds, ["workbook-rr"]);
+    assert.deepEqual(remapped.google.orderIdsByStopId, {
+        "workbook-rr": ["OLDER-ID", "112310949"],
+    });
+    assert.deepEqual(remapped.basic.orderIdsByStopId, {
+        "workbook-rr": ["112310949"],
+    });
+    assert.equal(remapped.google.optimizationStatus, "google_optimized");
+    assert.equal(
+        remapped.google.sourceUpdatedAt,
+        "2026-08-11T16:00:00.000Z",
+    );
 });
 
 test("rechecking a pending workbook export preserves all three snapshots", () => {

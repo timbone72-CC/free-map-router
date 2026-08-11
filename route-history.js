@@ -222,6 +222,69 @@
         return normalized;
     }
 
+    function remapRouteStopIds(
+        history,
+        idRemap = {},
+        validIds = null,
+    ) {
+        const normalized = normalizeRouteHistory(history);
+        const replacements =
+            idRemap && typeof idRemap === "object" ? idRemap : {};
+
+        function remapSnapshot(snapshot) {
+            if (!snapshot) return null;
+
+            const routeIds = [];
+            const seenRouteIds = new Set();
+            const orderIdsByStopId = {};
+
+            for (const oldId of snapshot.routeIds) {
+                const replacement = replacements[oldId];
+                const stopId =
+                    typeof replacement === "string" && replacement.trim()
+                        ? replacement.trim()
+                        : oldId;
+                if (validIds && !validIds.has(stopId)) continue;
+
+                if (!seenRouteIds.has(stopId)) {
+                    seenRouteIds.add(stopId);
+                    routeIds.push(stopId);
+                }
+
+                const combinedOrderIds = orderIdsByStopId[stopId] || [];
+                for (const orderId of normalizedOrderIds(
+                    snapshot.orderIdsByStopId?.[oldId],
+                )) {
+                    if (!combinedOrderIds.includes(orderId)) {
+                        combinedOrderIds.push(orderId);
+                    }
+                }
+                if (combinedOrderIds.length > 0) {
+                    orderIdsByStopId[stopId] = combinedOrderIds;
+                }
+            }
+
+            return normalizeRouteSnapshot(
+                {
+                    ...snapshot,
+                    routeIds,
+                    orderIdsByStopId,
+                },
+                validIds,
+            );
+        }
+
+        return normalizeRouteHistory(
+            {
+                version: ROUTE_HISTORY_VERSION,
+                google: remapSnapshot(normalized.google),
+                basic: remapSnapshot(normalized.basic),
+                pending: remapSnapshot(normalized.pending),
+            },
+            validIds,
+        );
+    }
+
     function workbookRouteRelation(history, sourceUpdatedAt) {
         const normalized = normalizeRouteHistory(history);
         const incomingTimestamp = normalizedTimestamp(sourceUpdatedAt);
@@ -297,6 +360,7 @@
         normalizeRouteHistory,
         normalizeRouteSnapshot,
         readRouteHistory,
+        remapRouteStopIds,
         replaceRoute,
         setRouteOptimizationStatus,
         stageWorkbookRoute,

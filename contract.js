@@ -11,7 +11,7 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function buildContract() {
     "use strict";
 
-    const SCHEMA_VERSION = 2;
+    const SCHEMA_VERSION = 3;
     const STOPS_STORAGE_KEY = "fmr_v2_stops";
     const HOME_STORAGE_KEY = "fmr_v2_home";
     const LEGACY_JOBS_STORAGE_KEY = "fmr_v1_jobs";
@@ -37,6 +37,24 @@
             .toLowerCase()
             .replace(/\s*,\s*/g, ",")
             .replace(/\s+/g, " ");
+    }
+
+    function normalizeAddressAliases(values, currentAddress = "") {
+        const aliases = [];
+        const seen = new Set();
+        const currentKey = addressKey(currentAddress);
+
+        for (const value of Array.isArray(values) ? values : []) {
+            const address = normalizeAddress(value);
+            const key = addressKey(address);
+            if (!address || !key || key === currentKey || seen.has(key)) {
+                continue;
+            }
+            seen.add(key);
+            aliases.push(address);
+        }
+
+        return aliases;
     }
 
     function finiteCoordinate(value, min, max) {
@@ -96,6 +114,10 @@
             id: text(raw?.id) || options.idFactory?.() || createId(),
             address,
             addressKey: addressKey(address),
+            addressAliases: normalizeAddressAliases(
+                raw?.addressAliases,
+                address,
+            ),
             label: text(raw?.label || raw?.company),
             source: normalizeSource(raw?.source),
             notes: text(raw?.notes),
@@ -139,6 +161,13 @@
 
         return {
             ...existing,
+            addressAliases: normalizeAddressAliases(
+                [
+                    ...(existing.addressAliases || []),
+                    ...(incoming.addressAliases || []),
+                ],
+                existing.address,
+            ),
             label: existing.label || incoming.label,
             source: incoming.source || existing.source,
             notes: existing.notes || incoming.notes,
@@ -148,6 +177,86 @@
                 ? incoming.placeId || existing.placeId
                 : existing.placeId || incoming.placeId,
             pinStatus: incomingWins ? incoming.pinStatus : existing.pinStatus,
+        };
+    }
+
+    function applyStopEdit(records, stopId, draft) {
+        const stops = normalizeStopList(records);
+        const editedIndex = stops.findIndex((stop) => stop.id === stopId);
+        if (editedIndex < 0) {
+            throw new Error("The address being edited is no longer saved.");
+        }
+
+        const existing = stops[editedIndex];
+        const nextAddress = normalizeAddress(draft?.address);
+        if (!nextAddress) {
+            throw new Error("Address is required.");
+        }
+
+        const draftCoordinates = normalizeCoordinates(
+            draft?.latitude,
+            draft?.longitude,
+        );
+        const draftHasCoordinates = draftCoordinates.latitude !== null;
+        const changedAddress =
+            addressKey(nextAddress) !== existing.addressKey;
+        const addressAliases = normalizeAddressAliases(
+            [
+                ...(existing.addressAliases || []),
+                ...(changedAddress ? [existing.address] : []),
+            ],
+            nextAddress,
+        );
+
+        let edited = normalizeStop({
+            ...existing,
+            ...draft,
+            id: existing.id,
+            address: nextAddress,
+            addressAliases,
+            source: existing.source,
+            latitude: draftHasCoordinates
+                ? draftCoordinates.latitude
+                : existing.latitude,
+            longitude: draftHasCoordinates
+                ? draftCoordinates.longitude
+                : existing.longitude,
+            placeId: text(draft?.placeId) || existing.placeId,
+            pinStatus: draftHasCoordinates
+                ? draft?.pinStatus
+                : existing.pinStatus,
+        });
+
+        const duplicateIndexes = [];
+        const idRemap = {};
+        for (let index = 0; index < stops.length; index += 1) {
+            if (
+                index === editedIndex ||
+                stops[index].addressKey !== edited.addressKey
+            ) {
+                continue;
+            }
+            duplicateIndexes.push(index);
+            idRemap[stops[index].id] = existing.id;
+            const retainedSource = edited.source || stops[index].source;
+            edited = {
+                ...mergeStops(edited, stops[index]),
+                source: retainedSource,
+            };
+        }
+
+        const involvedIndexes = new Set([editedIndex, ...duplicateIndexes]);
+        const outputIndex = Math.min(...involvedIndexes);
+        const result = [];
+        for (let index = 0; index < stops.length; index += 1) {
+            if (index === outputIndex) result.push(edited);
+            if (!involvedIndexes.has(index)) result.push(stops[index]);
+        }
+
+        return {
+            stops: normalizeStopList(result),
+            retainedId: existing.id,
+            idRemap,
         };
     }
 
@@ -247,7 +356,9 @@
         HOME_STORAGE_KEY,
         LEGACY_JOBS_STORAGE_KEY,
         MIGRATION_MARKER_KEY,
+        applyStopEdit,
         normalizeAddress,
+        normalizeAddressAliases,
         normalizeSource,
         addressKey,
         normalizeCoordinates,

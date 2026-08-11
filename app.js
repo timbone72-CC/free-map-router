@@ -38,6 +38,7 @@ if (!globalThis.FMRRouteOrder) {
 }
 
 const {
+    applyStopEdit,
     normalizeAddress,
     addressKey,
     normalizeStop,
@@ -77,6 +78,7 @@ const {
 } = globalThis.FMRInbox;
 const {
     readRouteHistory,
+    remapRouteStopIds,
     replaceRoute,
     setRouteOptimizationStatus,
     stageWorkbookRoute,
@@ -1997,8 +1999,7 @@ if (els.jobForm) {
             }
         }
 
-        const job = normalizeStop({
-            id: editingJobId || uid(),
+        const draft = {
             address,
             label,
             latitude: latProvided && lonProvided ? lat : null,
@@ -2008,15 +2009,37 @@ if (els.jobForm) {
                 latProvided && lonProvided
                     ? formPinStatus
                     : "unverified",
-        });
+        };
 
         if (editingJobId) {
-            jobs = jobs.map((j) => (j.id === editingJobId ? job : j));
+            try {
+                const edited = applyStopEdit(jobs, editingJobId, draft);
+                jobs = writeStops(localStorage, edited.stops);
+                routeHistory = remapRouteStopIds(
+                    routeHistory,
+                    edited.idRemap,
+                    savedJobIds(),
+                );
+                routeHistory = writeRouteHistory(
+                    localStorage,
+                    routeHistory,
+                    savedJobIds(),
+                );
+                routeIds =
+                    routeHistory[activeRouteSlot]?.routeIds.slice() || [];
+            } catch (error) {
+                alert(error?.message || "The address could not be updated.");
+                return;
+            }
         } else {
+            const job = normalizeStop({
+                id: uid(),
+                ...draft,
+            });
             jobs.push(job);
+            writeJobs(jobs);
         }
 
-        writeJobs(jobs);
         resetForm();
         renderAll();
     });

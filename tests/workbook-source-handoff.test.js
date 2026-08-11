@@ -100,6 +100,21 @@ test("unknown dedicated source cannot override legacy fallback", () => {
     );
 });
 
+test("Address edit uses metadata and route identity preserving helpers", () => {
+    assert.match(
+        appSource,
+        /const edited = applyStopEdit\(jobs, editingJobId, draft\)/,
+    );
+    assert.match(
+        appSource,
+        /routeHistory = remapRouteStopIds\([\s\S]*?edited\.idRemap/,
+    );
+    assert.doesNotMatch(
+        appSource,
+        /jobs = jobs\.map\(\(j\) => \(j\.id === editingJobId \? job : j\)\)/,
+    );
+});
+
 test("runtime source handling does not add observers or polling", () => {
     assert.doesNotMatch(appSource, /\bMutationObserver\b/);
     assert.doesNotMatch(appSource, /setInterval\s*\(/);
