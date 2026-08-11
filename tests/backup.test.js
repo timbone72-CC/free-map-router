@@ -53,10 +53,12 @@ test("backup preserves current and previous optimized route orders", () => {
             current: {
                 routeIds: ["b", "a"],
                 sourceUpdatedAt: "2026-08-10T14:00:00.000Z",
+                optimizationStatus: "google_optimized",
             },
             previous: {
                 routeIds: ["c"],
                 sourceUpdatedAt: "2026-08-10T13:00:00.000Z",
+                optimizationStatus: "manually_changed",
             },
         },
     });
@@ -64,6 +66,14 @@ test("backup preserves current and previous optimized route orders", () => {
 
     assert.deepEqual(restored.routes.current.routeIds, ["b", "a"]);
     assert.deepEqual(restored.routes.previous.routeIds, ["c"]);
+    assert.equal(
+        restored.routes.current.optimizationStatus,
+        "google_optimized",
+    );
+    assert.equal(
+        restored.routes.previous.optimizationStatus,
+        "manually_changed",
+    );
 });
 
 test("unrelated JSON is rejected", () => {

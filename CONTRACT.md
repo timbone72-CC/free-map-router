@@ -156,6 +156,11 @@ that route in Google Maps.
     shows that the check is in progress. A newly accepted route reports its
     address count; a completed check with no newer route reports that Current
     Route is up to date.
+20. Build Route shows whether the selected Current or Previous route was last
+    ordered by Google Optimize, by the basic optimizer, manually changed after
+    optimization, or not optimized. This status remains saved with its route
+    across reloads and backups. Up or Down after optimization marks that route
+    as manually changed; a newly loaded workbook route starts as not optimized.
 
 ## 6. Change control
 

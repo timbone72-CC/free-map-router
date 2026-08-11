@@ -75,6 +75,7 @@ const {
     applyWorkbookRoute,
     readRouteHistory,
     replaceRoute,
+    setRouteOptimizationStatus,
     writeRouteHistory,
 } = globalThis.FMRRouteHistory;
 const {
@@ -312,19 +313,40 @@ function savedJobIds() {
     return new Set(jobs.map((job) => job.id));
 }
 
-function persistActiveRoute() {
+function persistActiveRoute(optimizationStatus = null) {
     routeHistory = replaceRoute(
         routeHistory,
         activeRouteSlot,
         routeIds,
         savedJobIds(),
     );
+    if (optimizationStatus) {
+        routeHistory = setRouteOptimizationStatus(
+            routeHistory,
+            activeRouteSlot,
+            optimizationStatus,
+            savedJobIds(),
+        );
+    }
     routeHistory = writeRouteHistory(
         localStorage,
         routeHistory,
         savedJobIds(),
     );
     routeIds = routeHistory[activeRouteSlot]?.routeIds.slice() || [];
+}
+
+function markRouteManuallyChanged() {
+    if (routeIds.length === 0) return "not_optimized";
+    const status = routeHistory[activeRouteSlot]?.optimizationStatus;
+    if (
+        status === "basic_optimized" ||
+        status === "google_optimized" ||
+        status === "manually_changed"
+    ) {
+        return "manually_changed";
+    }
+    return null;
 }
 
 function filterRoutesForSavedJobs() {
@@ -400,6 +422,9 @@ const els = {
     jobList: document.getElementById("jobList"),
     routeList: document.getElementById("routeList"),
     routeChoice: document.getElementById("routeChoice"),
+    routeOptimizationStatus: document.getElementById(
+        "routeOptimizationStatus",
+    ),
     routeStatus: document.getElementById("routeStatus"),
     routeMapLinks: document.getElementById("routeMapLinks"),
     clearRoute: document.getElementById("clearRoute"),
@@ -443,7 +468,7 @@ function showPage(pageName) {
 // ============================================================================
 function clearRouteSelection() {
     routeIds = [];
-    persistActiveRoute();
+    persistActiveRoute("not_optimized");
     renderJobsList();
     renderRouteList();
     if (els.routeStatus) {
@@ -506,6 +531,7 @@ function deleteSelectedJobs() {
     routeIds = [];
 
     writeJobs(jobs);
+    persistActiveRoute("not_optimized");
     filterRoutesForSavedJobs();
     renderAll();
 }
@@ -554,8 +580,11 @@ function ensureSelectionControls() {
         const filtered = getFilteredJobs();
         const set = new Set(routeIds);
         for (const j of filtered) set.add(j.id);
+        const selectionChanged = set.size !== routeIds.length;
         routeIds = Array.from(set);
-        persistActiveRoute();
+        persistActiveRoute(
+            selectionChanged ? markRouteManuallyChanged() : null,
+        );
         renderJobsList();
         renderRouteList();
     });
@@ -673,7 +702,7 @@ function renderJobsList() {
             } else {
                 routeIds = routeIds.filter((id) => id !== job.id);
             }
-            persistActiveRoute();
+            persistActiveRoute(markRouteManuallyChanged());
             renderRouteList();
         });
 
@@ -689,6 +718,7 @@ function renderJobsList() {
         delBtn.textContent = "Delete";
         delBtn.style.width = "auto";
         delBtn.addEventListener("click", () => {
+            const removedFromRoute = routeIds.includes(job.id);
             jobs = jobs.filter((j) => j.id !== job.id);
             routeIds = routeIds.filter((id) => id !== job.id);
 
@@ -698,7 +728,9 @@ function renderJobsList() {
             }
 
             writeJobs(jobs);
-            persistActiveRoute();
+            persistActiveRoute(
+                removedFromRoute ? markRouteManuallyChanged() : null,
+            );
             filterRoutesForSavedJobs();
             renderAll();
         });
@@ -719,6 +751,7 @@ function renderRouteList() {
     const list = els.routeList;
     if (!list) return;
     renderRouteChoice();
+    renderRouteOptimizationStatus();
     list.innerHTML = "";
     renderGoogleMapsActions();
 
@@ -765,7 +798,7 @@ function renderRouteList() {
                 const tmp = routeIds[i - 1];
                 routeIds[i - 1] = routeIds[i];
                 routeIds[i] = tmp;
-                persistActiveRoute();
+                persistActiveRoute("manually_changed");
                 renderRouteList();
             });
 
@@ -778,7 +811,7 @@ function renderRouteList() {
                 const tmp = routeIds[i + 1];
                 routeIds[i + 1] = routeIds[i];
                 routeIds[i] = tmp;
-                persistActiveRoute();
+                persistActiveRoute("manually_changed");
                 renderRouteList();
             });
 
@@ -787,7 +820,7 @@ function renderRouteList() {
             removeBtn.style.width = "auto";
             removeBtn.addEventListener("click", () => {
                 routeIds = routeIds.filter((id) => id !== jobId);
-                persistActiveRoute();
+                persistActiveRoute(markRouteManuallyChanged());
                 renderRouteList();
                 renderJobsList();
             });
@@ -807,6 +840,22 @@ function renderRouteList() {
     const finish = document.createElement("li");
     finish.textContent = `Finish — ${home.address}`;
     list.appendChild(finish);
+}
+
+function renderRouteOptimizationStatus() {
+    if (!els.routeOptimizationStatus) return;
+    const status = routeHistory[activeRouteSlot]?.optimizationStatus;
+    const labels = {
+        basic_optimized: "Basic Optimized",
+        google_optimized: "Google Optimized",
+        manually_changed: "Manually Changed",
+        not_optimized: "Not Optimized",
+    };
+    const routeName =
+        activeRouteSlot === "previous" ? "Previous route" : "Current route";
+    els.routeOptimizationStatus.textContent = `${routeName}: ${
+        labels[status] || labels.not_optimized
+    }`;
 }
 
 function renderRouteChoice() {
@@ -1302,7 +1351,7 @@ async function optimizeSelectedRoute() {
 
     const ordered = optimizeRoundTripOrder(home, selected);
     routeIds = ordered.map((j) => j.id);
-    persistActiveRoute();
+    persistActiveRoute("basic_optimized");
     renderRouteList();
     if (els.routeStatus) {
         const sections = buildGoogleMapsRouteSections(home, ordered);
@@ -1377,7 +1426,9 @@ function completeCurrentStopAndNavigate() {
     }
 
     routeIds = nextRouteIds;
-    persistActiveRoute();
+    persistActiveRoute(
+        nextRouteIds.length === 0 ? "not_optimized" : null,
+    );
     renderRouteList();
     renderJobsList();
 
@@ -1952,7 +2003,7 @@ globalThis.FMRRouteBridge = Object.freeze({
         );
 
         routeIds = ordered.map((job) => job.id);
-        persistActiveRoute();
+        persistActiveRoute("google_optimized");
         renderRouteList();
         renderJobsList();
 
