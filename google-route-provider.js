@@ -12,13 +12,32 @@ function durationSeconds(value) {
     return Number.isFinite(seconds) && seconds >= 0 ? seconds : null;
 }
 
-function buildGoogleOptimizeToursRequest(backendRequest) {
+const TRAFFIC_WINDOW_HOURS = 24;
+
+function buildTrafficWindow(now = new Date()) {
+    const start = new Date(now);
+    if (!Number.isFinite(start.getTime())) {
+        throw new TypeError("A valid traffic departure time is required.");
+    }
+
+    const end = new Date(
+        start.getTime() + TRAFFIC_WINDOW_HOURS * 60 * 60 * 1000,
+    );
+    return {
+        globalStartTime: start.toISOString(),
+        globalEndTime: end.toISOString(),
+    };
+}
+
+function buildGoogleOptimizeToursRequest(backendRequest, { now } = {}) {
     const request = buildCoordinateRequest(backendRequest);
+    const trafficWindow = buildTrafficWindow(now);
 
     return {
         timeout: "30s",
         searchMode: "CONSUME_ALL_AVAILABLE_TIME",
         model: {
+            ...trafficWindow,
             shipments: request.stops.map((stop) => ({
                 label: stop.id,
                 deliveries: [
