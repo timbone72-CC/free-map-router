@@ -74,6 +74,10 @@ changes.
 - [ ] Home remains the unnumbered start and finish.
 - [ ] Visible numbering, when present, matches the current route order.
 - [ ] Reordering or re-optimizing produces one stable render, not a loop.
+- [ ] Send Route Order uses the selected Google or Basic route and its visible
+      stop positions.
+- [ ] App-only stops are not assigned invented workbook Order IDs.
+- [ ] Multiple workbook jobs at one physical stop receive the same stop number.
 
 ## Garmin export checks
 
@@ -100,6 +104,10 @@ Required for Level 3 data changes and any Level 2 import or storage change.
       pending route; confirming it replaces both usable slots with every pending
       job exactly once and clears the pending snapshot.
 - [ ] Failure or cancellation leaves prior stored data recoverable.
+- [ ] Pending, Google, and Basic snapshots retain their own workbook Order IDs;
+      receiving a newer pending route does not rewrite either usable route.
+- [ ] Route-order return happens only after the operator taps its button and
+      writes one exact JSON file in the existing app folder.
 
 ## Google Maps checks
 

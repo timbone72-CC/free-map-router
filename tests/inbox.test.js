@@ -35,6 +35,31 @@ test("valid workbook inbox is parsed in print order", () => {
     );
 });
 
+test("workbook Order IDs stay attached to their physical route stop", () => {
+    const inbox = parseAddressInbox(
+        inboxText([
+            {
+                address: "300 Third St, Elk City, OK 73644",
+                orderIds: ["GIS-301", "GIS-302", "GIS-301", ""],
+            },
+            {
+                address: " 300 Third St,  Elk City, OK 73644 ",
+                orderIds: ["GIS-303"],
+            },
+        ]),
+    );
+    const result = applyAddressInbox([], inbox);
+    const stopId = result.routeIds[0];
+
+    assert.equal(result.routeIds.length, 1);
+    assert.deepEqual(result.orderIdsByStopId[stopId], [
+        "GIS-301",
+        "GIS-302",
+        "GIS-303",
+    ]);
+    assert.equal(Object.hasOwn(result.stops[0], "orderIds"), false);
+});
+
 test("inbox status shows export time, source, job count, and import result", () => {
     const inbox = parseAddressInbox(
         inboxText([

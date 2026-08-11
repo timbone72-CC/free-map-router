@@ -17,6 +17,7 @@
     const DRIVE_FOLDER_NAME = "Free Map Router";
     const DRIVE_BACKUP_NAME = "Free Map Router Backup.json";
     const DRIVE_INBOX_NAME = "Free Map Router Address Inbox.json";
+    const DRIVE_ROUTE_ORDER_NAME = "Free Map Router Route Order.json";
     let tokenClient = null;
     let accessToken = "";
     let tokenExpiresAt = 0;
@@ -132,6 +133,37 @@
         return Array.isArray(data?.files) ? data.files[0] || null : null;
     }
 
+    async function findRouteOrderFile(
+        token,
+        folderId,
+        fetchFn = globalThis.fetch,
+    ) {
+        const url = new URL("https://www.googleapis.com/drive/v3/files");
+        url.searchParams.set(
+            "q",
+            `name = '${DRIVE_ROUTE_ORDER_NAME}' and '${folderId}' in parents and trashed = false`,
+        );
+        url.searchParams.set("spaces", "drive");
+        url.searchParams.set("fields", "files(id,name,modifiedTime,parents)");
+        url.searchParams.set("pageSize", "2");
+
+        const response = await fetchFn(url.toString(), {
+            headers: authorizationHeaders(token),
+        });
+        requireSuccessfulResponse(
+            response,
+            "Google Drive could not find the route order file.",
+        );
+        const data = await response.json();
+        const files = Array.isArray(data?.files) ? data.files : [];
+        if (files.length > 1) {
+            throw new Error(
+                "More than one Free Map Router route order file was found.",
+            );
+        }
+        return files[0] || null;
+    }
+
     async function createDriveBackup(token, folderId, contents, fetchFn) {
         const boundary = `fmr_${Date.now().toString(16)}`;
         const metadata = {
@@ -217,6 +249,50 @@
         return response.json();
     }
 
+    async function createRouteOrderFile(
+        token,
+        folderId,
+        contents,
+        fetchFn,
+    ) {
+        const boundary = `fmr_route_order_${Date.now().toString(16)}`;
+        const metadata = {
+            name: DRIVE_ROUTE_ORDER_NAME,
+            mimeType: "application/json",
+            parents: [folderId],
+            appProperties: { app: "free-map-router", role: "route-order" },
+        };
+        const body = [
+            `--${boundary}`,
+            "Content-Type: application/json; charset=UTF-8",
+            "",
+            JSON.stringify(metadata),
+            `--${boundary}`,
+            "Content-Type: application/json; charset=UTF-8",
+            "",
+            contents,
+            `--${boundary}--`,
+            "",
+        ].join("\r\n");
+
+        const response = await fetchFn(
+            "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,modifiedTime",
+            {
+                method: "POST",
+                headers: {
+                    ...authorizationHeaders(token),
+                    "Content-Type": `multipart/related; boundary=${boundary}`,
+                },
+                body,
+            },
+        );
+        requireSuccessfulResponse(
+            response,
+            "Google Drive could not create the route order file.",
+        );
+        return response.json();
+    }
+
     async function ensureAddressInbox(token, fetchFn = globalThis.fetch) {
         const folder = await ensureBackupFolder(token, fetchFn);
         return (
@@ -242,6 +318,38 @@
             "Google Drive could not update the backup.",
         );
         return response.json();
+    }
+
+    async function updateRouteOrderFile(token, fileId, contents, fetchFn) {
+        const response = await fetchFn(
+            `https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(fileId)}?uploadType=media&fields=id,name,modifiedTime`,
+            {
+                method: "PATCH",
+                headers: {
+                    ...authorizationHeaders(token),
+                    "Content-Type": "application/json; charset=UTF-8",
+                },
+                body: contents,
+            },
+        );
+        requireSuccessfulResponse(
+            response,
+            "Google Drive could not update the route order file.",
+        );
+        return response.json();
+    }
+
+    async function saveRouteOrderToDrive(
+        token,
+        routeOrder,
+        fetchFn = globalThis.fetch,
+    ) {
+        const contents = JSON.stringify(routeOrder, null, 2);
+        const folder = await ensureBackupFolder(token, fetchFn);
+        const existing = await findRouteOrderFile(token, folder.id, fetchFn);
+        return existing
+            ? updateRouteOrderFile(token, existing.id, contents, fetchFn)
+            : createRouteOrderFile(token, folder.id, contents, fetchFn);
     }
 
     async function saveBackupToDrive(
@@ -403,6 +511,7 @@
         DRIVE_BACKUP_NAME,
         DRIVE_FOLDER_NAME,
         DRIVE_INBOX_NAME,
+        DRIVE_ROUTE_ORDER_NAME,
         DRIVE_SCOPE,
         createLatestDriveSaveQueue,
         ensureAddressInbox,
@@ -410,10 +519,12 @@
         findAddressInbox,
         findBackupFolder,
         findBackupFile,
+        findRouteOrderFile,
         loadAddressInboxFromDrive,
         loadBackupFromDrive,
         currentDriveToken,
         requestDriveToken,
         saveBackupToDrive,
+        saveRouteOrderToDrive,
     };
 });

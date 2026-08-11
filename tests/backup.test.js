@@ -56,6 +56,10 @@ test("backup preserves Google, Basic, and pending route snapshots", () => {
                 routeIds: ["b", "a"],
                 sourceUpdatedAt: "2026-08-10T14:00:00.000Z",
                 optimizationStatus: "google_optimized",
+                orderIdsByStopId: {
+                    a: ["ORDER-A"],
+                    b: ["ORDER-B"],
+                },
             },
             basic: {
                 routeIds: ["c"],
@@ -66,6 +70,10 @@ test("backup preserves Google, Basic, and pending route snapshots", () => {
                 routeIds: ["a", "c"],
                 sourceUpdatedAt: "2026-08-10T15:00:00.000Z",
                 optimizationStatus: "not_optimized",
+                orderIdsByStopId: {
+                    a: ["NEW-A"],
+                    c: ["NEW-C-1", "NEW-C-2"],
+                },
             },
         },
     });
@@ -82,6 +90,14 @@ test("backup preserves Google, Basic, and pending route snapshots", () => {
         restored.routes.basic.optimizationStatus,
         "manually_changed",
     );
+    assert.deepEqual(restored.routes.google.orderIdsByStopId, {
+        a: ["ORDER-A"],
+        b: ["ORDER-B"],
+    });
+    assert.deepEqual(restored.routes.pending.orderIdsByStopId, {
+        a: ["NEW-A"],
+        c: ["NEW-C-1", "NEW-C-2"],
+    });
 });
 
 test("legacy Current and Previous backup data migrates without losing either route", () => {

@@ -71,6 +71,45 @@ test("Start New Route replaces both variants from pending and clears pending", (
     assert.notEqual(started.history.google, started.history.basic);
 });
 
+test("workbook Order IDs stay with the pending route and both started variants", () => {
+    const staged = stageWorkbookRoute(
+        namedRoutes(),
+        ["n1", "n2"],
+        "2026-08-10T14:00:00.000Z",
+        new Set(["n1", "n2", "g1", "g2", "b1", "b2"]),
+        {
+            n1: ["ORDER-1"],
+            n2: ["ORDER-2", "ORDER-3"],
+            missing: ["SHOULD-NOT-SAVE"],
+        },
+    ).history;
+
+    assert.deepEqual(staged.pending.orderIdsByStopId, {
+        n1: ["ORDER-1"],
+        n2: ["ORDER-2", "ORDER-3"],
+    });
+    assert.deepEqual(staged.google.orderIdsByStopId, {});
+
+    const started = startPendingRoute(staged);
+    assert.deepEqual(started.history.google.orderIdsByStopId, {
+        n1: ["ORDER-1"],
+        n2: ["ORDER-2", "ORDER-3"],
+    });
+    assert.deepEqual(started.history.basic.orderIdsByStopId, {
+        n1: ["ORDER-1"],
+        n2: ["ORDER-2", "ORDER-3"],
+    });
+
+    const reordered = replaceRoute(started.history, "google", ["n2"]);
+    assert.deepEqual(reordered.google.orderIdsByStopId, {
+        n2: ["ORDER-2", "ORDER-3"],
+    });
+    assert.deepEqual(reordered.basic.orderIdsByStopId, {
+        n1: ["ORDER-1"],
+        n2: ["ORDER-2", "ORDER-3"],
+    });
+});
+
 test("rechecking a pending workbook export preserves all three snapshots", () => {
     const staged = stageWorkbookRoute(
         namedRoutes(),
