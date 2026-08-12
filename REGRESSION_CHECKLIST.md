@@ -62,6 +62,9 @@ identity, or a script that can affect the Address page.
 - [ ] Edit loads the correct address and preserves its saved pin and notes.
 - [ ] Correcting a workbook stop preserves its ID, GIS/DCFS source, strongest
       pin, route selection, and prior exact address alias.
+- [ ] Correcting a workbook stop reports that its permanent correction record
+      saved successfully; a raw resend after local browser storage is replaced
+      still selects the corrected address once.
 - [ ] Refresh preserves saved addresses.
 
 ## Build Route checks
@@ -111,6 +114,8 @@ Required for Level 3 data changes and any Level 2 import or storage change.
 - [ ] A raw workbook resend that matches a saved correction alias selects the
       corrected stop once, carries its Order IDs, and does not recreate the old
       address.
+- [ ] A missing, damaged, or duplicate permanent-correction file stops the
+      inbox import before it can recreate an old address.
 - [ ] Merging an already-created old-address duplicate remaps all affected
       route snapshots and Order IDs to the retained workbook stop.
 - [ ] Route-order return happens only after the operator taps its button and

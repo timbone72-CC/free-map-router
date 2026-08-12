@@ -38,7 +38,7 @@ test("Settings offers one manual Google Drive backup control", () => {
     );
 });
 
-test("ordinary app changes do not schedule Google Drive activity", () => {
+test("ordinary app changes do not schedule Google Drive backup activity", () => {
     assert.doesNotMatch(app, /scheduleDriveAutosave/);
     assert.doesNotMatch(app, /driveAutosaveEnabled/);
     assert.doesNotMatch(app, /refreshWorkbookInboxIfConnected/);
@@ -46,6 +46,18 @@ test("ordinary app changes do not schedule Google Drive activity", () => {
     assert.match(
         contract,
         /Ordinary address,[\s\S]*do not trigger an automatic Drive write/,
+    );
+    assert.match(
+        app,
+        /void savePermanentAddressCorrections\(jobs\)/,
+    );
+    assert.match(
+        contract,
+        /Correcting a saved address is the sole exception to the manual-backup rule/,
+    );
+    assert.match(
+        app,
+        /const corrections = await loadPermanentAddressCorrections\(\);[\s\S]*applyCorrectionsToInbox\(inbox, corrections\)/,
     );
 });
 
