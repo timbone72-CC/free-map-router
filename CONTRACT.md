@@ -22,6 +22,11 @@ versions of one job route, and opens the selected version in Google Maps.
 6. A later workbook address that exactly matches a saved correction alias uses
    the corrected stop. It must not recreate the prior address as a second stop
    or detach that workbook stop's Order IDs.
+7. Every saved address correction is also kept in the app-owned Google Drive
+   corrections record. It retains the original full address, corrected display
+   address, dedicated GIS/DCFS source, and strongest saved pin. Workbook Order
+   IDs remain attached only to the fresh workbook route snapshot, never to a
+   permanent correction record.
 
 ## 3. Saved-data rules
 
@@ -84,44 +89,52 @@ versions of one job route, and opens the selected version in Google Maps.
    accessed only after the user taps one of those controls. Ordinary address,
    pin, Home, Google Route, and Basic Route changes stay on the device and
    do not trigger an automatic Drive write.
-10. The app folder contains one workbook handoff file named **Free Map Router
+10. Correcting a saved address is the sole exception to the manual-backup rule:
+    it writes only the small, app-owned **Free Map Router Address
+    Corrections.json** record to the existing app folder. This is not a route
+    backup and does not write Home, routes, notes, labels, or API keys. Before
+    workbook addresses are matched, the app loads that record. A correction-save
+    failure leaves the device copy intact and reports that it was not saved
+    permanently; a correction-load failure stops the workbook import rather
+    than recreating a known old address.
+11. The app folder contains one workbook handoff file named **Free Map Router
     Address Inbox.json**. It is reserved for Daily Print jobs from
     **InspectorADE Repeat Job Predictor - LIVE**.
-11. The approved business-account sign-in uses the private read-only backend to
+12. The approved business-account sign-in uses the private read-only backend to
    check that inbox. Valid Daily Print addresses from an accepted current or
    newer export are added to saved addresses without weakening existing pins.
    A newly accepted route uses workbook print order and waits as **New Route
    Available** without replacing either usable route.
-12. **Start New Route** requires confirmation, replaces both Google Route and
+13. **Start New Route** requires confirmation, replaces both Google Route and
     Basic Route with the pending workbook jobs in print order, marks both Not
     Optimized, and clears the pending snapshot. Reconnecting to the same export
     preserves both usable route orders. An older export never replaces or
     stages a route automatically.
-13. Downloaded and Google Drive backups preserve Google Route, Basic Route, and
+14. Downloaded and Google Drive backups preserve Google Route, Basic Route, and
     any pending workbook route. Older valid backups containing Current and
     Previous or only one selected route migrate into the named route slots.
-14. Repeated manual backup requests are serialized so the latest requested
+15. Repeated manual backup requests are serialized so the latest requested
     state is written last.
-15. Settings provides an **Update App** control that works only while online,
+16. Settings provides an **Update App** control that works only while online,
     removes only Free Map Router's app cache and service-worker registration,
     and reloads a cache-busted app URL. It does not delete Home, saved
     addresses, pins, Google Route, Basic Route, pending route, backups, or
     browser settings.
-16. The private backend may read the existing workbook inbox from the exact
+17. The private backend may read the existing workbook inbox from the exact
     approved Drive folder through its dedicated service account. That reader is
     available only to the approved business Google identity, uses read-only
     Drive access, validates the existing inbox contract, and never creates,
     edits, moves, or deletes a Drive file.
-17. A workbook inbox may include one or more real Order IDs for a physical
+18. A workbook inbox may include one or more real Order IDs for a physical
     stop. Those IDs remain attached to the pending route and then to both named
     route versions; a newer pending workbook route cannot replace the IDs that
     belong to either usable route.
-18. **Send Route Order to Workbook** writes only the displayed Google or Basic
+19. **Send Route Order to Workbook** writes only the displayed Google or Basic
     route to **Free Map Router Route Order.json** after the operator taps the
     button and approves the existing limited Drive connection. It never runs as
     an automatic Drive write. A duplicate exact route-order file stops the send
     instead of choosing one silently.
-19. Downloaded and Drive backups retain each saved stop's optional address
+20. Downloaded and Drive backups retain each saved stop's optional address
     correction aliases. Older backups without aliases remain valid.
 
 ## 5. Route rules

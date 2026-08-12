@@ -18,6 +18,7 @@
     const DRIVE_BACKUP_NAME = "Free Map Router Backup.json";
     const DRIVE_INBOX_NAME = "Free Map Router Address Inbox.json";
     const DRIVE_ROUTE_ORDER_NAME = "Free Map Router Route Order.json";
+    const DRIVE_CORRECTIONS_NAME = "Free Map Router Address Corrections.json";
     let tokenClient = null;
     let accessToken = "";
     let tokenExpiresAt = 0;
@@ -164,6 +165,38 @@
         return files[0] || null;
     }
 
+    async function findCorrectionFile(
+        token,
+        folderId,
+        fetchFn = globalThis.fetch,
+    ) {
+        const url = new URL("https://www.googleapis.com/drive/v3/files");
+        url.searchParams.set(
+            "q",
+            `name = '${DRIVE_CORRECTIONS_NAME}' and '${folderId}' in parents and trashed = false`,
+        );
+        url.searchParams.set("spaces", "drive");
+        url.searchParams.set("fields", "files(id,name,modifiedTime,parents)");
+        url.searchParams.set("orderBy", "modifiedTime desc");
+        url.searchParams.set("pageSize", "2");
+
+        const response = await fetchFn(url.toString(), {
+            headers: authorizationHeaders(token),
+        });
+        requireSuccessfulResponse(
+            response,
+            "Google Drive could not find the permanent address corrections.",
+        );
+        const data = await response.json();
+        const files = Array.isArray(data?.files) ? data.files : [];
+        if (files.length > 1) {
+            throw new Error(
+                "More than one permanent address-corrections file was found.",
+            );
+        }
+        return files[0] || null;
+    }
+
     async function createDriveBackup(token, folderId, contents, fetchFn) {
         const boundary = `fmr_${Date.now().toString(16)}`;
         const metadata = {
@@ -293,6 +326,48 @@
         return response.json();
     }
 
+    async function createCorrectionFile(token, folderId, contents, fetchFn) {
+        const boundary = `fmr_corrections_${Date.now().toString(16)}`;
+        const metadata = {
+            name: DRIVE_CORRECTIONS_NAME,
+            mimeType: "application/json",
+            parents: [folderId],
+            appProperties: {
+                app: "free-map-router",
+                role: "address-corrections",
+            },
+        };
+        const body = [
+            `--${boundary}`,
+            "Content-Type: application/json; charset=UTF-8",
+            "",
+            JSON.stringify(metadata),
+            `--${boundary}`,
+            "Content-Type: application/json; charset=UTF-8",
+            "",
+            contents,
+            `--${boundary}--`,
+            "",
+        ].join("\r\n");
+
+        const response = await fetchFn(
+            "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,modifiedTime",
+            {
+                method: "POST",
+                headers: {
+                    ...authorizationHeaders(token),
+                    "Content-Type": `multipart/related; boundary=${boundary}`,
+                },
+                body,
+            },
+        );
+        requireSuccessfulResponse(
+            response,
+            "Google Drive could not create the permanent address corrections.",
+        );
+        return response.json();
+    }
+
     async function ensureAddressInbox(token, fetchFn = globalThis.fetch) {
         const folder = await ensureBackupFolder(token, fetchFn);
         return (
@@ -339,6 +414,25 @@
         return response.json();
     }
 
+    async function updateCorrectionFile(token, fileId, contents, fetchFn) {
+        const response = await fetchFn(
+            `https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(fileId)}?uploadType=media&fields=id,name,modifiedTime`,
+            {
+                method: "PATCH",
+                headers: {
+                    ...authorizationHeaders(token),
+                    "Content-Type": "application/json; charset=UTF-8",
+                },
+                body: contents,
+            },
+        );
+        requireSuccessfulResponse(
+            response,
+            "Google Drive could not update the permanent address corrections.",
+        );
+        return response.json();
+    }
+
     async function saveRouteOrderToDrive(
         token,
         routeOrder,
@@ -363,6 +457,19 @@
         return existing
             ? updateDriveBackup(token, existing.id, contents, fetchFn)
             : createDriveBackup(token, folder.id, contents, fetchFn);
+    }
+
+    async function saveAddressCorrectionsToDrive(
+        token,
+        corrections,
+        fetchFn = globalThis.fetch,
+    ) {
+        const contents = JSON.stringify(corrections, null, 2);
+        const folder = await ensureBackupFolder(token, fetchFn);
+        const existing = await findCorrectionFile(token, folder.id, fetchFn);
+        return existing
+            ? updateCorrectionFile(token, existing.id, contents, fetchFn)
+            : createCorrectionFile(token, folder.id, contents, fetchFn);
     }
 
     function createLatestDriveSaveQueue(saveFn = saveBackupToDrive) {
@@ -460,6 +567,26 @@
         return response.text();
     }
 
+    async function loadAddressCorrectionsFromDrive(
+        token,
+        fetchFn = globalThis.fetch,
+    ) {
+        const folder = await findBackupFolder(token, fetchFn);
+        if (!folder) return null;
+        const existing = await findCorrectionFile(token, folder.id, fetchFn);
+        if (!existing) return null;
+
+        const response = await fetchFn(
+            `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(existing.id)}?alt=media`,
+            { headers: authorizationHeaders(token) },
+        );
+        requireSuccessfulResponse(
+            response,
+            "Google Drive could not open the permanent address corrections.",
+        );
+        return response.text();
+    }
+
     function requestDriveToken() {
         if (accessToken && Date.now() < tokenExpiresAt) {
             return Promise.resolve(accessToken);
@@ -509,6 +636,7 @@
     return {
         CLIENT_ID,
         DRIVE_BACKUP_NAME,
+        DRIVE_CORRECTIONS_NAME,
         DRIVE_FOLDER_NAME,
         DRIVE_INBOX_NAME,
         DRIVE_ROUTE_ORDER_NAME,
@@ -519,12 +647,15 @@
         findAddressInbox,
         findBackupFolder,
         findBackupFile,
+        findCorrectionFile,
         findRouteOrderFile,
         loadAddressInboxFromDrive,
+        loadAddressCorrectionsFromDrive,
         loadBackupFromDrive,
         currentDriveToken,
         requestDriveToken,
         saveBackupToDrive,
+        saveAddressCorrectionsToDrive,
         saveRouteOrderToDrive,
     };
 });

@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const {
     CLIENT_ID,
     DRIVE_BACKUP_NAME,
+    DRIVE_CORRECTIONS_NAME,
     DRIVE_FOLDER_NAME,
     DRIVE_INBOX_NAME,
     DRIVE_ROUTE_ORDER_NAME,
@@ -14,11 +15,13 @@ const {
     ensureBackupFolder,
     findBackupFolder,
     findBackupFile,
+    loadAddressCorrectionsFromDrive,
     findAddressInbox,
     findRouteOrderFile,
     loadAddressInboxFromDrive,
     loadBackupFromDrive,
     saveBackupToDrive,
+    saveAddressCorrectionsToDrive,
     saveRouteOrderToDrive,
 } = require("../google-drive.js");
 
@@ -49,6 +52,10 @@ test("Google Drive connection uses the limited drive.file permission", () => {
     assert.equal(DRIVE_BACKUP_NAME, "Free Map Router Backup.json");
     assert.equal(DRIVE_INBOX_NAME, "Free Map Router Address Inbox.json");
     assert.equal(DRIVE_ROUTE_ORDER_NAME, "Free Map Router Route Order.json");
+    assert.equal(
+        DRIVE_CORRECTIONS_NAME,
+        "Free Map Router Address Corrections.json",
+    );
 });
 
 test("Drive token is not exposed before the user connects", () => {
@@ -298,4 +305,61 @@ test("Drive inbox load downloads the workbook handoff file", async () => {
     });
 
     assert.equal(text, '{"app":"free-map-router","addresses":[]}');
+});
+
+test("permanent correction memory creates, updates, and reads one app-owned file", async () => {
+    const corrections = {
+        app: "free-map-router",
+        correctionsVersion: 1,
+        corrections: [],
+    };
+    const createRequests = [];
+    await saveAddressCorrectionsToDrive(
+        "token",
+        corrections,
+        async (url, options) => {
+            createRequests.push({ url, options });
+            if (createRequests.length === 1) {
+                return { ok: true, json: async () => ({ files: [{ id: "folder-1" }] }) };
+            }
+            if (createRequests.length === 2) {
+                return { ok: true, json: async () => ({ files: [] }) };
+            }
+            return { ok: true, json: async () => ({ id: "corrections-1" }) };
+        },
+    );
+    assert.equal(createRequests[2].options.method, "POST");
+    assert.match(createRequests[2].options.body, /Free Map Router Address Corrections\.json/);
+
+    const updateRequests = [];
+    await saveAddressCorrectionsToDrive(
+        "token",
+        corrections,
+        async (url, options) => {
+            updateRequests.push({ url, options });
+            if (updateRequests.length === 1) {
+                return { ok: true, json: async () => ({ files: [{ id: "folder-1" }] }) };
+            }
+            if (updateRequests.length === 2) {
+                return { ok: true, json: async () => ({ files: [{ id: "corrections-1" }] }) };
+            }
+            return { ok: true, json: async () => ({ id: "corrections-1" }) };
+        },
+    );
+    assert.equal(updateRequests[2].options.method, "PATCH");
+    assert.match(updateRequests[2].url, /corrections-1\?uploadType=media/);
+
+    let reads = 0;
+    const loaded = await loadAddressCorrectionsFromDrive("token", async (url) => {
+        reads += 1;
+        if (reads === 1) {
+            return { ok: true, json: async () => ({ files: [{ id: "folder-1" }] }) };
+        }
+        if (reads === 2) {
+            return { ok: true, json: async () => ({ files: [{ id: "corrections-1" }] }) };
+        }
+        assert.match(url, /corrections-1\?alt=media/);
+        return { ok: true, text: async () => JSON.stringify(corrections) };
+    });
+    assert.equal(loaded, JSON.stringify(corrections));
 });

@@ -29,6 +29,10 @@ if (!globalThis.FMRInbox) {
     throw new Error("Free Map Router workbook inbox failed to load.");
 }
 
+if (!globalThis.FMRAddressCorrections) {
+    throw new Error("Free Map Router address corrections failed to load.");
+}
+
 if (!globalThis.FMRRouteHistory) {
     throw new Error("Free Map Router route history failed to load.");
 }
@@ -77,6 +81,12 @@ const {
     parseAddressInbox,
 } = globalThis.FMRInbox;
 const {
+    applyCorrectionsToInbox,
+    createCorrectionRecord,
+    mergeCorrectionRecords,
+    parseCorrectionRecord,
+} = globalThis.FMRAddressCorrections;
+const {
     readRouteHistory,
     remapRouteStopIds,
     replaceRoute,
@@ -92,8 +102,10 @@ const {
 } = globalThis.FMRRouteOrder;
 const {
     createLatestDriveSaveQueue,
+    loadAddressCorrectionsFromDrive,
     loadBackupFromDrive,
     requestDriveToken,
+    saveAddressCorrectionsToDrive,
     saveBackupToDrive,
     saveRouteOrderToDrive,
 } = globalThis.FMRGoogleDrive;
@@ -425,6 +437,7 @@ const els = {
     backupGoogleDrive: document.getElementById("backupGoogleDrive"),
     restoreGoogleDrive: document.getElementById("restoreGoogleDrive"),
     googleDriveStatus: document.getElementById("googleDriveStatus"),
+    addressCorrectionStatus: document.getElementById("addressCorrectionStatus"),
     googleDriveInboxStatus: document.getElementById("googleDriveInboxStatus"),
 
     // import
@@ -1772,6 +1785,49 @@ async function backUpNow() {
     }
 }
 
+function setAddressCorrectionStatus(message) {
+    if (els.addressCorrectionStatus) {
+        els.addressCorrectionStatus.textContent = String(message || "");
+    }
+}
+
+async function loadPermanentAddressCorrections() {
+    const token = await requestDriveToken();
+    const rawRecord = await loadAddressCorrectionsFromDrive(token);
+    return rawRecord
+        ? parseCorrectionRecord(rawRecord)
+        : createCorrectionRecord([], new Date(0));
+}
+
+function savePermanentAddressCorrections(stops) {
+    const localRecord = createCorrectionRecord(stops);
+    if (localRecord.corrections.length === 0) {
+        return Promise.resolve(null);
+    }
+
+    setAddressCorrectionStatus("Saving this correction permanently…");
+    const tokenPromise = requestDriveToken();
+    return (async () => {
+        const token = await tokenPromise;
+        const rawRemoteRecord = await loadAddressCorrectionsFromDrive(token);
+        const remoteRecord = rawRemoteRecord
+            ? parseCorrectionRecord(rawRemoteRecord)
+            : createCorrectionRecord([], new Date(0));
+        const merged = mergeCorrectionRecords(remoteRecord, localRecord);
+        await saveAddressCorrectionsToDrive(token, merged);
+        setAddressCorrectionStatus(
+            "Correction saved permanently in Google Drive.",
+        );
+        return merged;
+    })().catch((error) => {
+        setAddressCorrectionStatus(
+            error?.message ||
+                "This correction was saved only on this device. Google Drive could not save it.",
+        );
+        return null;
+    });
+}
+
 async function sendDisplayedRouteOrderToWorkbook() {
     if (routeOrderSendPromise) return routeOrderSendPromise;
 
@@ -1837,7 +1893,9 @@ async function syncWorkbookInboxFrom(
     if (driveInboxSyncPromise) return driveInboxSyncPromise;
 
     driveInboxSyncPromise = (async () => {
-        const inbox = parseAddressInbox(await loadInbox());
+        let inbox = parseAddressInbox(await loadInbox());
+        const corrections = await loadPermanentAddressCorrections();
+        inbox = applyCorrectionsToInbox(inbox, corrections);
 
         const inboxRelation = workbookRouteRelation(
             routeHistory,
@@ -1969,7 +2027,7 @@ if (els.restoreGoogleDrive) {
 }
 
 if (els.jobForm) {
-    els.jobForm.addEventListener("submit", (e) => {
+    els.jobForm.addEventListener("submit", async (e) => {
         e.preventDefault();
 
         const address = normalizeAddress(els.address?.value);
@@ -2027,6 +2085,7 @@ if (els.jobForm) {
                 );
                 routeIds =
                     routeHistory[activeRouteSlot]?.routeIds.slice() || [];
+                void savePermanentAddressCorrections(jobs);
             } catch (error) {
                 alert(error?.message || "The address could not be updated.");
                 return;
