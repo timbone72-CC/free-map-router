@@ -23,6 +23,7 @@
         "170117881136-v1k2p78ukleac3ep22b9rc3mpnsut4i8.apps.googleusercontent.com";
     const BACKEND_URL =
         "https://fmr-route-optimizer-nigrg27taq-uc.a.run.app";
+    const WORKBOOK_INBOX_TIMEOUT_MS = 15000;
 
     class GoogleRouteBrowserError extends Error {
         constructor(code, message, statusCode = null) {
@@ -168,6 +169,7 @@
         idToken,
         fetchImpl = globalThis.fetch,
         backendUrl = BACKEND_URL,
+        timeoutMs = WORKBOOK_INBOX_TIMEOUT_MS,
     }) {
         const token = String(idToken ?? "").trim();
         if (!token) {
@@ -181,13 +183,41 @@
             throw new Error("A fetch implementation is required.");
         }
 
-        const response = await fetchImpl(`${backendUrl}/workbook-inbox`, {
-            method: "GET",
-            headers: {
-                authorization: `Bearer ${token}`,
-            },
-            cache: "no-store",
-        });
+        const controller =
+            typeof globalThis.AbortController === "function"
+                ? new globalThis.AbortController()
+                : null;
+        const timeout =
+            controller && Number(timeoutMs) > 0
+                ? globalThis.setTimeout(
+                    () => controller.abort(),
+                    Number(timeoutMs),
+                )
+                : null;
+
+        let response;
+        try {
+            response = await fetchImpl(`${backendUrl}/workbook-inbox`, {
+                method: "GET",
+                headers: {
+                    authorization: `Bearer ${token}`,
+                },
+                cache: "no-store",
+                ...(controller ? { signal: controller.signal } : {}),
+            });
+        } catch (error) {
+            if (controller?.signal.aborted) {
+                throw new GoogleRouteBrowserError(
+                    "WORKBOOK_INBOX_TIMEOUT",
+                    "The automatic route check timed out. Tap Check Workbook Route.",
+                    408,
+                );
+            }
+            throw error;
+        } finally {
+            if (timeout !== null) globalThis.clearTimeout(timeout);
+        }
+
         const body = await responseJson(response);
 
         if (!response.ok) {
