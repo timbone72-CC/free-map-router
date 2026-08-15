@@ -61,7 +61,7 @@ test("ordinary app changes do not schedule Google Drive backup activity", () => 
     );
 });
 
-test("automatic workbook checks do not wait for interactive Drive consent", async () => {
+test("automatic workbook checks fail closed without waiting for hidden Drive consent", async () => {
     let tokenRequests = 0;
     const context = {
         currentDriveToken: () => "",
@@ -83,10 +83,12 @@ test("automatic workbook checks do not wait for interactive Drive consent", asyn
         `${extractFunction(app, "loadPermanentAddressCorrections")}; this.promise = loadPermanentAddressCorrections();`,
         context,
     );
-    const result = await context.promise;
 
+    await assert.rejects(
+        context.promise,
+        /Tap Check Workbook Route/,
+    );
     assert.equal(tokenRequests, 0);
-    assert.equal(Array.from(result.corrections).length, 0);
 });
 
 test("Build Route offers a manual Drive inbox recovery check", () => {
