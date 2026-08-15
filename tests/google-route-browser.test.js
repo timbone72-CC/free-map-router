@@ -649,6 +649,27 @@ test("backend workbook inbox read uses GET, no-store, and the memory-only compan
     assert.equal(JSON.stringify(calls[0]).includes("body"), false);
 });
 
+test("stalled backend workbook checks time out with a manual recovery instruction", async () => {
+    await assert.rejects(
+        loadWorkbookInboxFromBackend({
+            idToken: "company-google-id-token",
+            backendUrl: "https://optimizer.example",
+            timeoutMs: 1,
+            fetchImpl: async (_url, options) =>
+                new Promise((_resolve, reject) => {
+                    options.signal.addEventListener("abort", () => {
+                        reject(new Error("aborted"));
+                    });
+                }),
+        }),
+        (error) =>
+            error instanceof GoogleRouteBrowserError &&
+            error.statusCode === 408 &&
+            error.code === "WORKBOOK_INBOX_TIMEOUT" &&
+            error.message.includes("Check Workbook Route"),
+    );
+});
+
 test("missing sign-in and backend account rejection fail closed", async () => {
     await assert.rejects(
         optimizeWithGoogle({

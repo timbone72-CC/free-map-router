@@ -102,7 +102,9 @@ const {
 } = globalThis.FMRRouteOrder;
 const {
     createLatestDriveSaveQueue,
+    currentDriveToken,
     loadAddressCorrectionsFromDrive,
+    loadAddressInboxFromDrive,
     loadBackupFromDrive,
     requestDriveToken,
     saveAddressCorrectionsToDrive,
@@ -466,6 +468,7 @@ const els = {
     jobList: document.getElementById("jobList"),
     routeList: document.getElementById("routeList"),
     routeChoice: document.getElementById("routeChoice"),
+    checkWorkbookRoute: document.getElementById("checkWorkbookRoute"),
     routeOptimizationStatus: document.getElementById(
         "routeOptimizationStatus",
     ),
@@ -1792,7 +1795,13 @@ function setAddressCorrectionStatus(message) {
 }
 
 async function loadPermanentAddressCorrections() {
-    const token = await requestDriveToken();
+    const token = currentDriveToken();
+    if (!token) {
+        throw new Error(
+            "Tap Check Workbook Route to connect Google Drive and safely load saved address corrections.",
+        );
+    }
+
     const rawRecord = await loadAddressCorrectionsFromDrive(token);
     return rawRecord
         ? parseCorrectionRecord(rawRecord)
@@ -1977,6 +1986,53 @@ async function syncWorkbookInboxFrom(
     } finally {
         driveInboxSyncPromise = null;
     }
+}
+
+async function checkWorkbookRouteFromDrive() {
+    if (!els.checkWorkbookRoute || els.checkWorkbookRoute.disabled) return null;
+
+    els.checkWorkbookRoute.disabled = true;
+    if (els.routeStatus) {
+        els.routeStatus.textContent = "Checking Google Drive for the workbook route…";
+    }
+
+    try {
+        const token = await requestDriveToken();
+        const result = await syncWorkbookInboxFrom(
+            () => loadAddressInboxFromDrive(token),
+            { allowStaleConfirmation: true },
+        );
+
+        if (els.routeStatus) {
+            if (result === "newer" || result === "pending") {
+                els.routeStatus.textContent =
+                    "New Route Available — tap Start New Route.";
+            } else if (result === "older") {
+                els.routeStatus.textContent = "Older workbook route ignored.";
+            } else if (result === "empty") {
+                els.routeStatus.textContent = "Workbook route has no jobs.";
+            } else if (result === "not-approved") {
+                els.routeStatus.textContent = "Workbook route was not loaded.";
+            } else {
+                els.routeStatus.textContent = "Workbook route is up to date.";
+            }
+        }
+        return result;
+    } catch (error) {
+        if (els.routeStatus) {
+            els.routeStatus.textContent =
+                error?.message || "The workbook route could not be checked.";
+        }
+        return null;
+    } finally {
+        els.checkWorkbookRoute.disabled = false;
+    }
+}
+
+if (els.checkWorkbookRoute) {
+    els.checkWorkbookRoute.addEventListener("click", () => {
+        void checkWorkbookRouteFromDrive();
+    });
 }
 
 if (els.backupGoogleDrive) {
