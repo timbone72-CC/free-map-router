@@ -1797,17 +1797,15 @@ function setAddressCorrectionStatus(message) {
 async function loadPermanentAddressCorrections() {
     const token = currentDriveToken();
     if (!token) {
-        return createCorrectionRecord([], new Date(0));
+        throw new Error(
+            "Tap Check Workbook Route to connect Google Drive and safely load saved address corrections.",
+        );
     }
 
-    try {
-        const rawRecord = await loadAddressCorrectionsFromDrive(token);
-        return rawRecord
-            ? parseCorrectionRecord(rawRecord)
-            : createCorrectionRecord([], new Date(0));
-    } catch {
-        return createCorrectionRecord([], new Date(0));
-    }
+    const rawRecord = await loadAddressCorrectionsFromDrive(token);
+    return rawRecord
+        ? parseCorrectionRecord(rawRecord)
+        : createCorrectionRecord([], new Date(0));
 }
 
 function savePermanentAddressCorrections(stops) {
