@@ -42,7 +42,7 @@ test("ordinary app changes do not schedule Google Drive backup activity", () => 
     assert.doesNotMatch(app, /scheduleDriveAutosave/);
     assert.doesNotMatch(app, /driveAutosaveEnabled/);
     assert.doesNotMatch(app, /refreshWorkbookInboxIfConnected/);
-    assert.doesNotMatch(app, /currentDriveToken/);
+    assert.match(app, /const token = currentDriveToken\(\)/);
     assert.match(
         contract,
         /Ordinary address,[\s\S]*do not trigger an automatic Drive write/,
@@ -58,6 +58,49 @@ test("ordinary app changes do not schedule Google Drive backup activity", () => 
     assert.match(
         app,
         /const corrections = await loadPermanentAddressCorrections\(\);[\s\S]*applyCorrectionsToInbox\(inbox, corrections\)/,
+    );
+});
+
+test("automatic workbook checks do not wait for interactive Drive consent", async () => {
+    let tokenRequests = 0;
+    const context = {
+        currentDriveToken: () => "",
+        requestDriveToken: async () => {
+            tokenRequests += 1;
+            throw new Error("must not request interactive consent");
+        },
+        loadAddressCorrectionsFromDrive: async () => {
+            throw new Error("must not read without a token");
+        },
+        createCorrectionRecord: (corrections, updatedAt) => ({
+            corrections,
+            updatedAt,
+        }),
+        parseCorrectionRecord: (value) => value,
+    };
+
+    vm.runInNewContext(
+        `${extractFunction(app, "loadPermanentAddressCorrections")}; this.promise = loadPermanentAddressCorrections();`,
+        context,
+    );
+    const result = await context.promise;
+
+    assert.equal(tokenRequests, 0);
+    assert.equal(Array.from(result.corrections).length, 0);
+});
+
+test("Build Route offers a manual Drive inbox recovery check", () => {
+    assert.match(
+        html,
+        /id="checkWorkbookRoute"[\s\S]*Check Workbook Route/,
+    );
+    assert.match(
+        app,
+        /checkWorkbookRouteFromDrive[\s\S]*requestDriveToken\(\)[\s\S]*loadAddressInboxFromDrive/,
+    );
+    assert.match(
+        app,
+        /els\.checkWorkbookRoute\.addEventListener\("click"/,
     );
 });
 
