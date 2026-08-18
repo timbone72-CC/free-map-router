@@ -9,6 +9,8 @@ const {
     DRIVE_INBOX_NAME,
     DRIVE_ROUTE_ORDER_NAME,
     DRIVE_SCOPE,
+    WORKBOOK_DRIVE_ACCOUNT_ERROR_CODE,
+    WORKBOOK_FOLDER_ID,
     currentDriveToken,
     createLatestDriveSaveQueue,
     ensureAddressInbox,
@@ -20,6 +22,8 @@ const {
     findRouteOrderFile,
     loadAddressInboxFromDrive,
     loadBackupFromDrive,
+    requestDriveToken,
+    requireWorkbookRouteFolder,
     saveBackupToDrive,
     saveAddressCorrectionsToDrive,
     saveRouteOrderToDrive,
@@ -56,6 +60,11 @@ test("Google Drive connection uses the limited drive.file permission", () => {
         DRIVE_CORRECTIONS_NAME,
         "Free Map Router Address Corrections.json",
     );
+    assert.equal(WORKBOOK_FOLDER_ID, "1DEqVNh2-Z8RkzMftxd4vOxsahRwD3mvf");
+    assert.equal(
+        WORKBOOK_DRIVE_ACCOUNT_ERROR_CODE,
+        "WORKBOOK_DRIVE_ACCOUNT_REQUIRED",
+    );
 });
 
 test("Drive token is not exposed before the user connects", () => {
@@ -80,6 +89,34 @@ test("app folder search is limited to the app folder name", async () => {
     assert.match(request.searchParams.get("q"), /google-apps\.folder/);
     assert.equal(request.searchParams.get("pageSize"), "1");
     assert.equal(folder.id, "folder-1");
+});
+
+test("workbook route folder is verified by exact governed folder ID", async () => {
+    let requestedUrl = "";
+    const folder = await requireWorkbookRouteFolder(
+        "token",
+        async (url, options) => {
+            requestedUrl = url;
+            assert.equal(options.headers.Authorization, "Bearer token");
+            return {
+                ok: true,
+                json: async () => ({
+                    id: WORKBOOK_FOLDER_ID,
+                    name: DRIVE_FOLDER_NAME,
+                    mimeType: "application/vnd.google-apps.folder",
+                    trashed: false,
+                }),
+            };
+        },
+    );
+
+    const request = new URL(requestedUrl);
+    assert.equal(
+        request.pathname,
+        `/drive/v3/files/${WORKBOOK_FOLDER_ID}`,
+    );
+    assert.equal(request.searchParams.get("fields"), "id,name,mimeType,trashed");
+    assert.equal(folder.id, WORKBOOK_FOLDER_ID);
 });
 
 test("backup search stays inside the app folder", async () => {
@@ -201,7 +238,7 @@ test("first folder Drive save creates a JSON backup", async () => {
     assert.match(requests[2].options.body, /"address": "Home"/);
 });
 
-test("route order is created once and later overwritten in the app folder", async () => {
+test("route order is created once and later overwritten only in the governed workbook folder", async () => {
     const payload = {
         app: "free-map-router",
         routeOrderVersion: 1,
@@ -214,12 +251,23 @@ test("route order is created once and later overwritten in the app folder", asyn
         async (url, options) => {
             createRequests.push({ url, options });
             if (createRequests.length === 1) {
+                assert.match(url, new RegExp(WORKBOOK_FOLDER_ID));
                 return {
                     ok: true,
-                    json: async () => ({ files: [{ id: "folder-1" }] }),
+                    json: async () => ({
+                        id: WORKBOOK_FOLDER_ID,
+                        name: DRIVE_FOLDER_NAME,
+                        mimeType: "application/vnd.google-apps.folder",
+                        trashed: false,
+                    }),
                 };
             }
             if (createRequests.length === 2) {
+                const request = new URL(url);
+                assert.match(
+                    request.searchParams.get("q"),
+                    new RegExp(`'${WORKBOOK_FOLDER_ID}' in parents`),
+                );
                 return { ok: true, json: async () => ({ files: [] }) };
             }
             return {
@@ -232,6 +280,10 @@ test("route order is created once and later overwritten in the app folder", asyn
     assert.equal(created.id, "route-order-1");
     assert.equal(createRequests[2].options.method, "POST");
     assert.match(createRequests[2].options.body, /Free Map Router Route Order\.json/);
+    assert.match(
+        createRequests[2].options.body,
+        new RegExp(`"parents":\\["${WORKBOOK_FOLDER_ID}"\\]`),
+    );
     assert.match(createRequests[2].options.body, /"ORDER-1"/);
 
     const updateRequests = [];
@@ -240,7 +292,12 @@ test("route order is created once and later overwritten in the app folder", asyn
         if (updateRequests.length === 1) {
             return {
                 ok: true,
-                json: async () => ({ files: [{ id: "folder-1" }] }),
+                json: async () => ({
+                    id: WORKBOOK_FOLDER_ID,
+                    name: DRIVE_FOLDER_NAME,
+                    mimeType: "application/vnd.google-apps.folder",
+                    trashed: false,
+                }),
             };
         }
         if (updateRequests.length === 2) {
@@ -362,4 +419,63 @@ test("permanent correction memory creates, updates, and reads one app-owned file
         return { ok: true, text: async () => JSON.stringify(corrections) };
     });
     assert.equal(loaded, JSON.stringify(corrections));
+});
+
+test("wrong Drive account fails closed, clears the cached token, and fresh authorization selects an account", async () => {
+    let requestArgs = null;
+    const tokenClient = {
+        callback: () => {},
+        requestAccessToken(args) {
+            requestArgs = args;
+            tokenClient.callback({
+                access_token: "wrong-drive-token",
+                expires_in: 3600,
+            });
+        },
+    };
+    globalThis.google = {
+        accounts: {
+            oauth2: {
+                initTokenClient: () => tokenClient,
+            },
+        },
+    };
+
+    try {
+        const token = await requestDriveToken();
+        assert.equal(token, "wrong-drive-token");
+        assert.equal(requestArgs.prompt, "select_account");
+        assert.equal(currentDriveToken(), "wrong-drive-token");
+
+        const requests = [];
+        let caught = null;
+        try {
+            await saveRouteOrderToDrive(
+                token,
+                {
+                    app: "free-map-router",
+                    routeOrderVersion: 1,
+                    stops: [{ stopNumber: 1, orderIds: ["ORDER-1"] }],
+                },
+                async (url) => {
+                    requests.push(url);
+                    return {
+                        ok: false,
+                        status: 404,
+                        json: async () => ({}),
+                    };
+                },
+            );
+        } catch (error) {
+            caught = error;
+        }
+
+        assert.equal(requests.length, 1);
+        assert.match(requests[0], new RegExp(WORKBOOK_FOLDER_ID));
+        assert.equal(caught?.code, WORKBOOK_DRIVE_ACCOUNT_ERROR_CODE);
+        assert.match(caught?.message || "", /Tap Send Route Order to Workbook again/);
+        assert.equal(currentDriveToken(), "");
+    } finally {
+        delete globalThis.google;
+    }
 });
