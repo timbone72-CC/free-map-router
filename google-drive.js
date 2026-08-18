@@ -19,6 +19,9 @@
     const DRIVE_INBOX_NAME = "Free Map Router Address Inbox.json";
     const DRIVE_ROUTE_ORDER_NAME = "Free Map Router Route Order.json";
     const DRIVE_CORRECTIONS_NAME = "Free Map Router Address Corrections.json";
+    const WORKBOOK_FOLDER_ID = "1DEqVNh2-Z8RkzMftxd4vOxsahRwD3mvf";
+    const WORKBOOK_DRIVE_ACCOUNT_ERROR_CODE =
+        "WORKBOOK_DRIVE_ACCOUNT_REQUIRED";
     let tokenClient = null;
     let accessToken = "";
     let tokenExpiresAt = 0;
@@ -30,6 +33,44 @@
     function requireSuccessfulResponse(response, message) {
         if (!response.ok) throw new Error(message);
         return response;
+    }
+
+    function clearCachedDriveToken(token) {
+        if (token && token === accessToken) {
+            accessToken = "";
+            tokenExpiresAt = 0;
+        }
+    }
+
+    function workbookDriveAccountError(token) {
+        clearCachedDriveToken(token);
+        const error = new Error(
+            "The selected Google Drive account cannot access the InspectorADE workbook route folder. Tap Send Route Order to Workbook again, then choose the Google account that owns the workbook.",
+        );
+        error.code = WORKBOOK_DRIVE_ACCOUNT_ERROR_CODE;
+        return error;
+    }
+
+    async function requireWorkbookRouteFolder(
+        token,
+        fetchFn = globalThis.fetch,
+    ) {
+        const response = await fetchFn(
+            `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(WORKBOOK_FOLDER_ID)}?fields=id,name,mimeType,trashed`,
+            { headers: authorizationHeaders(token) },
+        );
+        if (!response.ok) throw workbookDriveAccountError(token);
+
+        const folder = await response.json();
+        if (
+            folder?.id !== WORKBOOK_FOLDER_ID ||
+            folder?.name !== DRIVE_FOLDER_NAME ||
+            folder?.mimeType !== "application/vnd.google-apps.folder" ||
+            folder?.trashed === true
+        ) {
+            throw workbookDriveAccountError(token);
+        }
+        return folder;
     }
 
     async function findBackupFolder(token, fetchFn = globalThis.fetch) {
@@ -439,7 +480,7 @@
         fetchFn = globalThis.fetch,
     ) {
         const contents = JSON.stringify(routeOrder, null, 2);
-        const folder = await ensureBackupFolder(token, fetchFn);
+        const folder = await requireWorkbookRouteFolder(token, fetchFn);
         const existing = await findRouteOrderFile(token, folder.id, fetchFn);
         return existing
             ? updateRouteOrderFile(token, existing.id, contents, fetchFn)
@@ -624,7 +665,7 @@
                 resolve(accessToken);
             };
             tokenClient.requestAccessToken({
-                prompt: accessToken ? "" : "consent",
+                prompt: accessToken ? "" : "select_account",
             });
         });
     }
@@ -641,6 +682,8 @@
         DRIVE_INBOX_NAME,
         DRIVE_ROUTE_ORDER_NAME,
         DRIVE_SCOPE,
+        WORKBOOK_DRIVE_ACCOUNT_ERROR_CODE,
+        WORKBOOK_FOLDER_ID,
         createLatestDriveSaveQueue,
         ensureAddressInbox,
         ensureBackupFolder,
@@ -654,6 +697,7 @@
         loadBackupFromDrive,
         currentDriveToken,
         requestDriveToken,
+        requireWorkbookRouteFolder,
         saveBackupToDrive,
         saveAddressCorrectionsToDrive,
         saveRouteOrderToDrive,
