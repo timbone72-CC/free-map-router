@@ -130,4 +130,15 @@ If the published live check fails, restore that commit before further changes to
 
 Implementation authorization: user said **Let's fix it** on 2026-08-17 after the live stale-file failure was identified.
 
-Explicit Level 3 pre-merge operator approval: pending.
+Explicit Level 3 pre-merge operator approval: **received 2026-08-17** with the operator instruction: **Approve merging PR #49 into `main` and publishing the Free Map Router fix.**
+
+## Final publication and live verification
+
+- PR #49 was merged into `main` as commit `c06fd93be443e260095a626f6d1f251a12b10423`.
+- The operator ran **Settings → Update App** in the published Free Map Router and confirmed the app update worked.
+- The operator resent the displayed Google route with **Send Route Order to Workbook**.
+- The exact governed `Free Map Router Route Order.json` then updated successfully with `updatedAt` `2026-08-18T01:53:47.008Z`, `sourceUpdatedAt` `2026-08-18T00:51:09.028Z`, `routeSlot` `google`, and `optimizationStatus` `google_optimized`.
+- The returned payload contains 37 route stops and exactly 37 workbook Order IDs, matching the current 37-job workbook route.
+- The workbook receive/rebuild workflow succeeded, and the operator confirmed **It works**.
+
+Final status: **implemented, merged, published, and live-verified. No additional runtime change is required for this incident.**
