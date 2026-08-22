@@ -2,7 +2,7 @@
 
 ## Status
 
-IMPLEMENTATION AUTHORIZED / PRE-MERGE APPROVAL STILL REQUIRED
+IMPLEMENTED ON WORK BRANCH / FINAL CI PENDING / PRE-MERGE APPROVAL STILL REQUIRED
 
 ## Change level
 
@@ -55,14 +55,15 @@ For both **Google Route** and **Basic Route**:
 For both **Google Route** and **Basic Route**:
 
 1. remove manual `gigIdsByStopId` route metadata and `gigManagedStopIds` route-management metadata;
-2. keep every manual gig record and its `routeIncluded` planning value unchanged;
-3. remove a physical route stop only when it was added solely by gig inclusion and carries no workbook Order IDs;
-4. keep a shared stop when workbook Order IDs remain;
-5. keep a pre-existing/manual selected stop that was not added solely by gig inclusion;
-6. keep saved addresses, pins, corrections, Home, settings, backups, and the pending workbook route unchanged;
-7. invalidate an optimized label only when visible route membership actually changes.
+2. keep every manual gig record while setting `routeIncluded=false` so the durable gig intent matches the cleared route state;
+3. preserve each gig's immutable `Gig_ID`, source, work-order ID, expected pay, notes, and physical-stop attachment;
+4. remove a physical route stop only when it was added solely by gig inclusion and carries no workbook Order IDs;
+5. keep a shared stop when workbook Order IDs remain;
+6. keep a pre-existing/manual selected stop that was not added solely by gig inclusion;
+7. keep saved addresses, pins, corrections, Home, settings, backups, and the pending workbook route unchanged;
+8. invalidate an optimized label only when visible route membership actually changes.
 
-These controls clear route work, not durable work records. A later **Start New Route** may reapply `routeIncluded=true` gigs under the already-approved Phase 1A behavior.
+These controls clear route work, not durable work records. A gig cleared this way stays saved but is no longer planned for route inclusion until the operator checks Include in route again.
 
 ## Required and optional data
 
@@ -73,7 +74,7 @@ Required route snapshot data already exists:
 - `gigIdsByStopId`
 - `gigManagedStopIds`
 
-No new persisted field is required. No schema migration is required.
+Existing gig records provide `routeIncluded`. No new persisted field is required. No schema migration is required.
 
 ## Schema, permissions, limits, and stale behavior
 
@@ -87,35 +88,39 @@ No new persisted field is required. No schema migration is required.
 - No change to the existing route-size limits.
 - Pending workbook route remains untouched by both controls because the approved scope is the two usable route versions only.
 
-## Owning files
+## Actual owning files
 
-- `route-history.js` — source-specific route-work clearing helpers and preservation rules.
-- `app.js` — confirmation, state persistence, status messaging, and re-render of Build Route/Addresses.
-- `index.html` — two explicit Build Route controls.
-- `CONTRACT.md` — protect the approved symmetric behavior.
-- `REGRESSION_CHECKLIST.md` — add source-specific clear checks.
-- focused tests — prove shared-stop preservation, source isolation, pending-route preservation, and no durable-data deletion.
+- new `route-work-clear.js` — pure source-specific usable-route clearing rules built on the existing normalized route-history contract.
+- new `route-work-controls.js` — owns the two new Build Route controls, confirmations, persistence, status messaging, and the deliberate one-time reload needed after bulk gig-route clearing so `manual-gigs.js` rebuilds its in-memory list from the updated durable gig records.
+- `index.html` — exposes the two explicit Build Route controls and loads both new modules before `app.js`.
+- `CONTRACT.md` — protects the approved symmetric behavior.
+- `REGRESSION_CHECKLIST.md` — adds source-specific clear checks.
+- `tests/route-work-clear.test.js` — covers source isolation, shared stops, pending preservation, and optimizer-status behavior.
+- `tests/route-work-controls.test.js` — covers control presence, script order, confirmation, durable gig preservation, and routeIncluded clearing.
+
+`app.js`, `route-history.js`, `manual-gigs.js`, workbook handoff modules, backend code, Drive permissions, optimization code, and deployment files are deliberately unchanged.
 
 ## Read surfaces
 
 - Google Route snapshot
 - Basic Route snapshot
 - pending route only to prove it remains unchanged
-- saved physical stops for normal route filtering/rendering
-- manual gigs only as durable records that must remain untouched
+- saved physical stops for route validation/rendering
+- manual gigs to preserve durable records while clearing `routeIncluded`
 
 ## Write surfaces
 
 - Google Route snapshot
 - Basic Route snapshot
+- manual gig collection: only `routeIncluded=false` plus its normal edit timestamp for gigs that were included
 
-No physical-stop write, gig-record write, workbook write, Drive write, Home write, or prediction/history write is authorized.
+No physical-stop write, workbook write, Drive write, Home write, or prediction/history write is authorized.
 
 ## Workbook/router integration impact
 
 The app intentionally clears workbook Order IDs from the two usable local route snapshots when the operator chooses **Clear InspectorADE Jobs**. The forward inbox and return JSON formats do not change. The pending workbook route is not modified. The existing return writer continues to send only real Order IDs still present in the displayed selected route.
 
-The upstream workbook repository requires no runtime change because no field name, file name, version, matching rule, or receiver behavior changes.
+The upstream workbook repository requires no runtime change because no field name, file name, version, matching rule, receiver behavior, or workbook data changes.
 
 ## Protected behavior
 
@@ -123,7 +128,7 @@ Must remain unchanged:
 
 - one normalized physical address -> one saved stop;
 - immutable manual `Gig_ID` identity;
-- manual gig records and `routeIncluded` values;
+- manual gig records other than the explicitly cleared `routeIncluded` flag;
 - corrected-address aliases, GIS/DCFS source, and strongest-pin protection;
 - Home and five-page navigation;
 - Basic and Google optimization algorithms;
@@ -142,38 +147,39 @@ Must remain unchanged:
 3. **Pre-existing stop removed by gig clear.**
    - Mitigation: only `gigManagedStopIds` are eligible for gig-only route removal.
 4. **Durable gig record or address deleted.**
-   - Mitigation: helpers accept route history only and app handlers do not call gig/address deletion or write helpers.
-5. **Pending workbook route silently discarded.**
-   - Mitigation: helpers copy pending unchanged; focused fixture asserts exact preservation.
-6. **Workbook handoff format changed.**
+   - Mitigation: the control rewrites normalized gig records with `routeIncluded=false`; it never calls gig deletion or address write/delete helpers.
+5. **Gig in-memory state disagrees with durable state after bulk clear.**
+   - Mitigation: after successful manual-gig clear, the app performs one deliberate reload and returns to Build Route so `manual-gigs.js` rereads the saved gig collection.
+6. **Pending workbook route silently discarded.**
+   - Mitigation: helpers copy pending unchanged; focused fixture asserts exact normalized preservation.
+7. **Workbook handoff format changed.**
    - Mitigation: no inbox or route-order module modification.
 
 ## Realistic fixtures
 
-Focused fixtures must cover:
+Focused fixtures cover:
 
 1. ADE-only stop, gig-only stop, shared ADE+gig stop, and unrelated app-only stop in one route;
 2. clear ADE leaves gig-only/shared/app-only and removes ADE-only;
 3. clear gigs leaves ADE-only/shared/app-only and removes only gig-managed gig-only;
 4. a shared stop keeps exactly one physical route entry;
 5. Google and Basic are both updated;
-6. pending route remains byte-for-byte equivalent after normalization;
+6. pending route remains equivalent after normalization;
 7. optimized status becomes `manually_changed` only when visible membership changes, otherwise remains stable;
-8. saved gig collection, physical stops, and workbook return format are not written or altered by the control path.
+8. manual-gig clear keeps durable gig records and turns route inclusion off rather than deleting them;
+9. control code never writes physical addresses or invokes gig deletion.
 
 ## Test and validation plan
 
-During implementation run only focused tests for the new route-history helpers and Build Route control wiring.
-
 Before merge, the exact final runtime head must pass:
 
-- focused route-work-clear tests;
+- focused route-work-clear/control coverage;
 - complete `npm test` once through CI;
 - first-party JavaScript syntax checks once through CI;
 - contract gates;
 - affected live Build Route smoke checks after publication.
 
-Baseline full-suite count: **234**. Final count will be recorded from CI on the exact PR head.
+Baseline full-suite count: **234**. Eight focused cases were added, so the expected final complete-suite count is **242**. The exact result will be recorded from CI on the final PR head.
 
 ## Live smoke plan
 
@@ -181,7 +187,8 @@ After publication, use a safe temporary/shared stop that has ADE and manual gig 
 
 - Clear InspectorADE Jobs leaves gig route membership in both Google and Basic;
 - re-establish test state, then Clear Manual Gig Work leaves ADE route membership in both Google and Basic;
-- shared physical address and gig record remain saved;
+- the manual gig remains saved and now shows Not included in route;
+- shared physical address remains saved;
 - pending workbook route, if present, is unchanged;
 - no duplicate physical stop is created.
 
