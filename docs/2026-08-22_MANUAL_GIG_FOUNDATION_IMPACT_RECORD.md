@@ -2,7 +2,7 @@
 
 ## Status
 
-IMPLEMENTED ON WORK BRANCH / AWAITING CI / PRE-MERGE APPROVAL STILL REQUIRED
+IMPLEMENTED / CI VERIFIED 234/234 / PRE-MERGE APPROVAL REQUIRED
 
 ## Change level
 
@@ -228,22 +228,31 @@ Focused tests now cover:
 9. app-only gig stop in route-order return with no invented workbook ID;
 10. UI/script-order, address-delete guard, Start New Route reapply, and backup-restore integration boundaries.
 
-## Test and validation plan
-
-During implementation, focused tests were added but have not yet been reported as passed. Before merge, the exact final runtime head must pass:
-
-- all focused gig/storage/backup/route tests;
-- complete `npm test` suite once;
-- `for file in *.js; do node --check "$file"; done` once;
-- contract gates;
-- affected Address, Build Route, saved-data, backup/restore, and responsiveness smoke checks.
+## Test and validation result
 
 Baseline complete-suite count: **211**.
 
 New Phase 1A test cases added: **23**.
-Expected final complete-suite count: **234**.
+Expected and actual final complete-suite count: **234**.
 
-Final complete-suite verification will be performed by CI on the exact pull-request head before pre-merge approval. A failure stops merge/publication.
+Draft pull request: **#52 — Add Phase 1A manual gig foundation**.
+Tested runtime head: `3c9f03d7e66a3996e21ff0c0a599e83bc00a81bb`.
+GitHub Actions run: `32593322356`, job `97080395833`.
+
+The exact tested runtime head passed the required final automated gate:
+
+- complete `npm test`: **234 tests, 234 pass, 0 fail**;
+- cancelled: 0;
+- skipped: 0;
+- todo: 0;
+- all first-party root JavaScript files passed `node --check`;
+- contract-gate checks passed as part of the complete suite.
+
+The pull request remains draft and unmerged. No GitHub Pages publication, backend deployment, workbook change, or production data change has occurred.
+
+The remaining Level 3 gate is explicit operator approval before merge. A documentation-only update to this impact record after the successful runtime test does not invalidate the tested runtime result under `TESTING_CONTRACT.md` because it changes no runtime, test, workflow, dependency, or build file.
+
+Post-publication affected-surface smoke checks remain required after an authorized merge/publication; they are not claimed complete here.
 
 ## Recovery
 
