@@ -12,7 +12,7 @@
     "use strict";
 
     const STORAGE_KEY = "fmr_route_history_v1";
-    const ROUTE_HISTORY_VERSION = 3;
+    const ROUTE_HISTORY_VERSION = 4;
     const OPTIMIZATION_STATUSES = new Set([
         "not_optimized",
         "basic_optimized",
@@ -45,18 +45,22 @@
         return result;
     }
 
-    function normalizedOrderIds(values) {
+    function normalizedStringIds(values) {
         const result = [];
         const seen = new Set();
 
         for (const value of Array.isArray(values) ? values : []) {
-            const orderId = String(value ?? "").trim();
-            if (!orderId || seen.has(orderId)) continue;
-            seen.add(orderId);
-            result.push(orderId);
+            const id = String(value ?? "").trim();
+            if (!id || seen.has(id)) continue;
+            seen.add(id);
+            result.push(id);
         }
 
         return result;
+    }
+
+    function normalizedOrderIds(values) {
+        return normalizedStringIds(values);
     }
 
     function normalizedOrderIdsByStopId(value, routeIds) {
@@ -69,6 +73,23 @@
         }
 
         return result;
+    }
+
+    function normalizedGigIdsByStopId(value, routeIds) {
+        const result = {};
+        const source = value && typeof value === "object" ? value : {};
+
+        for (const stopId of routeIds) {
+            const gigIds = normalizedStringIds(source[stopId]);
+            if (gigIds.length > 0) result[stopId] = gigIds;
+        }
+
+        return result;
+    }
+
+    function normalizedGigManagedStopIds(values, routeIds) {
+        const validRouteIds = new Set(routeIds);
+        return normalizedStringIds(values).filter((id) => validRouteIds.has(id));
     }
 
     function normalizeRouteSnapshot(value, validIds = null) {
@@ -88,6 +109,14 @@
                 value.orderIdsByStopId,
                 routeIds,
             ),
+            gigIdsByStopId: normalizedGigIdsByStopId(
+                value.gigIdsByStopId,
+                routeIds,
+            ),
+            gigManagedStopIds: normalizedGigManagedStopIds(
+                value.gigManagedStopIds,
+                routeIds,
+            ),
         };
     }
 
@@ -100,6 +129,14 @@
                 optimizationStatus || snapshot.optimizationStatus,
             orderIdsByStopId: normalizedOrderIdsByStopId(
                 snapshot.orderIdsByStopId,
+                snapshot.routeIds,
+            ),
+            gigIdsByStopId: normalizedGigIdsByStopId(
+                snapshot.gigIdsByStopId,
+                snapshot.routeIds,
+            ),
+            gigManagedStopIds: normalizedGigManagedStopIds(
+                snapshot.gigManagedStopIds,
                 snapshot.routeIds,
             ),
         };
@@ -195,6 +232,8 @@
                 optimizationStatus:
                     existing?.optimizationStatus || "not_optimized",
                 orderIdsByStopId: existing?.orderIdsByStopId,
+                gigIdsByStopId: existing?.gigIdsByStopId,
+                gigManagedStopIds: existing?.gigManagedStopIds,
             },
             validIds,
         );
@@ -237,6 +276,9 @@
             const routeIds = [];
             const seenRouteIds = new Set();
             const orderIdsByStopId = {};
+            const gigIdsByStopId = {};
+            const managedState = {};
+            const originalManaged = new Set(snapshot.gigManagedStopIds || []);
 
             for (const oldId of snapshot.routeIds) {
                 const replacement = replacements[oldId];
@@ -249,6 +291,9 @@
                 if (!seenRouteIds.has(stopId)) {
                     seenRouteIds.add(stopId);
                     routeIds.push(stopId);
+                    managedState[stopId] = originalManaged.has(oldId);
+                } else if (!originalManaged.has(oldId)) {
+                    managedState[stopId] = false;
                 }
 
                 const combinedOrderIds = orderIdsByStopId[stopId] || [];
@@ -262,13 +307,31 @@
                 if (combinedOrderIds.length > 0) {
                     orderIdsByStopId[stopId] = combinedOrderIds;
                 }
+
+                const combinedGigIds = gigIdsByStopId[stopId] || [];
+                for (const gigId of normalizedStringIds(
+                    snapshot.gigIdsByStopId?.[oldId],
+                )) {
+                    if (!combinedGigIds.includes(gigId)) {
+                        combinedGigIds.push(gigId);
+                    }
+                }
+                if (combinedGigIds.length > 0) {
+                    gigIdsByStopId[stopId] = combinedGigIds;
+                }
             }
+
+            const gigManagedStopIds = routeIds.filter(
+                (stopId) => managedState[stopId] === true,
+            );
 
             return normalizeRouteSnapshot(
                 {
                     ...snapshot,
                     routeIds,
                     orderIdsByStopId,
+                    gigIdsByStopId,
+                    gigManagedStopIds,
                 },
                 validIds,
             );
@@ -283,6 +346,110 @@
             },
             validIds,
         );
+    }
+
+    function setGigRouteMembership(history, gig, included, validIds = null) {
+        const normalized = normalizeRouteHistory(history, validIds);
+        const gigId = String(gig?.id || "").trim();
+        const stopId = String(gig?.stopId || "").trim();
+        if (!gigId || !stopId || (validIds && !validIds.has(stopId))) {
+            return normalized;
+        }
+
+        for (const key of ["google", "basic"]) {
+            const existing = normalized[key];
+
+            if (included) {
+                const routeIds = existing?.routeIds.slice() || [];
+                const alreadyPresent = routeIds.includes(stopId);
+                if (!alreadyPresent) routeIds.push(stopId);
+
+                const gigIdsByStopId = {
+                    ...(existing?.gigIdsByStopId || {}),
+                };
+                const gigIds = normalizedStringIds(gigIdsByStopId[stopId]);
+                if (!gigIds.includes(gigId)) gigIds.push(gigId);
+                gigIdsByStopId[stopId] = gigIds;
+
+                const managed = new Set(existing?.gigManagedStopIds || []);
+                if (!alreadyPresent) managed.add(stopId);
+
+                let optimizationStatus =
+                    existing?.optimizationStatus || "not_optimized";
+                if (
+                    !alreadyPresent &&
+                    existing &&
+                    optimizationStatus !== "not_optimized"
+                ) {
+                    optimizationStatus = "manually_changed";
+                }
+
+                normalized[key] = normalizeRouteSnapshot(
+                    {
+                        routeIds,
+                        sourceUpdatedAt: existing?.sourceUpdatedAt || null,
+                        optimizationStatus,
+                        orderIdsByStopId: existing?.orderIdsByStopId || {},
+                        gigIdsByStopId,
+                        gigManagedStopIds: Array.from(managed),
+                    },
+                    validIds,
+                );
+                continue;
+            }
+
+            if (!existing) continue;
+
+            const gigIdsByStopId = {
+                ...(existing.gigIdsByStopId || {}),
+            };
+            const remainingGigIds = normalizedStringIds(
+                gigIdsByStopId[stopId],
+            ).filter((id) => id !== gigId);
+            if (remainingGigIds.length > 0) {
+                gigIdsByStopId[stopId] = remainingGigIds;
+            } else {
+                delete gigIdsByStopId[stopId];
+            }
+
+            const managed = new Set(existing.gigManagedStopIds || []);
+            let routeIds = existing.routeIds.slice();
+            let routeChanged = false;
+            const hasWorkbookIds =
+                normalizedOrderIds(existing.orderIdsByStopId?.[stopId]).length >
+                0;
+
+            if (
+                remainingGigIds.length === 0 &&
+                managed.has(stopId) &&
+                !hasWorkbookIds
+            ) {
+                routeIds = routeIds.filter((id) => id !== stopId);
+                routeChanged = true;
+            }
+            if (remainingGigIds.length === 0) managed.delete(stopId);
+
+            let optimizationStatus = existing.optimizationStatus;
+            if (routeChanged && routeIds.length > 0) {
+                optimizationStatus =
+                    optimizationStatus === "not_optimized"
+                        ? "not_optimized"
+                        : "manually_changed";
+            }
+
+            normalized[key] = normalizeRouteSnapshot(
+                {
+                    ...existing,
+                    routeIds,
+                    optimizationStatus,
+                    gigIdsByStopId,
+                    gigManagedStopIds: Array.from(managed),
+                },
+                validIds,
+            );
+        }
+
+        return normalizeRouteHistory(normalized, validIds);
     }
 
     function workbookRouteRelation(history, sourceUpdatedAt) {
@@ -362,6 +529,7 @@
         readRouteHistory,
         remapRouteStopIds,
         replaceRoute,
+        setGigRouteMembership,
         setRouteOptimizationStatus,
         stageWorkbookRoute,
         startPendingRoute,

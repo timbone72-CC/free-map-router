@@ -55,7 +55,8 @@ versions of one job route, and opens the selected version in Google Maps.
 12. **Delete All Addresses** requires confirmation and removes all currently
     saved stops plus Google, Basic, and pending routes from this app. It does not
     delete Home, settings, workbook history, Google Doc history, or older backup
-    files.
+    files. When manual gigs exist, address deletion must stop rather than orphan
+    those gigs; the operator deletes the gigs first.
 13. The app retains exactly two usable route versions: **Google Route** and
     **Basic Route**. Each remains saved in the current browser until replaced or
     cleared under the approved route controls.
@@ -77,8 +78,8 @@ versions of one job route, and opens the selected version in Google Maps.
    never be committed to GitHub, included in route links, or displayed in full
    after saving.
 6. Settings provides a downloadable backup and restore. The backup contains
-   Home, saved addresses, pins, Google Route, Basic Route, and any pending new
-   workbook route, but never the Geoapify key.
+   Home, saved addresses, pins, manual gigs, Google Route, Basic Route, and any
+   pending new workbook route, but never the Geoapify key.
 7. Google Drive backup uses the limited `drive.file` permission and may access
    only files created or selected for this app. It must never request access to
    every file in Google Drive.
@@ -87,16 +88,16 @@ versions of one job route, and opens the selected version in Google Maps.
    application's filing rules.
 9. Settings provides **Back Up Now** and **Restore from Drive**. Google Drive is
    accessed only after the user taps one of those controls. Ordinary address,
-   pin, Home, Google Route, and Basic Route changes stay on the device and
+   gig, pin, Home, Google Route, and Basic Route changes stay on the device and
    do not trigger an automatic Drive write.
 10. Correcting a saved address is the sole exception to the manual-backup rule:
     it writes only the small, app-owned **Free Map Router Address
     Corrections.json** record to the existing app folder. This is not a route
-    backup and does not write Home, routes, notes, labels, or API keys. Before
-    workbook addresses are matched, the app loads that record. A correction-save
-    failure leaves the device copy intact and reports that it was not saved
-    permanently; a correction-load failure stops the workbook import rather
-    than recreating a known old address.
+    backup and does not write Home, routes, gigs, notes, labels, or API keys.
+    Before workbook addresses are matched, the app loads that record. A
+    correction-save failure leaves the device copy intact and reports that it
+    was not saved permanently; a correction-load failure stops the workbook
+    import rather than recreating a known old address.
 11. The app folder contains one workbook handoff file named **Free Map Router
     Address Inbox.json**. It is reserved for Daily Print jobs from
     **InspectorADE Repeat Job Predictor - LIVE**.
@@ -109,17 +110,19 @@ versions of one job route, and opens the selected version in Google Maps.
     Basic Route with the pending workbook jobs in print order, marks both Not
     Optimized, and clears the pending snapshot. Reconnecting to the same export
     preserves both usable route orders. An older export never replaces or
-    stages a route automatically.
-14. Downloaded and Google Drive backups preserve Google Route, Basic Route, and
-    any pending workbook route. Older valid backups containing Current and
-    Previous or only one selected route migrate into the named route slots.
+    stages a route automatically. Manual gigs whose `routeIncluded` value is
+    true are then reapplied to both usable route versions by physical stop, so
+    starting a workbook route does not silently discard planned manual work.
+14. Downloaded and Google Drive backups preserve Google Route, Basic Route, any
+    pending workbook route, and manual gigs. Older valid version-1 backups
+    without gigs remain restorable and yield an empty gig collection.
 15. Repeated manual backup requests are serialized so the latest requested
     state is written last.
 16. Settings provides an **Update App** control that works only while online,
     removes only Free Map Router's app cache and service-worker registration,
     and reloads a cache-busted app URL. It does not delete Home, saved
-    addresses, pins, Google Route, Basic Route, pending route, backups, or
-    browser settings.
+    addresses, manual gigs, pins, Google Route, Basic Route, pending route,
+    backups, or browser settings.
 17. The private backend may read the existing workbook inbox from the exact
     approved Drive folder through its dedicated service account. That reader is
     available only to the approved business Google identity, uses read-only
@@ -199,7 +202,7 @@ versions of one job route, and opens the selected version in Google Maps.
     optimization, or not optimized. This status remains saved with its route
     across reloads and backups. Up or Down after optimization marks only that
     selected route as manually changed; Start New Route creates both route
-    versions as not optimized.
+    versions as not optimized before any included manual-gig stops are reapplied.
 21. The route-order return uses the visible stop positions, including any gaps
     caused by app-only stops, and sends every real workbook Order ID attached to
     a physical stop. It never guesses an Order ID from address text. The button
@@ -208,9 +211,40 @@ versions of one job route, and opens the selected version in Google Maps.
 22. Correcting or de-duplicating a workbook-linked stop preserves its Order IDs
     in the pending, Google, and Basic snapshots. When an existing duplicate is
     merged, every affected snapshot is remapped to the retained workbook stop
-    without changing route status or source export time.
+    without changing route status or source export time. Manual gigs attached to
+    a merged stop are remapped to the same retained stop ID.
 
-## 6. Change control
+## 6. Manual gig rules
+
+1. A manually entered paid job is a **gig/work item**, not a physical-stop
+   identity and not an InspectorADE assignment.
+2. Every manual gig receives one immutable internal `Gig_ID`. Address and vendor
+   work-order ID are not gig identity.
+3. Every gig references one existing physical stop by `stopId`. Multiple gigs
+   may reference the same stop without creating duplicate driving stops.
+4. A gig source such as `HNP` or `OTHER` is separate from the governed physical
+   stop `GIS`/`DCFS` source and must never overwrite or impersonate it.
+5. Vendor work-order/job ID is optional metadata. Two different `Gig_ID`s may
+   carry the same work-order text without being silently merged.
+6. `Expected_Pay` is an optional nonnegative planning value. Actual pay,
+   submission state, completion lifecycle, and photo state are outside Phase 1A.
+7. `routeIncluded=true` means the gig's physical stop is included in both saved
+   route versions. Multiple included gigs at one property still produce one
+   physical stop.
+8. Removing the last included gig may remove a route stop only when that stop
+   was added solely by manual-gig inclusion. A pre-existing manually selected
+   stop or a stop carrying workbook Order IDs must remain.
+9. Deleting a manual gig does not delete its physical saved address. Deleting a
+   physical address is blocked while any gig still references it.
+10. Manual gigs never create or guess workbook Order IDs, never become
+    InspectorADE `Source_ID`s, and never enter InspectorADE `Job_Log`,
+    `Prediction_History`, or prediction scoring.
+11. Downloaded and Drive backups preserve manual gigs. Version-1 backups without
+    gigs remain valid and restore with no manual gigs.
+12. Manual Drive backup/restore is recovery, not live multi-device
+    synchronization. Phase 1A does not claim stale-device conflict resolution.
+
+## 7. Change control
 
 1. A live-tested change confirmed by the user as **Works** becomes protected.
 2. Before changing runtime behavior, the relevant product, change-control, and
@@ -233,7 +267,7 @@ versions of one job route, and opens the selected version in Google Maps.
 11. Guardrails must not be expanded merely to slow development. They exist to
     make forward progress safer and more reliable.
 
-## 7. Required regression protection
+## 8. Required regression protection
 
 Tests must continue to protect:
 
@@ -243,5 +277,9 @@ Tests must continue to protect:
 - valid coordinate pairs and manual-coordinate priority;
 - home stored separately from stops;
 - round trips starting and finishing at home;
-- large routes split without dropping or reordering stops; and
+- large routes split without dropping or reordering stops;
+- manual Gig_ID identity without weakening physical-stop identity;
+- same-address gigs remaining distinct while routing once;
+- gig attachment surviving physical-stop correction/remap;
+- version-1 backup compatibility and version-2 gig preservation; and
 - the five-page dropdown menu with only one selected page visible.

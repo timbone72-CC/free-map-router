@@ -1,0 +1,80 @@
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+
+const root = path.resolve(__dirname, "..");
+const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+const manualGigSource = fs.readFileSync(
+    path.join(root, "manual-gigs.js"),
+    "utf8",
+);
+const appSource = fs.readFileSync(path.join(root, "app.js"), "utf8");
+
+function scriptIndex(filename) {
+    return html.indexOf(`src="${filename}`);
+}
+
+test("manual gigs use the existing five-page navigation and Addresses page", () => {
+    const pageOptions = Array.from(
+        html.matchAll(/<option value="(home|addresses|import|route|settings)">/g),
+    ).map((match) => match[1]);
+
+    assert.deepEqual(pageOptions, [
+        "home",
+        "addresses",
+        "import",
+        "route",
+        "settings",
+    ]);
+    assert.match(html, /<form id="gigForm">/);
+    assert.match(html, /id="gigAddress"/);
+    assert.match(html, /id="gigSource"/);
+    assert.match(html, /id="gigWorkOrderId"/);
+    assert.match(html, /id="gigExpectedPay"/);
+    assert.match(html, /id="gigRouteIncluded"/);
+    assert.match(html, /id="gigList"/);
+});
+
+test("manual gig contracts load before the app and do not use a post-app UI rewrite", () => {
+    assert.ok(scriptIndex("gig-contract.js") >= 0);
+    assert.ok(scriptIndex("manual-gigs.js") >= 0);
+    assert.ok(scriptIndex("app.js") >= 0);
+    assert.ok(scriptIndex("gig-contract.js") < scriptIndex("manual-gigs.js"));
+    assert.ok(scriptIndex("manual-gigs.js") < scriptIndex("app.js"));
+    assert.doesNotMatch(manualGigSource, /MutationObserver/);
+    assert.doesNotMatch(manualGigSource, /routeList\.innerHTML/);
+    assert.doesNotMatch(manualGigSource, /jobList\.innerHTML/);
+});
+
+test("manual gig integration remaps attached gigs after governed stop edits", () => {
+    assert.match(manualGigSource, /beforeAddressSubmitJobs/);
+    assert.match(manualGigSource, /deriveStopRemap/);
+    assert.match(manualGigSource, /remapGigStopIds\(/);
+    assert.match(manualGigSource, /addressAliases/);
+    assert.match(manualGigSource, /currentStopIds\(\)/);
+});
+
+test("manual gigs are reapplied after Start New Route without changing pending inbox logic", () => {
+    assert.match(manualGigSource, /pendingStartWasAvailable/);
+    assert.match(manualGigSource, /reapplyIncludedGigsAfterWorkbookStart/);
+    assert.match(manualGigSource, /setGigRouteMembership\(/);
+    assert.match(manualGigSource, /if \(routeHistory\.pending\?\.routeIds\.length\) return/);
+    assert.doesNotMatch(manualGigSource, /stageWorkbookRoute\(/);
+    assert.match(appSource, /const started = startPendingRoute\(routeHistory, savedJobIds\(\)\)/);
+});
+
+test("address deletion is blocked before it can orphan manual gigs", () => {
+    assert.match(manualGigSource, /guardIndividualAddressDelete/);
+    assert.match(manualGigSource, /guardSelectionDelete/);
+    assert.match(manualGigSource, /stopImmediatePropagation\(\)/);
+    assert.match(manualGigSource, /Delete the manual gig/);
+    assert.match(manualGigSource, /Delete All Addresses/);
+});
+
+test("existing backup restore path consumes parsed gig data only when restoreRoutes runs", () => {
+    assert.match(manualGigSource, /installBackupRestoreHook/);
+    assert.match(manualGigSource, /const originalRestoreRoutes = restoreRoutes/);
+    assert.match(manualGigSource, /backupContract\.takeParsedGigsForRestore\(\)/);
+    assert.match(manualGigSource, /persistManualGigs\(restoredGigs\)/);
+});
