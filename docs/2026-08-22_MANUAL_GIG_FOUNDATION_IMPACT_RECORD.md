@@ -2,7 +2,7 @@
 
 ## Status
 
-PLANNED / STRUCTURAL DESIGN COMPLETE / RUNTIME NOT YET AUTHORIZED
+RUNTIME IMPLEMENTATION AUTHORIZED / PRE-MERGE APPROVAL STILL REQUIRED
 
 ## Change level
 
@@ -16,6 +16,8 @@ This first field-work runtime slice introduces a new persistent gig/work identit
 - Branch base after roadmap promotion: `a111f4f8a2560fb739bdac3536afa3c105021945`
 - Last live-proven runtime source before this work: `44f814c12bfd379fbfb728d757177e46017db9d1`
 - Rollback for any runtime implementation: restore the runtime files from `44f814c12bfd379fbfb728d757177e46017db9d1`.
+- Baseline complete-suite result: 211 tests, 211 pass, 0 fail. This was verified from the successful final CI run on the last live runtime lineage; the roadmap-only commits after that did not change runtime or tests.
+- Runtime implementation authorization: user said `CONTINUE` on 2026-08-22 after the Phase 1A scope and Level 3 gate were presented.
 
 ## Exact user-facing problem
 
@@ -230,7 +232,9 @@ During implementation, run focused tests only for the changed behavior. Before m
 - contract gates;
 - affected Address, Build Route, saved-data, backup/restore, and responsiveness smoke checks.
 
-The current full-suite baseline count must be measured from the branch locally before runtime edits and recorded here before pre-merge approval. The expected final count must also be recorded once focused tests are written.
+Baseline complete-suite count: **211**.
+
+The expected final count will be recorded once the focused tests are written. Final complete-suite verification will be performed by CI on the exact PR head before pre-merge approval.
 
 ## Recovery
 
@@ -244,7 +248,6 @@ If live validation fails after eventual publication:
 
 ## Explicit authorization gates
 
-- This impact record and branch are documentation/planning only.
-- Runtime implementation requires the user's explicit approval of this Phase 1A scope.
+- Runtime implementation is authorized for the documented Phase 1A scope.
 - Because this is Level 3 storage work, a second explicit pre-merge operator approval is required after implementation/testing and before merge to `main`.
 - Phase 2 `Gig_Log`/route-pay, photo capture, Business Drive media, and multi-device synchronization are separate approvals.
