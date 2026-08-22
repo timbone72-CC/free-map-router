@@ -213,6 +213,18 @@ versions of one job route, and opens the selected version in Google Maps.
     merged, every affected snapshot is remapped to the retained workbook stop
     without changing route status or source export time. Manual gigs attached to
     a merged stop are remapped to the same retained stop ID.
+23. **Clear InspectorADE Jobs** is a confirmed Build Route action that clears
+    workbook Order IDs from both Google Route and Basic Route. A workbook-only
+    physical stop is removed from those usable routes; a stop that still has
+    manual-gig route work remains exactly once. Unrelated app-only/manual stops,
+    all saved addresses and pins, manual gig records, and the pending workbook
+    route remain unchanged.
+24. **Clear Manual Gig Work** is a confirmed Build Route action that turns off
+    `routeIncluded` for saved manual gigs and clears manual-gig route metadata
+    from both Google Route and Basic Route. A stop added solely for manual gig
+    work is removed only when no workbook Order IDs still need it. Shared
+    ADE+gig stops, ADE-only stops, pre-existing app-only/manual stops, all saved
+    gig records and addresses, and the pending workbook route remain unchanged.
 
 ## 6. Manual gig rules
 
@@ -243,6 +255,10 @@ versions of one job route, and opens the selected version in Google Maps.
     gigs remain valid and restore with no manual gigs.
 12. Manual Drive backup/restore is recovery, not live multi-device
     synchronization. Phase 1A does not claim stale-device conflict resolution.
+13. Clearing manual gig route work is not gig deletion: immutable `Gig_ID`,
+    source, work-order ID, expected pay, notes, physical-stop attachment, and
+    timestamps remain saved, while `routeIncluded` is set false so the route
+    intent matches the cleared state.
 
 ## 7. Change control
 
@@ -281,5 +297,7 @@ Tests must continue to protect:
 - manual Gig_ID identity without weakening physical-stop identity;
 - same-address gigs remaining distinct while routing once;
 - gig attachment surviving physical-stop correction/remap;
+- symmetric ADE/gig route-work clearing without deleting the other source or
+  the physical stop;
 - version-1 backup compatibility and version-2 gig preservation; and
 - the five-page dropdown menu with only one selected page visible.

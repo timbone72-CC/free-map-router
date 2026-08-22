@@ -94,6 +94,12 @@ changes.
       never presented as the governed GIS/DCFS route source.
 - [ ] Manual gigs never receive invented workbook Order IDs and never change the
       workbook inbox or route-order JSON contract.
+- [ ] **Clear Manual Gig Work** keeps every gig record, Gig_ID, source, work-order
+      ID, pay, notes, and physical-stop attachment while setting `routeIncluded`
+      false and removing only gig route work from both usable route versions.
+- [ ] Clearing manual gig work keeps a shared ADE+gig stop because workbook Order
+      IDs still need that physical stop, and keeps pre-existing app-only/manual
+      stops that were not added solely by gig inclusion.
 
 ## Build Route checks
 
@@ -113,6 +119,16 @@ changes.
 - [ ] Multiple workbook jobs at one physical stop receive the same stop number.
 - [ ] Multiple manual gigs at one physical stop also receive one physical stop
       number rather than duplicate driving stops.
+- [ ] **Clear InspectorADE Jobs** removes workbook Order IDs from both Google and
+      Basic routes, removes ADE-only route stops, and preserves gig-only, shared,
+      and unrelated app-only/manual stops.
+- [ ] Clear InspectorADE Jobs does not delete saved addresses, manual gig
+      records, pins/corrections, Home, or the pending workbook route.
+- [ ] Clear Manual Gig Work removes only gig-managed gig-only route stops; ADE
+      and shared stops remain once and the pending workbook route remains intact.
+- [ ] Source-specific clearing changes an optimizer label to Manually Changed
+      only when visible route membership changes; metadata-only clearing leaves
+      the optimizer status stable.
 
 ## Garmin export checks
 
@@ -157,6 +173,9 @@ Required for Level 3 data changes and any Level 2 import or storage change.
       route snapshots, Order IDs, and attached manual gigs to the retained stop.
 - [ ] Route-order return happens only after the operator taps its button and
       writes one exact JSON file in the existing app folder.
+- [ ] Neither source-specific clear action changes backup schema, Drive
+      permissions, inbox structure, route-order JSON structure, workbook data,
+      InspectorADE history, or prediction data.
 
 ## Google Maps checks
 
