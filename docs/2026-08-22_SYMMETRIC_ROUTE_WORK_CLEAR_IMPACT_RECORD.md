@@ -2,7 +2,7 @@
 
 ## Status
 
-IMPLEMENTED ON WORK BRANCH / FINAL CI PENDING / PRE-MERGE APPROVAL STILL REQUIRED
+IMPLEMENTED / CI VERIFIED 243/243 / PRE-MERGE APPROVAL STILL REQUIRED
 
 ## Change level
 
@@ -24,6 +24,7 @@ The operator approved symmetric behavior on 2026-08-22:
 - Implementation branch: `work/symmetric-route-work-clear-20260822`
 - Branch base / rollback runtime: `727a109f69b7df4fff95afd7606c98dc593573c0`
 - Baseline complete-suite result: 234 tests, 234 pass, 0 fail on the Phase 1A merge lineage.
+- Final runtime verification: 243 tests, 243 pass, 0 fail on PR #53 runtime head `abc674ee719e1bdd64b87ffb2db11856b605e9c3`; first-party JavaScript syntax checks also passed.
 - Existing Phase 1A manual-gig storage and backup schema remain unchanged.
 
 If live validation fails after publication, restore the changed runtime files to `727a109f69b7df4fff95afd7606c98dc593573c0` and preserve current local browser/backup data for diagnosis.
@@ -179,7 +180,9 @@ Before merge, the exact final runtime head must pass:
 - contract gates;
 - affected live Build Route smoke checks after publication.
 
-Baseline full-suite count: **234**. Eight focused cases were added, so the expected final complete-suite count is **242**. The exact result will be recorded from CI on the final PR head.
+Baseline full-suite count: **234**. Nine focused cases were added. Final runtime result: **243/243 passed**, with JavaScript syntax checks passing on the same runtime head.
+
+The CI result remains valid after this documentation-only record update under `TESTING_CONTRACT.md`; no runtime, test, workflow, dependency, or build file changed after the verified runtime head.
 
 ## Live smoke plan
 
