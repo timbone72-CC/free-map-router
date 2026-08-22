@@ -1,7 +1,7 @@
 # Free Map Router — Field Work Expansion Roadmap
 
-**Status:** PLANNED / NOT YET IMPLEMENTED  
-**Date:** 2026-08-21  
+**Status:** IN PROGRESS — PHASE 1A IMPLEMENTED / PHASE 1B APPROVED FOR PLANNING  
+**Updated:** 2026-08-22  
 **Primary repo:** `timbone72-CC/free-map-router`
 
 ## Purpose
@@ -18,6 +18,7 @@ This is the single planning source of truth for this expansion. Add future ideas
 - The app owns route-stop state and field capture state.
 - A dedicated workbook surface such as `Gig_Log` becomes the durable gig/pay record when that integration is implemented.
 - Google Drive owns job media files; the app records their upload state and location.
+- Existing InspectorADE/workbook address corrections remain owned by the permanent address-corrections store. They are not replaced by the Manual Work Library or by point-in-time backups.
 - Cross-device writes must be stale-safe so an older phone/PC state cannot silently replace newer job data.
 
 ## Target User Flow
@@ -76,6 +77,54 @@ Acceptance direction:
 - Existing workbook-fed routes still work unchanged.
 - Manual and workbook stops can coexist in the same route.
 - A stale device state cannot silently delete or replace a newer manually entered gig.
+
+**Current status:** Phase 1A manual-gig foundation is implemented and live-tested. Manual gigs remain separate from InspectorADE history and can share one physical stop with workbook work.
+
+### Phase 1B — Manual Work Library and Due Dates
+
+Keep the next step narrow: add durable reuse and simple scheduling for manual/HNP work without turning Free Map Router into a calendar system.
+
+Permanent Manual Work Library:
+
+- Store reusable manual/HNP properties in one permanent Google Drive Manual Work Library.
+- A property record owns the reusable physical address, corrected address/pin when applicable, and property-level notes.
+- The library is independent of today's route membership. Removing work from Build Route must not delete the permanent property.
+- The library must not replace or duplicate the existing InspectorADE permanent address-corrections file.
+- Saving a manual property should update its durable library record automatically when Drive is available; **Back Up Now** remains a separate whole-app recovery snapshot.
+
+Repeat-job templates:
+
+- A repeat template attaches to one permanent manual property and may store company/source, normal expected pay, default notes, cadence, next due date, and alert lead time.
+- The template is not today's gig. When the operator chooses **Add to Route**, Free Map Router creates or activates a distinct gig occurrence with its own `Gig_ID`.
+- Keep recurrence intentionally small at first: every X days, every X weeks, or every X months.
+- The next scheduled occurrence should normally advance from the scheduled due date rather than drifting from a late completion date.
+
+Due alerts:
+
+- Free Map Router automatically evaluates due status when the app opens or refreshes.
+- Initial statuses: **Overdue**, **Due Today**, **Due Soon**, and **Upcoming**.
+- A small Home summary may show counts such as `2 due soon • 1 overdue` and link to the existing manual-work surface; do not add another top-level page just for alerts.
+- A due alert may offer **Add to Route**, but due work is **never automatically added** to Google Route or Basic Route.
+- The operator always decides whether a due job belongs on today's route.
+- No Google Calendar, background push-notification service, or new notification permission is part of Phase 1B.
+
+Deletion safety:
+
+- **Remove from Route** changes route membership only.
+- **Delete Gig** removes only that gig occurrence and keeps the reusable property.
+- Normal property removal should prefer **Archive** so an accidental cleanup is recoverable.
+- Permanent property deletion must use an explicit destructive warning and must not silently destroy the only durable copy.
+- A Build Route removal that deletes the saved address is a defect, not intended behavior and not something the Drive library should mask.
+
+Phase 1B exclusions:
+
+- no InspectorADE workbook schema/runtime changes;
+- no changes to InspectorADE `Job_Log`, `Prediction_History`, or prediction scoring;
+- no Google Calendar integration;
+- no background push notification service;
+- no new Google permissions unless a later approved implementation proves they are required;
+- no route auto-add from schedules;
+- no photo/media workflow yet.
 
 ### Phase 2 — Gig Workbook Handoff and Route Pay
 
@@ -192,17 +241,19 @@ A successful test run is not the end of the rollout. Use a controlled soak perio
 
 Future work must preserve unless a later approved change explicitly says otherwise:
 
-- existing InspectorADE workbook-to-router import
-- Basic and Google route choices
-- corrected-address behavior and source association
-- route persistence and backup behavior
-- Google Print output for current InspectorADE work
-- navigation/export behavior
-- InspectorADE prediction/history isolation from unrelated gigs
+- existing InspectorADE workbook-to-router import;
+- permanent InspectorADE/workbook address corrections: once a correction is successfully stored in Google Drive, future matching workbook imports should reuse it rather than requiring the operator to correct the same incoming address again;
+- Basic and Google route choices;
+- corrected-address behavior and source association;
+- route persistence and backup behavior;
+- Google Print output for current InspectorADE work;
+- navigation/export behavior;
+- InspectorADE prediction/history isolation from unrelated gigs.
 
 ## Risk and Change-Control Notes
 
 - Manual-stop UI is likely a normal feature change when it does not alter storage contracts or broad permissions.
-- New persistent gig schemas, cross-device synchronization, automatic workbook writes, Drive permissions/account migration, and automatic photo uploads are higher-risk changes.
+- New persistent gig schemas, permanent Manual Work Library writes, cross-device synchronization, automatic workbook writes, Drive permissions/account migration, and automatic photo uploads are higher-risk changes.
+- Phase 1B implementation must be split into the smallest safe runtime pieces; documenting it here does not authorize merging a storage-schema or automatic-Drive-write change without the repository's required Level 3 pre-merge approval.
 - Each implementation phase must use the repository's change-control process, the smallest honest scope, focused tests during development, a recoverable rollback point, and required integration review when workbook handoff is affected.
 - Do not combine all phases into one release. Each phase must establish a stable baseline for the next.
