@@ -66,6 +66,34 @@ identity, or a script that can affect the Address page.
       saved successfully; a raw resend after local browser storage is replaced
       still selects the corrected address once.
 - [ ] Refresh preserves saved addresses.
+- [ ] An address with attached manual gigs cannot be deleted until those gigs
+      are deleted, so no gig is orphaned.
+
+## Manual gig checks
+
+Required after manual-gig schema, entry, editing, route-membership, or backup
+changes.
+
+- [ ] Create one HNP gig at a new address and confirm exactly one physical stop
+      and one gig are saved.
+- [ ] Create a second gig at the same address and confirm it has a different
+      `Gig_ID` while Build Route still contains that physical stop only once.
+- [ ] Work-order ID, expected pay, source, and gig notes survive refresh and edit.
+- [ ] Invalid or negative expected pay is rejected without changing prior data.
+- [ ] Include in route adds the physical stop to both Google and Basic route
+      versions; multiple gigs at that stop do not duplicate it.
+- [ ] Removing one of multiple included gigs keeps the shared route stop.
+- [ ] Removing the last gig does not remove a pre-existing/manual/workbook stop
+      and never removes real workbook Order IDs.
+- [ ] Editing/correcting a physical stop preserves every attached gig through
+      the retained stop ID or governed ID remap.
+- [ ] Deleting a gig does not delete its physical saved address.
+- [ ] Starting a newer workbook route reapplies every `routeIncluded` manual gig
+      to both usable route versions without modifying the pending workbook route.
+- [ ] Manual gig details may appear as secondary route detail, but HNP/OTHER is
+      never presented as the governed GIS/DCFS route source.
+- [ ] Manual gigs never receive invented workbook Order IDs and never change the
+      workbook inbox or route-order JSON contract.
 
 ## Build Route checks
 
@@ -83,6 +111,8 @@ changes.
       stop positions.
 - [ ] App-only stops are not assigned invented workbook Order IDs.
 - [ ] Multiple workbook jobs at one physical stop receive the same stop number.
+- [ ] Multiple manual gigs at one physical stop also receive one physical stop
+      number rather than duplicate driving stops.
 
 ## Garmin export checks
 
@@ -100,14 +130,21 @@ Required for Level 3 data changes and any Level 2 import or storage change.
 
 - [ ] Existing saved addresses remain present.
 - [ ] Manual pins are not weakened by imports or automatic lookup.
-- [ ] Duplicate identity remains address-based.
+- [ ] Duplicate physical-stop identity remains address-based.
+- [ ] Manual gig identity remains `Gig_ID`-based and separate from stop identity.
 - [ ] Home remains separate from job stops.
-- [ ] Backup and restore preserve saved stops and Home.
+- [ ] Backup and restore preserve saved stops, Home, manual gigs, and named route
+      snapshots.
+- [ ] An older version-1 backup without gigs still restores normally with an
+      empty manual-gig collection.
+- [ ] Damaged/orphan gig rows in a backup cannot damage valid Home, stops, or
+      route data.
 - [ ] A newer workbook inbox keeps both usable route orders, saves its jobs as
       New Route Available, and keeps saved addresses.
 - [ ] Cancelling Start New Route preserves Google Route, Basic Route, and the
       pending route; confirming it replaces both usable slots with every pending
-      job exactly once and clears the pending snapshot.
+      job exactly once and clears the pending snapshot before included manual
+      gigs are reapplied.
 - [ ] Failure or cancellation leaves prior stored data recoverable.
 - [ ] Pending, Google, and Basic snapshots retain their own workbook Order IDs;
       receiving a newer pending route does not rewrite either usable route.
@@ -117,7 +154,7 @@ Required for Level 3 data changes and any Level 2 import or storage change.
 - [ ] A missing, damaged, or duplicate permanent-correction file stops the
       inbox import before it can recreate an old address.
 - [ ] Merging an already-created old-address duplicate remaps all affected
-      route snapshots and Order IDs to the retained workbook stop.
+      route snapshots, Order IDs, and attached manual gigs to the retained stop.
 - [ ] Route-order return happens only after the operator taps its button and
       writes one exact JSON file in the existing app folder.
 
