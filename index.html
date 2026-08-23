@@ -548,6 +548,18 @@
             >Geoapify</a>.
         </p>
 
+        <script>
+            document.getElementById("jobList")?.addEventListener(
+                "click",
+                (event) => {
+                    const button = event.target?.closest?.("button");
+                    if (!button || button.textContent.trim() !== "Edit") return;
+                    const addEditView = document.getElementById("addressViewAddEdit");
+                    if (addEditView) addEditView.checked = true;
+                },
+                true,
+            );
+        </script>
         <script src="contract.js?v=3.0.0"></script>
         <script src="gig-contract.js?v=1.0.0"></script>
         <script src="manual-work-library.js?v=1.0.0"></script>
