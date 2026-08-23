@@ -13,9 +13,7 @@
         module.exports = library;
     }
 
-    if (root) {
-        root.FMRManualWorkLibrary = library;
-    }
+    if (root) root.FMRManualWorkLibrary = library;
 })(typeof globalThis !== "undefined" ? globalThis : this, function buildManualWorkLibrary(stopContract, gigContract) {
     "use strict";
 
@@ -69,14 +67,6 @@
             return `${prefix}_${crypto.randomUUID()}`;
         }
         return `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`;
-    }
-
-    function propertyId(idFactory) {
-        return makeId("property", idFactory);
-    }
-
-    function templateId(idFactory) {
-        return makeId("template", idFactory);
     }
 
     function pinRank(value) {
@@ -155,10 +145,7 @@
         const id = text(raw?.propertyId);
         if (!address || !id) return null;
 
-        const coordinates = normalizeCoordinates(
-            raw?.latitude,
-            raw?.longitude,
-        );
+        const coordinates = normalizeCoordinates(raw?.latitude, raw?.longitude);
         const pinStatus =
             coordinates.latitude === null
                 ? "unverified"
@@ -170,10 +157,7 @@
             propertyId: id,
             address,
             addressKey: addressKey(address),
-            addressAliases: normalizeAddressAliases(
-                raw?.addressAliases,
-                address,
-            ),
+            addressAliases: normalizeAddressAliases(raw?.addressAliases, address),
             latitude: coordinates.latitude,
             longitude: coordinates.longitude,
             placeId: text(raw?.placeId),
@@ -208,8 +192,8 @@
     function normalizeTemplate(raw, options = {}) {
         if (!raw || typeof raw !== "object") return null;
         const id = text(raw.templateId);
-        const property = text(raw.propertyId);
-        if (!id || !property) return null;
+        const propertyId = text(raw.propertyId);
+        if (!id || !propertyId) return null;
 
         let expectedPay;
         let recurrenceCount;
@@ -245,7 +229,7 @@
 
         return {
             templateId: id,
-            propertyId: property,
+            propertyId,
             source: normalizeGigSource(raw.source),
             expectedPay,
             notes: text(raw.notes),
@@ -362,6 +346,29 @@
         });
     }
 
+    function assertValidVersion2Templates(parsed) {
+        const properties = normalizeProperties(parsed.properties);
+        const validPropertyIds = new Set(
+            properties.map((property) => property.propertyId),
+        );
+
+        for (const raw of parsed.templates) {
+            let template;
+            try {
+                template = normalizeTemplate(raw);
+            } catch {
+                throw new Error(
+                    "The permanent Manual Work Library repeat schedule data is damaged.",
+                );
+            }
+            if (!template || !validPropertyIds.has(template.propertyId)) {
+                throw new Error(
+                    "The permanent Manual Work Library repeat schedule data is damaged.",
+                );
+            }
+        }
+    }
+
     function parseManualWorkRecord(rawText) {
         let parsed;
         try {
@@ -369,6 +376,7 @@
         } catch {
             throw new Error("The permanent Manual Work Library file is damaged.");
         }
+
         const supportedVersion =
             parsed?.manualWorkVersion === LEGACY_MANUAL_WORK_VERSION ||
             parsed?.manualWorkVersion === MANUAL_WORK_VERSION;
@@ -384,6 +392,11 @@
                 "The permanent Manual Work Library file has an unexpected structure.",
             );
         }
+
+        if (parsed.manualWorkVersion === MANUAL_WORK_VERSION) {
+            assertValidVersion2Templates(parsed);
+        }
+
         return normalizeLibrary({
             ...parsed,
             templates: Array.isArray(parsed.templates) ? parsed.templates : [],
@@ -392,7 +405,9 @@
 
     function readManualWork(storage) {
         try {
-            const raw = JSON.parse(storage.getItem(MANUAL_WORK_STORAGE_KEY) || "null");
+            const raw = JSON.parse(
+                storage.getItem(MANUAL_WORK_STORAGE_KEY) || "null",
+            );
             return normalizeLibrary(raw || emptyLibrary(new Date(0)));
         } catch {
             return emptyLibrary(new Date(0));
@@ -430,19 +445,18 @@
     }
 
     function findPropertyForStop(library, stop) {
-        const normalized = normalizeLibrary(library);
         return (
-            normalized.properties.find((property) =>
+            normalizeLibrary(library).properties.find((property) =>
                 propertyMatchesStop(property, stop),
             ) || null
         );
     }
 
     function templateForProperty(library, id) {
-        const property = text(id);
+        const propertyId = text(id);
         return (
             normalizeLibrary(library).templates.find(
-                (template) => template.propertyId === property,
+                (template) => template.propertyId === propertyId,
             ) || null
         );
     }
@@ -466,7 +480,9 @@
 
     function upsertPropertyFromStop(library, rawStop, options = {}) {
         const stop = normalizeStop(rawStop);
-        if (!stop) throw new Error("A saved address is required for Manual Work Library.");
+        if (!stop) {
+            throw new Error("A saved address is required for Manual Work Library.");
+        }
 
         const normalized = normalizeLibrary(library);
         const existing = findPropertyForStop(normalized, stop);
@@ -477,7 +493,7 @@
         const updatedAt = nowIso(options.now || new Date());
         const next = normalizeProperty({
             propertyId:
-                existing?.propertyId || propertyId(options.idFactory),
+                existing?.propertyId || makeId("property", options.idFactory),
             address: stop.address,
             addressAliases: [
                 ...(existing?.addressAliases || []),
@@ -520,7 +536,9 @@
                 updatedAt,
             });
         });
-        if (!found) throw new Error("That Manual Work Library property was not found.");
+        if (!found) {
+            throw new Error("That Manual Work Library property was not found.");
+        }
         return normalizeLibrary({ ...normalized, updatedAt, properties });
     }
 
@@ -544,9 +562,10 @@
         if (!parsedDue) {
             throw new Error("Next due date must be a valid calendar date.");
         }
+
         const next = normalizeTemplate({
             templateId:
-                existing?.templateId || templateId(options.idFactory),
+                existing?.templateId || makeId("template", options.idFactory),
             propertyId: property.propertyId,
             source: draft?.source,
             expectedPay: draft?.expectedPay,
@@ -634,9 +653,10 @@
         const daysUntil = dueOrdinal - todayOrdinal;
 
         if (daysUntil < 0) {
+            const lateDays = Math.abs(daysUntil);
             return {
                 code: "overdue",
-                label: `Overdue by ${Math.abs(daysUntil)} day${Math.abs(daysUntil) === 1 ? "" : "s"}`,
+                label: `Overdue by ${lateDays} day${lateDays === 1 ? "" : "s"}`,
                 daysUntil,
             };
         }
@@ -713,7 +733,9 @@
             typeof today === "string"
                 ? normalizeCalendarDate(today)
                 : localCalendarDate(today);
-        if (!todayDate) throw new Error("The current calendar date is invalid.");
+        if (!todayDate) {
+            throw new Error("The current calendar date is invalid.");
+        }
         const todayOrdinal = calendarOrdinal(todayDate);
         let nextDueDate;
 
@@ -748,7 +770,9 @@
                 guard += 1;
             }
             if (calendarOrdinal(nextDueDate) <= todayOrdinal) {
-                throw new Error("The next monthly due date could not be calculated safely.");
+                throw new Error(
+                    "The next monthly due date could not be calculated safely.",
+                );
             }
         }
 
@@ -773,9 +797,7 @@
 
     function propertyStop(property, options = {}) {
         return normalizeStop({
-            id:
-                text(options.id) ||
-                `manual_${property.propertyId}`,
+            id: text(options.id) || `manual_${property.propertyId}`,
             address: property.address,
             addressAliases: property.addressAliases,
             latitude: property.latitude,
