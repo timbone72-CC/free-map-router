@@ -260,6 +260,21 @@
             </form>
             <h3>Manual Gigs</h3>
             <ul id="gigList"></ul>
+            <h3>Manual Work Library</h3>
+            <p class="tiny muted">
+                Reusable manual properties are kept separately from today's route
+                and from InspectorADE address-correction memory.
+            </p>
+            <div class="btnRow">
+                <button id="syncManualWork" type="button" class="btn btnSmall">
+                    Sync Library
+                </button>
+            </div>
+            <p id="manualWorkStatus" class="tiny muted">
+                Saving a manual gig also attempts to save its property permanently
+                in Google Drive.
+            </p>
+            <ul id="manualWorkList"></ul>
         </section>
 
         <!-- Address List -->
@@ -458,8 +473,9 @@
                 </button>
             </div>
             <p id="googleDriveStatus" class="tiny muted">
-                Nothing is saved to Google Drive automatically. Tap Back Up
-                Now whenever you want to update your recovery backup.
+                Back Up Now remains the whole-app recovery snapshot. Manual Work
+                Library properties and permanent address corrections use their own
+                small Drive files.
             </p>
             <p id="googleDriveInboxStatus" class="tiny muted">
                 Workbook route details appear here after a route check.
@@ -484,6 +500,7 @@
 
         <script src="contract.js?v=3.0.0"></script>
         <script src="gig-contract.js?v=1.0.0"></script>
+        <script src="manual-work-library.js?v=1.0.0"></script>
         <script src="geocoder.js?v=2.0.0"></script>
         <script src="settings.js?v=1.1.0"></script>
         <script src="route-history.js?v=4.0.0"></script>
@@ -493,12 +510,13 @@
         <script src="address-corrections.js?v=1.0.0"></script>
         <script src="https://accounts.google.com/gsi/client" async></script>
         <script src="google-drive.js?v=1.8.0"></script>
+        <script src="manual-work-drive.js?v=1.0.0"></script>
         <script src="route-order.js?v=1.0.0"></script>
         <script src="google-route-contract.js?v=1.1.0"></script>
         <script src="routing.js?v=1.5.0"></script>
         <script src="garmin-gpx.js?v=1.2.0"></script>
         <script src="vendor/leaflet.js?v=1.9.4"></script>
-        <script src="manual-gigs.js?v=1.0.0"></script>
+        <script src="manual-gigs.js?v=1.1.0"></script>
         <script src="route-work-controls.js?v=1.0.0"></script>
         <script src="app.js?v=3.31.0"></script>
         <script src="google-route-browser.js?v=1.7.0"></script>

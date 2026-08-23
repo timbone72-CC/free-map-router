@@ -10,6 +10,7 @@ const root = path.join(__dirname, "..");
 const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
 const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const contract = fs.readFileSync(path.join(root, "CONTRACT.md"), "utf8");
+const manualGigs = fs.readFileSync(path.join(root, "manual-gigs.js"), "utf8");
 
 function extractFunction(source, name) {
     const marker = `async function ${name}(`;
@@ -27,25 +28,28 @@ function extractFunction(source, name) {
     throw new Error(`${name} has no closing brace`);
 }
 
-test("Settings offers one manual Google Drive backup control", () => {
+test("Settings offers one manual whole-app Google Drive backup control", () => {
     assert.match(html, /id="backupGoogleDrive"[\s\S]*Back Up Now/);
     assert.doesNotMatch(html, /Connect &amp; Auto-Save/);
     assert.doesNotMatch(html, /Save to App Folder/);
-    assert.match(html, /Nothing is saved to Google Drive automatically/);
+    assert.match(
+        html,
+        /Back Up Now remains the whole-app recovery snapshot[\s\S]*Manual Work[\s\S]*permanent address corrections/,
+    );
     assert.match(
         app,
         /els\.backupGoogleDrive\.addEventListener\("click"[\s\S]*await backUpNow\(\)/,
     );
 });
 
-test("ordinary app changes do not schedule Google Drive backup activity", () => {
+test("ordinary app changes do not schedule whole-app Drive backup activity", () => {
     assert.doesNotMatch(app, /scheduleDriveAutosave/);
     assert.doesNotMatch(app, /driveAutosaveEnabled/);
     assert.doesNotMatch(app, /refreshWorkbookInboxIfConnected/);
     assert.match(app, /const token = currentDriveToken\(\)/);
     assert.match(
         contract,
-        /Ordinary address,[\s\S]*do not trigger an automatic Drive write/,
+        /Ordinary pin, Home, Google Route,[\s\S]*do not trigger a whole-app[\s\S]*backup write/,
     );
     assert.match(
         app,
@@ -53,7 +57,11 @@ test("ordinary app changes do not schedule Google Drive backup activity", () => 
     );
     assert.match(
         contract,
-        /Correcting a saved address is the sole exception to the manual-backup rule/,
+        /Permanent address corrections and Manual Work Library property[\s\S]*narrow exceptions/,
+    );
+    assert.match(
+        manualGigs,
+        /saveManualWorkToDrive\(token, manualWorkLibrary\)/,
     );
     assert.match(
         app,
