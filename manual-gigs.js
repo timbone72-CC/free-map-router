@@ -414,6 +414,7 @@
         for (const property of manualWorkLibrary.properties) {
             const li = document.createElement("li");
             li.dataset.propertyId = property.propertyId;
+            li.dataset.archived = property.archived ? "true" : "false";
 
             const label = document.createElement("span");
             label.textContent = property.archived
