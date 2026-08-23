@@ -238,12 +238,33 @@
         );
     }
 
+    function sameStopSnapshot(property, stop) {
+        if (!property || !stop) return false;
+        const aliases = normalizeAddressAliases(
+            stop.addressAliases,
+            stop.address,
+        );
+        return (
+            property.addressKey === stop.addressKey &&
+            JSON.stringify(property.addressAliases) === JSON.stringify(aliases) &&
+            property.latitude === stop.latitude &&
+            property.longitude === stop.longitude &&
+            property.placeId === (stop.placeId || "") &&
+            property.pinStatus === stop.pinStatus &&
+            property.archived === false
+        );
+    }
+
     function upsertPropertyFromStop(library, rawStop, options = {}) {
         const stop = normalizeStop(rawStop);
         if (!stop) throw new Error("A saved address is required for Manual Work Library.");
 
         const normalized = normalizeLibrary(library);
         const existing = findPropertyForStop(normalized, stop);
+        if (existing && options.touch === false && sameStopSnapshot(existing, stop)) {
+            return normalized;
+        }
+
         const updatedAt = nowIso(options.now || new Date());
         const next = normalizeProperty({
             propertyId:
@@ -260,7 +281,7 @@
             longitude: stop.longitude,
             placeId: stop.placeId,
             pinStatus: stop.pinStatus,
-            archived: false,
+            archived: options.touch === false ? existing?.archived || false : false,
             updatedAt,
         });
 
