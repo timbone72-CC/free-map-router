@@ -27,6 +27,10 @@ versions of one job route, and opens the selected version in Google Maps.
    address, dedicated GIS/DCFS source, and strongest saved pin. Workbook Order
    IDs remain attached only to the fresh workbook route snapshot, never to a
    permanent correction record.
+8. A reusable manual/HNP property may also be retained in the separate Manual
+   Work Library. That manual-property record never becomes the InspectorADE
+   address-correction record and never stores GIS/DCFS source or workbook Order
+   IDs.
 
 ## 3. Saved-data rules
 
@@ -53,10 +57,11 @@ versions of one job route, and opens the selected version in Google Maps.
 11. **Clear Route** removes every stop from the selected Google or Basic route
     slot without deleting any saved address, pin, note, Home value, or setting.
 12. **Delete All Addresses** requires confirmation and removes all currently
-    saved stops plus Google, Basic, and pending routes from this app. It does not
-    delete Home, settings, workbook history, Google Doc history, or older backup
-    files. When manual gigs exist, address deletion must stop rather than orphan
-    those gigs; the operator deletes the gigs first.
+    unprotected saved stops plus Google, Basic, and pending routes from this
+    app. It does not delete Home, settings, workbook history, Google Doc history,
+    or older backup files. Address deletion must stop rather than orphan a
+    manual gig, and an active Manual Work Library property must be archived
+    before its local saved address can be deleted.
 13. The app retains exactly two usable route versions: **Google Route** and
     **Basic Route**. Each remains saved in the current browser until replaced or
     cleared under the approved route controls.
@@ -84,18 +89,18 @@ versions of one job route, and opens the selected version in Google Maps.
    only files created or selected for this app. It must never request access to
    every file in Google Drive.
 8. The app creates and owns one Google Drive folder named **Free Map Router**.
-   Its cloud backup is saved inside that folder and is not dependent on another
-   application's filing rules.
-9. Settings provides **Back Up Now** and **Restore from Drive**. Google Drive is
-   accessed only after the user taps one of those controls. Ordinary address,
-   gig, pin, Home, Google Route, and Basic Route changes stay on the device and
-   do not trigger an automatic Drive write.
-10. Correcting a saved address is the sole exception to the manual-backup rule:
-    it writes only the small, app-owned **Free Map Router Address
-    Corrections.json** record to the existing app folder. This is not a route
-    backup and does not write Home, routes, gigs, notes, labels, or API keys.
-    Before workbook addresses are matched, the app loads that record. A
-    correction-save failure leaves the device copy intact and reports that it
+   Its cloud backup and small app-owned permanent records are saved inside that
+   folder and are not dependent on another application's filing rules.
+9. Settings provides **Back Up Now** and **Restore from Drive**. Those controls
+   manage the whole-app recovery snapshot. Ordinary pin, Home, Google Route,
+   and Basic Route changes stay on the device and do not trigger a whole-app
+   backup write. Permanent address corrections and Manual Work Library property
+   saves are narrow exceptions that write only their own small app-owned files.
+10. Correcting a saved address writes only the small, app-owned **Free Map
+    Router Address Corrections.json** record to the existing app folder. This is
+    not a route backup and does not write Home, routes, gigs, notes, labels, or
+    API keys. Before workbook addresses are matched, the app loads that record.
+    A correction-save failure leaves the device copy intact and reports that it
     was not saved permanently; a correction-load failure stops the workbook
     import rather than recreating a known old address.
 11. The app folder contains one workbook handoff file named **Free Map Router
@@ -121,8 +126,8 @@ versions of one job route, and opens the selected version in Google Maps.
 16. Settings provides an **Update App** control that works only while online,
     removes only Free Map Router's app cache and service-worker registration,
     and reloads a cache-busted app URL. It does not delete Home, saved
-    addresses, manual gigs, pins, Google Route, Basic Route, pending route,
-    backups, or browser settings.
+    addresses, manual gigs, Manual Work Library records, pins, Google Route,
+    Basic Route, pending route, backups, or browser settings.
 17. The private backend may read the existing workbook inbox from the exact
     approved Drive folder through its dedicated service account. That reader is
     available only to the approved business Google identity, uses read-only
@@ -139,6 +144,23 @@ versions of one job route, and opens the selected version in Google Maps.
     instead of choosing one silently.
 20. Downloaded and Drive backups retain each saved stop's optional address
     correction aliases. Older backups without aliases remain valid.
+21. The permanent **Free Map Router Manual Work.json** record uses the existing
+    limited `drive.file` permission. Saving or editing a manual gig automatically
+    attempts to merge and save its reusable physical property there. The record
+    stores property identity/address/aliases and optional pin data only; it does
+    not store route membership, gig pay, gig work-order IDs, GIS/DCFS source,
+    workbook Order IDs, Home, or API keys. If the Drive write fails, the local
+    gig/property remains saved and the app must clearly report that permanent
+    Drive storage did not complete.
+22. Manual Work Library synchronization merges records by immutable
+    `propertyId` and per-property `updatedAt`; a newer archive/update must not be
+    silently replaced by an older device copy. A non-archived remote property
+    missing from the current browser may be restored as one unselected saved
+    address. Sync never adds it to Google Route or Basic Route.
+23. A normal Manual Work Library removal is **Archive**, not permanent delete.
+    Archived properties stay in the permanent record and can be restored.
+    Permanent hard-delete of Manual Work Library property records is not part of
+    the current feature.
 
 ## 5. Route rules
 
@@ -225,6 +247,8 @@ versions of one job route, and opens the selected version in Google Maps.
     work is removed only when no workbook Order IDs still need it. Shared
     ADE+gig stops, ADE-only stops, pre-existing app-only/manual stops, all saved
     gig records and addresses, and the pending workbook route remain unchanged.
+25. Build Route **Remove** changes only the selected route membership. It never
+    archives or deletes a Manual Work Library property.
 
 ## 6. Manual gig rules
 
@@ -246,19 +270,28 @@ versions of one job route, and opens the selected version in Google Maps.
 8. Removing the last included gig may remove a route stop only when that stop
    was added solely by manual-gig inclusion. A pre-existing manually selected
    stop or a stop carrying workbook Order IDs must remain.
-9. Deleting a manual gig does not delete its physical saved address. Deleting a
-   physical address is blocked while any gig still references it.
+9. Deleting a manual gig does not delete its physical saved address or its
+   reusable Manual Work Library property. Deleting a physical address is blocked
+   while any gig still references it.
 10. Manual gigs never create or guess workbook Order IDs, never become
     InspectorADE `Source_ID`s, and never enter InspectorADE `Job_Log`,
     `Prediction_History`, or prediction scoring.
 11. Downloaded and Drive backups preserve manual gigs. Version-1 backups without
     gigs remain valid and restore with no manual gigs.
-12. Manual Drive backup/restore is recovery, not live multi-device
-    synchronization. Phase 1A does not claim stale-device conflict resolution.
+12. Manual Drive backup/restore is recovery, not live multi-device gig
+    synchronization. The Manual Work Library is a separate reusable-property
+    record and does not turn the gig collection into a live shared database.
 13. Clearing manual gig route work is not gig deletion: immutable `Gig_ID`,
     source, work-order ID, expected pay, notes, physical-stop attachment, and
     timestamps remain saved, while `routeIncluded` is set false so the route
     intent matches the cleared state.
+14. A reusable Manual Work Library property has its own immutable `propertyId`.
+    It is physical-property memory, not a `Gig_ID`, and multiple current or
+    future gig occurrences may use the same property without duplicating the
+    driving stop.
+15. Archiving a Manual Work Library property is not gig deletion and is not
+    permanent data deletion. An active gig must be resolved before its property
+    can be archived through the normal control.
 
 ## 7. Change control
 
@@ -297,6 +330,10 @@ Tests must continue to protect:
 - manual Gig_ID identity without weakening physical-stop identity;
 - same-address gigs remaining distinct while routing once;
 - gig attachment surviving physical-stop correction/remap;
+- permanent Manual Work Library property identity, stale-safe merge, archive,
+  restore, and no automatic route inclusion;
+- Manual Work Library separation from InspectorADE source, Order IDs, and
+  permanent address-correction memory;
 - symmetric ADE/gig route-work clearing without deleting the other source or
   the physical stop;
 - version-1 backup compatibility and version-2 gig preservation; and
