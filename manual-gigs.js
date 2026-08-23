@@ -40,6 +40,10 @@
     const { setGigRouteMembership, writeRouteHistory } = routeHistoryContract;
     const { addressKey, normalizeAddress, normalizeStop } = stopContract;
     const {
+        DEFAULT_ALERT_LEAD_DAYS,
+        advanceTemplateDue,
+        dueCounts,
+        dueState,
         emptyLibrary,
         findPropertyForStop,
         mergeManualWorkLibraries,
@@ -48,7 +52,9 @@
         readManualWork,
         restoreLibraryPropertiesToStops,
         setPropertyArchived,
+        templateForProperty,
         upsertPropertyFromStop,
+        upsertRepeatTemplate,
         writeManualWork,
     } = manualWorkContract;
     const { loadManualWorkFromDrive, saveManualWorkToDrive } = manualWorkDrive;
@@ -57,6 +63,7 @@
     let manualGigs = [];
     let manualWorkLibrary = emptyLibrary(new Date(0));
     let editingGigId = null;
+    let editingSchedulePropertyId = null;
     let beforeAddressSubmitJobs = null;
     let pendingStartWasAvailable = false;
     let manualWorkSyncPromise = null;
@@ -189,6 +196,7 @@
             persistManualWork(merged);
             await saveManualWorkToDrive(token, manualWorkLibrary);
             renderManualWorkList();
+            renderHomeDueSummary();
             renderJobsList();
             if (successMessage) {
                 setManualWorkStatus(
@@ -219,6 +227,7 @@
             upsertPropertyFromStop(manualWorkLibrary, stop, { touch: true }),
         );
         renderManualWorkList();
+        renderHomeDueSummary();
         setManualWorkStatus("Saving this manual property permanently in Google Drive…");
         const result = await syncManualWorkLibrary(
             "Manual property saved permanently in Google Drive.",
@@ -245,6 +254,81 @@
         if (gig.notes) parts.push(`Notes: ${gig.notes}`);
         if (!gig.routeIncluded) parts.push("Not included in route");
         return parts.filter(Boolean).join(" — ");
+    }
+
+    function recurrenceLabel(template) {
+        const unit =
+            template.recurrenceCount === 1
+                ? template.recurrenceUnit.replace(/s$/, "")
+                : template.recurrenceUnit;
+        return `Every ${template.recurrenceCount} ${unit}`;
+    }
+
+    function scheduleSummary(template) {
+        const state = dueState(template, new Date());
+        const parts = [template.source];
+        const pay = moneyLabel(template.expectedPay);
+        if (pay) parts.push(pay);
+        parts.push(recurrenceLabel(template));
+        if (state) parts.push(state.label);
+        parts.push(`Next ${template.nextDueDate}`);
+        return parts.filter(Boolean).join(" • ");
+    }
+
+    function ensureHomeDueSummary() {
+        let summary = document.getElementById("manualDueSummary");
+        if (summary) return summary;
+        const homeForm = document.getElementById("homeForm");
+        if (!homeForm?.parentElement) return null;
+        summary = document.createElement("div");
+        summary.id = "manualDueSummary";
+        summary.className = "subSection manualDueSummary";
+        homeForm.insertAdjacentElement("afterend", summary);
+        return summary;
+    }
+
+    function openDueWork() {
+        const pageMenu = document.getElementById("pageMenu");
+        const workLibrary = document.getElementById("addressViewWorkLibrary");
+        if (pageMenu) {
+            pageMenu.value = "addresses";
+            pageMenu.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+        if (workLibrary) workLibrary.checked = true;
+        document.getElementById("manualWorkList")?.scrollIntoView({
+            block: "start",
+        });
+    }
+
+    function renderHomeDueSummary() {
+        const summary = ensureHomeDueSummary();
+        if (!summary) return;
+        summary.innerHTML = "";
+        const counts = dueCounts(manualWorkLibrary, new Date());
+        const dueNow = counts.overdue + counts.dueToday + counts.dueSoon;
+        const message = document.createElement("span");
+        if (manualWorkLibrary.templates.length === 0) {
+            message.textContent = "No manual repeat schedules yet.";
+        } else if (dueNow === 0) {
+            message.textContent = `No manual repeat work due in the next ${DEFAULT_ALERT_LEAD_DAYS} days.`;
+        } else {
+            const parts = [];
+            if (counts.overdue) parts.push(`${counts.overdue} overdue`);
+            if (counts.dueToday) parts.push(`${counts.dueToday} due today`);
+            if (counts.dueSoon) parts.push(`${counts.dueSoon} due soon`);
+            message.textContent = `Manual work: ${parts.join(" • ")}`;
+        }
+        summary.appendChild(message);
+
+        if (dueNow > 0) {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "btn btnSmall";
+            button.textContent = "View Due Work";
+            button.addEventListener("click", openDueWork);
+            summary.appendChild(document.createTextNode(" "));
+            summary.appendChild(button);
+        }
     }
 
     function resetGigForm() {
@@ -302,6 +386,7 @@
         if (editingGigId === gig.id) resetGigForm();
         renderManualGigsList();
         renderManualWorkList();
+        renderHomeDueSummary();
     }
 
     function renderManualGigsList() {
@@ -348,6 +433,180 @@
         return gigsForStop(manualGigs, stopId).length;
     }
 
+    function startScheduleEdit(propertyId) {
+        const property = manualWorkLibrary.properties.find(
+            (item) => item.propertyId === propertyId,
+        );
+        if (!property || property.archived) return;
+        editingSchedulePropertyId = propertyId;
+        renderManualWorkList();
+        document.querySelector("#manualWorkList .manualScheduleEditor input")?.focus();
+    }
+
+    function cancelScheduleEdit() {
+        editingSchedulePropertyId = null;
+        renderManualWorkList();
+    }
+
+    function createScheduleEditor(property) {
+        const template = templateForProperty(manualWorkLibrary, property.propertyId);
+        const li = document.createElement("li");
+        li.className = "manualScheduleEditor";
+        const form = document.createElement("form");
+        form.innerHTML = `
+            <strong>${template ? "Edit" : "Add"} Repeat Schedule — <span class="schedulePropertyAddress"></span></strong>
+            <div class="row2">
+                <label>Company / source *
+                    <select name="source" required>
+                        <option value="HNP">HNP</option>
+                        <option value="OTHER">Other</option>
+                    </select>
+                </label>
+                <label>Expected pay (optional)
+                    <input name="expectedPay" type="number" min="0" step="0.01" inputmode="decimal" />
+                </label>
+            </div>
+            <div class="row2">
+                <label>Repeat every *
+                    <input name="recurrenceCount" type="number" min="1" max="365" step="1" required />
+                </label>
+                <label>Cadence *
+                    <select name="recurrenceUnit" required>
+                        <option value="days">Days</option>
+                        <option value="weeks">Weeks</option>
+                        <option value="months">Months</option>
+                    </select>
+                </label>
+            </div>
+            <label>Next due date *
+                <input name="nextDueDate" type="date" required />
+            </label>
+            <label>Default notes (optional)
+                <textarea name="notes"></textarea>
+            </label>
+            <p class="tiny muted">Due Soon starts ${DEFAULT_ALERT_LEAD_DAYS} days before the scheduled date. Due work is never added to a route automatically.</p>
+            <div class="btnRow">
+                <button type="submit" class="btn btnSmall">Save Repeat Schedule</button>
+                <button type="button" class="btn btnSmall" data-action="cancel-schedule">Cancel</button>
+            </div>`;
+        form.querySelector(".schedulePropertyAddress").textContent = property.address;
+        form.elements.source.value = template?.source === "HNP" ? "HNP" : "OTHER";
+        form.elements.expectedPay.value = Number.isFinite(template?.expectedPay)
+            ? String(template.expectedPay)
+            : "";
+        form.elements.recurrenceCount.value = String(template?.recurrenceCount || 30);
+        form.elements.recurrenceUnit.value = template?.recurrenceUnit || "days";
+        form.elements.nextDueDate.value = template?.nextDueDate || "";
+        form.elements.notes.value = template?.notes || "";
+        form.addEventListener("submit", (event) => {
+            void submitRepeatSchedule(event, property.propertyId);
+        });
+        form.querySelector('[data-action="cancel-schedule"]')?.addEventListener(
+            "click",
+            cancelScheduleEdit,
+        );
+        li.appendChild(form);
+        return li;
+    }
+
+    async function submitRepeatSchedule(event, propertyId) {
+        event.preventDefault();
+        const form = event.currentTarget;
+        try {
+            persistManualWork(
+                upsertRepeatTemplate(
+                    manualWorkLibrary,
+                    propertyId,
+                    {
+                        source: form.elements.source.value,
+                        expectedPay: form.elements.expectedPay.value,
+                        recurrenceCount: form.elements.recurrenceCount.value,
+                        recurrenceUnit: form.elements.recurrenceUnit.value,
+                        nextDueDate: form.elements.nextDueDate.value,
+                        notes: form.elements.notes.value,
+                    },
+                    { now: new Date() },
+                ),
+            );
+            editingSchedulePropertyId = null;
+            renderManualWorkList();
+            renderHomeDueSummary();
+            setManualWorkStatus(
+                "Repeat schedule saved on this device. Saving it permanently in Google Drive…",
+            );
+            const result = await syncManualWorkLibrary(
+                "Repeat schedule saved permanently in Google Drive.",
+            );
+            if (!result.saved) {
+                setManualWorkStatus(
+                    "Repeat schedule is saved on this device, but Google Drive did not save it permanently. Tap Sync Library to retry.",
+                );
+            }
+        } catch (error) {
+            alert(error?.message || "The repeat schedule could not be saved.");
+        }
+    }
+
+    async function addScheduledWorkToRoute(templateId) {
+        const template = manualWorkLibrary.templates.find(
+            (item) => item.templateId === templateId,
+        );
+        const property = manualWorkLibrary.properties.find(
+            (item) => item.propertyId === template?.propertyId,
+        );
+        const state = template ? dueState(template, new Date()) : null;
+        if (!template || !property || property.archived || !state) return;
+        if (state.code === "upcoming") return;
+
+        try {
+            const restored = restoreLibraryPropertiesToStops(manualWorkLibrary, jobs);
+            if (restored.restoredCount > 0) writeJobs(restored.stops);
+            const stop = jobs.find((job) => propertyMatchesStop(property, job));
+            if (!stop) {
+                throw new Error("The scheduled property could not be restored as a saved address.");
+            }
+
+            const gig = createGig(
+                {
+                    stopId: stop.id,
+                    source: template.source,
+                    workOrderId: "",
+                    expectedPay: template.expectedPay,
+                    notes: template.notes,
+                    routeIncluded: true,
+                },
+                { validStopIds: currentStopIds() },
+            );
+            persistManualGigs([...manualGigs, gig]);
+            changeGigRouteMembership(gig, true);
+            persistManualWork(
+                advanceTemplateDue(manualWorkLibrary, template.templateId, new Date()),
+            );
+
+            const advanced = manualWorkLibrary.templates.find(
+                (item) => item.templateId === template.templateId,
+            );
+            renderManualGigsList();
+            renderManualWorkList();
+            renderHomeDueSummary();
+            renderJobsList();
+            renderRouteList();
+            setManualWorkStatus(
+                `${template.source} scheduled work added to both saved routes as a new manual gig. Next due ${advanced?.nextDueDate || "date saved"}. Saving the advanced schedule to Google Drive…`,
+            );
+            const result = await syncManualWorkLibrary(
+                `Scheduled work added to the route. Next due ${advanced?.nextDueDate || "date saved"}.`,
+            );
+            if (!result.saved) {
+                setManualWorkStatus(
+                    `Scheduled work was added to the route and the next due date is saved on this device, but Google Drive did not save the advanced schedule. Tap Sync Library to retry.`,
+                );
+            }
+        } catch (error) {
+            alert(error?.message || "The scheduled work could not be added to the route.");
+        }
+    }
+
     async function setArchived(propertyId, archived) {
         const property = manualWorkLibrary.properties.find(
             (item) => item.propertyId === propertyId,
@@ -380,12 +639,17 @@
             ),
         );
 
+        if (editingSchedulePropertyId === propertyId) {
+            editingSchedulePropertyId = null;
+        }
+
         if (!archived) {
             const restored = restoreLibraryPropertiesToStops(manualWorkLibrary, jobs);
             if (restored.restoredCount > 0) writeJobs(restored.stops);
         }
 
         renderManualWorkList();
+        renderHomeDueSummary();
         renderJobsList();
         setManualWorkStatus(
             archived
@@ -411,6 +675,15 @@
             return;
         }
 
+        if (editingSchedulePropertyId) {
+            const editingProperty = manualWorkLibrary.properties.find(
+                (property) => property.propertyId === editingSchedulePropertyId,
+            );
+            if (editingProperty && !editingProperty.archived) {
+                list.appendChild(createScheduleEditor(editingProperty));
+            }
+        }
+
         for (const property of manualWorkLibrary.properties) {
             const li = document.createElement("li");
             li.dataset.propertyId = property.propertyId;
@@ -432,6 +705,41 @@
             li.appendChild(label);
             li.appendChild(document.createTextNode(" "));
             li.appendChild(action);
+
+            if (!property.archived) {
+                const template = templateForProperty(
+                    manualWorkLibrary,
+                    property.propertyId,
+                );
+                const schedule = document.createElement("button");
+                schedule.type = "button";
+                schedule.style.width = "auto";
+                schedule.textContent = template ? "Edit Schedule" : "Add Schedule";
+                schedule.addEventListener("click", () =>
+                    startScheduleEdit(property.propertyId),
+                );
+                li.appendChild(document.createTextNode(" "));
+                li.appendChild(schedule);
+
+                if (template) {
+                    const detail = document.createElement("div");
+                    detail.className = "manualScheduleDetail tiny";
+                    detail.textContent = scheduleSummary(template);
+                    li.appendChild(detail);
+                    const state = dueState(template, new Date());
+                    if (state && state.code !== "upcoming") {
+                        const add = document.createElement("button");
+                        add.type = "button";
+                        add.className = "btn btnSmall manualScheduleAdd";
+                        add.textContent = "Add to Route";
+                        add.addEventListener("click", () => {
+                            void addScheduledWorkToRoute(template.templateId);
+                        });
+                        li.appendChild(add);
+                    }
+                }
+            }
+
             list.appendChild(li);
         }
     }
@@ -561,6 +869,7 @@
         beforeAddressSubmitJobs = null;
         renderManualGigsList();
         renderManualWorkList();
+        renderHomeDueSummary();
 
         if (JSON.stringify(manualWorkLibrary) !== beforeLibrary) {
             setManualWorkStatus(
@@ -608,9 +917,9 @@
     function guardSelectionDelete(event) {
         const button = event.target?.closest?.("button");
         if (!button) return;
-        const text = button.textContent.trim();
+        const buttonText = button.textContent.trim();
 
-        if (text === "Delete All Addresses") {
+        if (buttonText === "Delete All Addresses") {
             const activeProperties = manualWorkLibrary.properties.filter(
                 (property) => !property.archived,
             );
@@ -624,7 +933,7 @@
             return;
         }
 
-        if (text !== "Delete") return;
+        if (buttonText !== "Delete") return;
         const gigBlocked = routeIds.filter((stopId) => attachedGigCount(stopId) > 0);
         const propertyBlocked = routeIds.filter((stopId) => {
             const stop = jobs.find((job) => job.id === stopId);
@@ -670,13 +979,14 @@
                 captureGigProperties({ touch: false });
                 renderManualGigsList();
                 renderManualWorkList();
+                renderHomeDueSummary();
                 const status = document.getElementById("gigStatus");
                 if (status) {
                     status.textContent =
                         `Restored ${manualGigs.length} manual gig${manualGigs.length === 1 ? "" : "s"} with the backup.`;
                 }
                 setManualWorkStatus(
-                    "Manual properties remain in their separate permanent library. Tap Sync Library if this browser needs the latest Drive copy.",
+                    "Manual properties and repeat schedules remain in their separate permanent library. Tap Sync Library if this browser needs the latest Drive copy.",
                 );
             }
             return result;
@@ -739,6 +1049,7 @@
         resetGigForm();
         renderManualGigsList();
         renderManualWorkList();
+        renderHomeDueSummary();
         if (manualWorkLibrary.properties.length > 0) {
             setManualWorkStatus(
                 `${manualWorkLibrary.properties.filter((property) => !property.archived).length} active manual propert${manualWorkLibrary.properties.filter((property) => !property.archived).length === 1 ? "y" : "ies"} saved on this device. Sync Library verifies the permanent Drive copy.`,
@@ -755,6 +1066,9 @@
                 ...property,
                 addressAliases: (property.addressAliases || []).slice(),
             }));
+        },
+        listSchedules() {
+            return manualWorkLibrary.templates.map((template) => ({ ...template }));
         },
         render: renderManualGigsList,
         syncManualWork() {
