@@ -89,6 +89,17 @@ test("Work Library hides archived rows by default without changing archive data"
     assert.doesNotMatch(manualGigs, /property\.archived\s*=\s*false/);
 });
 
+test("Address-page checkbox state stays visible and saved-address selection stays inline", () => {
+    assert.match(
+        css,
+        /#showArchivedManualWork\s*\{[\s\S]*position:\s*static;[\s\S]*display:\s*inline-block;[\s\S]*width:\s*auto;/,
+    );
+    assert.match(
+        css,
+        /#jobList input\[type="checkbox"\]\s*\{[\s\S]*display:\s*inline-block;[\s\S]*width:\s*auto;[\s\S]*vertical-align:\s*middle;/,
+    );
+});
+
 test("internal view switching is presentation-only", () => {
     assert.match(
         css,
