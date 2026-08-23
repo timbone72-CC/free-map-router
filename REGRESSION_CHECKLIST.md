@@ -109,8 +109,8 @@ changes.
 
 ## Manual Work Library checks
 
-Required after reusable-property storage, Drive sync, archive/restore, or
-manual-property deletion protection changes.
+Required after reusable-property storage, Drive sync, archive/restore,
+repeat-schedule, due-alert, or manual-property deletion-protection changes.
 
 - [ ] Saving a manual gig creates or updates exactly one reusable property for
       its physical address and attempts the permanent Drive save automatically.
@@ -137,6 +137,33 @@ manual-property deletion protection changes.
       property.
 - [ ] No permanent hard-delete control is introduced for Manual Work Library
       property records in this phase.
+- [ ] A valid Manual Work Library version-1 record migrates to version 2 without
+      losing property ID, address/aliases, pin, archive state, or timestamps and
+      begins with no repeat schedules.
+- [ ] One property can have at most one current repeat template in this phase;
+      editing it retains the same immutable `templateId`.
+- [ ] A repeat template accepts only a whole cadence count from 1 through 365,
+      days/weeks/months, a valid next due date, and nonnegative optional pay.
+- [ ] A newer per-template cadence or next-due update wins stale-safe sync over
+      an older device copy.
+- [ ] **Due Soon** begins exactly four local calendar days before the scheduled
+      date, **Due Today** is exact, and later dates become **Overdue**.
+- [ ] Home shows a compact due summary without adding a sixth page or changing a
+      route merely because work is due.
+- [ ] Due work shows **Add to Route** only as an operator action; due status alone
+      never creates a gig or selects/adds a route stop.
+- [ ] **Add to Route** creates a new immutable `Gig_ID`, inherits template
+      source/pay/default notes, leaves work-order ID blank, and includes the
+      physical stop once in both Google and Basic routes.
+- [ ] Scheduled **Add to Route** never invents workbook Order IDs and never
+      changes the pending workbook route or InspectorADE source/history.
+- [ ] Adding due work advances the next due date from the scheduled due date,
+      not the button-press date. Missed daily/weekly periods skip to the first
+      future scheduled occurrence; monthly recurrence keeps its anchor day and
+      safely clamps short months.
+- [ ] A schedule-save or schedule-advance Drive failure keeps the local schedule,
+      gig, route action, and next due date intact and clearly offers **Sync
+      Library** as the retry.
 - [ ] The library adds no sixth page, timer, polling loop, MutationObserver,
       background notification service, Google Calendar integration, or automatic
       Add to Route behavior.
@@ -191,6 +218,8 @@ Required for Level 3 data changes and any Level 2 import or storage change.
 - [ ] Manual gig identity remains `Gig_ID`-based and separate from stop identity.
 - [ ] Manual Work Library property identity remains `propertyId`-based and
       separate from both physical-stop identity and `Gig_ID`.
+- [ ] Manual Work Library repeat-template identity remains `templateId`-based and
+      separate from property identity, stop identity, and `Gig_ID`.
 - [ ] Home remains separate from job stops.
 - [ ] Backup and restore preserve saved stops, Home, manual gigs, and named route
       snapshots; the separate permanent Manual Work Library remains intact.
@@ -243,5 +272,3 @@ Required for Level 3 data changes and any Level 2 import or storage change.
 - [ ] The change merged through a pull request.
 - [ ] GitHub Pages published the expected commit.
 - [ ] The required affected live check passed.
-- [ ] A failed live check triggered rollback before additional changes to the
-      broken surface.
