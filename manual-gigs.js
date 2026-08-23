@@ -5,6 +5,9 @@
     const routeHistoryContract = root?.FMRRouteHistory;
     const stopContract = root?.FMRContract;
     const backupContract = root?.FMRBackup;
+    const manualWorkContract = root?.FMRManualWorkLibrary;
+    const manualWorkDrive = root?.FMRManualWorkDrive;
+    const googleDrive = root?.FMRGoogleDrive;
 
     if (!gigContract) {
         throw new Error("Free Map Router gig contract failed to load.");
@@ -18,6 +21,12 @@
     if (!backupContract) {
         throw new Error("Free Map Router backup contract failed to load.");
     }
+    if (!manualWorkContract) {
+        throw new Error("Free Map Router Manual Work Library failed to load.");
+    }
+    if (!manualWorkDrive || !googleDrive) {
+        throw new Error("Free Map Router Manual Work Drive support failed to load.");
+    }
 
     const {
         applyGigEdit,
@@ -30,11 +39,27 @@
     } = gigContract;
     const { setGigRouteMembership, writeRouteHistory } = routeHistoryContract;
     const { addressKey, normalizeAddress, normalizeStop } = stopContract;
+    const {
+        emptyLibrary,
+        findPropertyForStop,
+        mergeManualWorkLibraries,
+        parseManualWorkRecord,
+        propertyMatchesStop,
+        readManualWork,
+        restoreLibraryPropertiesToStops,
+        setPropertyArchived,
+        upsertPropertyFromStop,
+        writeManualWork,
+    } = manualWorkContract;
+    const { loadManualWorkFromDrive, saveManualWorkToDrive } = manualWorkDrive;
+    const { requestDriveToken } = googleDrive;
 
     let manualGigs = [];
+    let manualWorkLibrary = emptyLibrary(new Date(0));
     let editingGigId = null;
     let beforeAddressSubmitJobs = null;
     let pendingStartWasAvailable = false;
+    let manualWorkSyncPromise = null;
 
     function currentStopIds() {
         return new Set(jobs.map((job) => job.id));
@@ -43,6 +68,16 @@
     function persistManualGigs(nextGigs) {
         manualGigs = writeGigs(localStorage, nextGigs, currentStopIds());
         return manualGigs;
+    }
+
+    function persistManualWork(nextLibrary) {
+        manualWorkLibrary = writeManualWork(localStorage, nextLibrary);
+        return manualWorkLibrary;
+    }
+
+    function setManualWorkStatus(message) {
+        const status = document.getElementById("manualWorkStatus");
+        if (status) status.textContent = String(message || "");
     }
 
     function refreshActiveRouteFromHistory() {
@@ -106,6 +141,96 @@
         return jobs.find((job) => job.id === stop.id) || stop;
     }
 
+    function captureGigProperties({ touch = false } = {}) {
+        let next = manualWorkLibrary;
+        for (const gig of manualGigs) {
+            const stop = stopForGig(gig);
+            if (!stop) continue;
+            next = upsertPropertyFromStop(next, stop, { touch });
+        }
+        return persistManualWork(next);
+    }
+
+    function captureEditedProperties(beforeJobs) {
+        let next = manualWorkLibrary;
+        for (const property of manualWorkLibrary.properties) {
+            const beforeStop = beforeJobs.find((job) =>
+                propertyMatchesStop(property, job),
+            );
+            if (!beforeStop) continue;
+            const currentStop =
+                jobs.find((job) => job.id === beforeStop.id) ||
+                jobs.find((job) =>
+                    (job.addressAliases || []).some(
+                        (alias) => addressKey(alias) === beforeStop.addressKey,
+                    ),
+                );
+            if (!currentStop) continue;
+            next = upsertPropertyFromStop(next, currentStop, { touch: false });
+        }
+        manualWorkLibrary = next;
+        return captureGigProperties({ touch: false });
+    }
+
+    async function syncManualWorkLibrary(successMessage) {
+        if (manualWorkSyncPromise) return manualWorkSyncPromise;
+
+        manualWorkSyncPromise = (async () => {
+            const token = await requestDriveToken();
+            const remoteRaw = await loadManualWorkFromDrive(token);
+            const remote = remoteRaw
+                ? parseManualWorkRecord(remoteRaw)
+                : emptyLibrary(new Date(0));
+            const merged = mergeManualWorkLibraries(remote, manualWorkLibrary);
+            const restored = restoreLibraryPropertiesToStops(merged, jobs);
+            if (restored.restoredCount > 0) {
+                writeJobs(restored.stops);
+            }
+            persistManualWork(merged);
+            await saveManualWorkToDrive(token, manualWorkLibrary);
+            renderManualWorkList();
+            renderJobsList();
+            if (successMessage) {
+                setManualWorkStatus(
+                    `${successMessage}${restored.restoredCount > 0 ? ` Restored ${restored.restoredCount} saved address${restored.restoredCount === 1 ? "" : "es"} from the library.` : ""}`,
+                );
+            }
+            return {
+                saved: true,
+                restoredCount: restored.restoredCount,
+            };
+        })();
+
+        try {
+            return await manualWorkSyncPromise;
+        } catch (error) {
+            setManualWorkStatus(
+                error?.message ||
+                    "The manual property is saved on this device, but Google Drive could not save it permanently.",
+            );
+            return { saved: false, restoredCount: 0 };
+        } finally {
+            manualWorkSyncPromise = null;
+        }
+    }
+
+    async function savePropertyPermanently(stop) {
+        persistManualWork(
+            upsertPropertyFromStop(manualWorkLibrary, stop, { touch: true }),
+        );
+        renderManualWorkList();
+        setManualWorkStatus("Saving this manual property permanently in Google Drive…");
+        const result = await syncManualWorkLibrary(
+            "Manual property saved permanently in Google Drive.",
+        );
+        if (!result.saved) {
+            setManualWorkStatus(
+                "Gig saved on this device. Its property is not yet saved permanently in Google Drive; tap Sync Library to retry.",
+            );
+        }
+        return result;
+    }
+
     function moneyLabel(value) {
         return Number.isFinite(value) ? `$${value.toFixed(2)}` : "";
     }
@@ -166,7 +291,7 @@
     function deleteManualGig(gigId) {
         const gig = manualGigs.find((item) => item.id === gigId);
         if (!gig) return;
-        if (!confirm(`Delete this ${gig.source} manual gig? The saved address will be kept.`)) {
+        if (!confirm(`Delete this ${gig.source} manual gig? The saved address and Manual Work Library property will be kept.`)) {
             return;
         }
 
@@ -176,6 +301,7 @@
         persistManualGigs(deleteGig(manualGigs, gig.id, currentStopIds()));
         if (editingGigId === gig.id) resetGigForm();
         renderManualGigsList();
+        renderManualWorkList();
     }
 
     function renderManualGigsList() {
@@ -218,7 +344,98 @@
         }
     }
 
-    function submitManualGig(event) {
+    function attachedGigCount(stopId) {
+        return gigsForStop(manualGigs, stopId).length;
+    }
+
+    async function setArchived(propertyId, archived) {
+        const property = manualWorkLibrary.properties.find(
+            (item) => item.propertyId === propertyId,
+        );
+        if (!property) return;
+
+        const stop = jobs.find((job) => propertyMatchesStop(property, job));
+        if (archived && stop && attachedGigCount(stop.id) > 0) {
+            alert(
+                "This property still has a manual gig. Delete the gig occurrence first; the property itself will still be kept in the Manual Work Library.",
+            );
+            return;
+        }
+
+        if (
+            archived &&
+            !confirm(
+                `Archive ${property.address}? It will stay recoverable in Google Drive and will not be permanently deleted.`,
+            )
+        ) {
+            return;
+        }
+
+        persistManualWork(
+            setPropertyArchived(
+                manualWorkLibrary,
+                propertyId,
+                archived,
+                new Date(),
+            ),
+        );
+
+        if (!archived) {
+            const restored = restoreLibraryPropertiesToStops(manualWorkLibrary, jobs);
+            if (restored.restoredCount > 0) writeJobs(restored.stops);
+        }
+
+        renderManualWorkList();
+        renderJobsList();
+        setManualWorkStatus(
+            archived
+                ? "Property archived locally. Saving archive state to Google Drive…"
+                : "Property restored locally. Saving restore state to Google Drive…",
+        );
+        await syncManualWorkLibrary(
+            archived
+                ? "Property archived and kept in the permanent Manual Work Library."
+                : "Property restored from the permanent Manual Work Library.",
+        );
+    }
+
+    function renderManualWorkList() {
+        const list = document.getElementById("manualWorkList");
+        if (!list) return;
+        list.innerHTML = "";
+
+        if (manualWorkLibrary.properties.length === 0) {
+            const li = document.createElement("li");
+            li.textContent = "No permanent manual properties yet.";
+            list.appendChild(li);
+            return;
+        }
+
+        for (const property of manualWorkLibrary.properties) {
+            const li = document.createElement("li");
+            li.dataset.propertyId = property.propertyId;
+
+            const label = document.createElement("span");
+            label.textContent = property.archived
+                ? `Archived — ${property.address}`
+                : property.address;
+
+            const action = document.createElement("button");
+            action.type = "button";
+            action.style.width = "auto";
+            action.textContent = property.archived ? "Restore" : "Archive";
+            action.addEventListener("click", () => {
+                void setArchived(property.propertyId, !property.archived);
+            });
+
+            li.appendChild(label);
+            li.appendChild(document.createTextNode(" "));
+            li.appendChild(action);
+            list.appendChild(li);
+        }
+    }
+
+    async function submitManualGig(event) {
         event.preventDefault();
 
         const address = normalizeAddress(
@@ -297,6 +514,7 @@
             renderManualGigsList();
             renderJobsList();
             renderRouteList();
+            await savePropertyPermanently(stopForGig(nextGig) || stop);
         } catch (error) {
             alert(error?.message || "The manual gig could not be saved.");
         }
@@ -329,18 +547,33 @@
 
     function remapGigsAfterAddressSubmit() {
         if (!Array.isArray(beforeAddressSubmitJobs)) return;
-        const replacements = deriveStopRemap(beforeAddressSubmitJobs);
+        const previousJobs = beforeAddressSubmitJobs;
+        const replacements = deriveStopRemap(previousJobs);
         if (Object.keys(replacements).length > 0) {
             persistManualGigs(
                 remapGigStopIds(manualGigs, replacements, currentStopIds()),
             );
         }
+
+        const beforeLibrary = JSON.stringify(manualWorkLibrary);
+        captureEditedProperties(previousJobs);
         beforeAddressSubmitJobs = null;
         renderManualGigsList();
+        renderManualWorkList();
+
+        if (JSON.stringify(manualWorkLibrary) !== beforeLibrary) {
+            setManualWorkStatus(
+                "Manual property changed. Saving the updated property permanently…",
+            );
+            void syncManualWorkLibrary(
+                "Updated manual property saved permanently in Google Drive.",
+            );
+        }
     }
 
-    function attachedGigCount(stopId) {
-        return gigsForStop(manualGigs, stopId).length;
+    function activePropertyForStop(stop) {
+        const property = findPropertyForStop(manualWorkLibrary, stop);
+        return property && !property.archived ? property : null;
     }
 
     function guardIndividualAddressDelete(event) {
@@ -353,12 +586,21 @@
         if (index < 0) return;
         const job = getFilteredJobs()[index];
         const count = attachedGigCount(job?.id);
-        if (count === 0) return;
+        if (count > 0) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            alert(
+                `This address has ${count} manual gig${count === 1 ? "" : "s"}. Delete the manual gig${count === 1 ? "" : "s"} first.`,
+            );
+            return;
+        }
 
+        const property = activePropertyForStop(job);
+        if (!property) return;
         event.preventDefault();
         event.stopImmediatePropagation();
         alert(
-            `This address has ${count} manual gig${count === 1 ? "" : "s"}. Delete the manual gig${count === 1 ? "" : "s"} first.`,
+            "This address is protected by the permanent Manual Work Library. Archive the property first if you really want to remove the saved address. Archiving keeps the Drive copy recoverable.",
         );
     }
 
@@ -367,23 +609,32 @@
         if (!button) return;
         const text = button.textContent.trim();
 
-        if (text === "Delete All Addresses" && manualGigs.length > 0) {
-            event.preventDefault();
-            event.stopImmediatePropagation();
-            alert(
-                `There ${manualGigs.length === 1 ? "is" : "are"} ${manualGigs.length} saved manual gig${manualGigs.length === 1 ? "" : "s"}. Delete the manual gigs before deleting all addresses.`,
+        if (text === "Delete All Addresses") {
+            const activeProperties = manualWorkLibrary.properties.filter(
+                (property) => !property.archived,
             );
+            if (manualGigs.length > 0 || activeProperties.length > 0) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                alert(
+                    "Manual work is protected. Delete gig occurrences and archive active Manual Work Library properties before using Delete All Addresses.",
+                );
+            }
             return;
         }
 
         if (text !== "Delete") return;
-        const blocked = routeIds.filter((stopId) => attachedGigCount(stopId) > 0);
-        if (blocked.length === 0) return;
+        const gigBlocked = routeIds.filter((stopId) => attachedGigCount(stopId) > 0);
+        const propertyBlocked = routeIds.filter((stopId) => {
+            const stop = jobs.find((job) => job.id === stopId);
+            return Boolean(activePropertyForStop(stop));
+        });
+        if (gigBlocked.length === 0 && propertyBlocked.length === 0) return;
 
         event.preventDefault();
         event.stopImmediatePropagation();
         alert(
-            `${blocked.length} selected address${blocked.length === 1 ? " has" : "es have"} manual gigs. Delete those manual gigs first.`,
+            "One or more selected addresses are protected by manual gigs or the permanent Manual Work Library. Delete gig occurrences and archive the property before deleting the saved address.",
         );
     }
 
@@ -415,12 +666,17 @@
             const restoredGigs = backupContract.takeParsedGigsForRestore();
             if (Array.isArray(restoredGigs)) {
                 persistManualGigs(restoredGigs);
+                captureGigProperties({ touch: false });
                 renderManualGigsList();
+                renderManualWorkList();
                 const status = document.getElementById("gigStatus");
                 if (status) {
                     status.textContent =
                         `Restored ${manualGigs.length} manual gig${manualGigs.length === 1 ? "" : "s"} with the backup.`;
                 }
+                setManualWorkStatus(
+                    "Manual properties remain in their separate permanent library. Tap Sync Library if this browser needs the latest Drive copy.",
+                );
             }
             return result;
         };
@@ -429,6 +685,8 @@
     function initialize() {
         manualGigs = readGigs(localStorage, currentStopIds());
         persistManualGigs(manualGigs);
+        manualWorkLibrary = readManualWork(localStorage);
+        captureGigProperties({ touch: false });
         installBackupRestoreHook();
 
         document
@@ -436,6 +694,10 @@
             ?.addEventListener("submit", submitManualGig);
         document.getElementById("cancelGigEdit")?.addEventListener("click", () => {
             resetGigForm();
+        });
+        document.getElementById("syncManualWork")?.addEventListener("click", () => {
+            setManualWorkStatus("Syncing the permanent Manual Work Library…");
+            void syncManualWorkLibrary("Manual Work Library is synced with Google Drive.");
         });
 
         const jobForm = document.getElementById("jobForm");
@@ -475,13 +737,30 @@
 
         resetGigForm();
         renderManualGigsList();
+        renderManualWorkList();
+        if (manualWorkLibrary.properties.length > 0) {
+            setManualWorkStatus(
+                `${manualWorkLibrary.properties.filter((property) => !property.archived).length} active manual propert${manualWorkLibrary.properties.filter((property) => !property.archived).length === 1 ? "y" : "ies"} saved on this device. Sync Library verifies the permanent Drive copy.`,
+            );
+        }
     }
 
     root.FMRManualGigs = Object.freeze({
         list() {
             return manualGigs.map((gig) => ({ ...gig }));
         },
+        listProperties() {
+            return manualWorkLibrary.properties.map((property) => ({
+                ...property,
+                addressAliases: (property.addressAliases || []).slice(),
+            }));
+        },
         render: renderManualGigsList,
+        syncManualWork() {
+            return syncManualWorkLibrary(
+                "Manual Work Library is synced with Google Drive.",
+            );
+        },
     });
 
     document.addEventListener("DOMContentLoaded", initialize, { once: true });
