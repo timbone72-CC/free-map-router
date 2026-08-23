@@ -169,6 +169,73 @@ textarea {
     background: #f7f7f7;
 }
 
+.addressViewChoice {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+.addressViewTabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 6px 0 16px;
+}
+
+.addressViewTabs label {
+    cursor: pointer;
+    padding: 8px 10px;
+    border: 1px solid #cfcfcf;
+    border-radius: 10px;
+    background: #f2f2f2;
+}
+
+.addressViewTabs label:hover {
+    background: #ededed;
+}
+
+#addressViewAddEdit:checked ~ .addressViewTabs label[for="addressViewAddEdit"],
+#addressViewManualGigs:checked ~ .addressViewTabs label[for="addressViewManualGigs"],
+#addressViewWorkLibrary:checked ~ .addressViewTabs label[for="addressViewWorkLibrary"],
+#addressViewSaved:checked ~ .addressViewTabs label[for="addressViewSaved"] {
+    font-weight: bold;
+    border-width: 2px;
+}
+
+.addressViewPane {
+    display: none;
+}
+
+#addressViewAddEdit:checked ~ .addressViewPanes [data-address-view="add-edit"],
+#addressViewManualGigs:checked ~ .addressViewPanes [data-address-view="manual-gigs"],
+#addressViewWorkLibrary:checked ~ .addressViewPanes [data-address-view="work-library"],
+#addressViewSaved:checked ~ .addressViewPanes [data-address-view="saved-addresses"] {
+    display: block;
+}
+
+.showArchivedControl {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 4px 0 8px;
+    cursor: pointer;
+}
+
+.showArchivedControl input {
+    display: inline-block;
+    width: auto;
+    margin: 0;
+    padding: 0;
+}
+
+#showArchivedManualWork:not(:checked) ~ #manualWorkList li[data-archived="true"] {
+    display: none;
+}
+
 ul {
     list-style: none;
     padding-left: 0;
@@ -211,6 +278,11 @@ li {
     .pageMenuLabel {
         display: block;
         margin-top: 14px;
+    }
+
+    .addressViewTabs label {
+        flex: 1 1 42%;
+        text-align: center;
     }
 }
 
