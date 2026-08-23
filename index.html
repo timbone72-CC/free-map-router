@@ -113,174 +113,224 @@
             </div>
         </section>
 
-        <!-- Stop Entry Form -->
-        <section class="section appPage" data-page="addresses" hidden>
-            <h2>Add / Edit Address</h2>
-            <form id="jobForm">
-                <label>
-                    Address *
-                    <input
-                        type="text"
-                        id="address"
-                        required
-                        list="addressSuggestions"
-                        autocomplete="off"
-                    />
-                    <datalist id="addressSuggestions"></datalist>
-                </label>
-                <p class="tiny muted" style="margin-top: -6px">
-                    Suggestions come from your saved addresses.
-                </p>
-                <label>
-                    Label (optional)
-                    <input
-                        type="text"
-                        id="label"
-                        placeholder="Anything that helps you recognize this stop"
-                    />
-                </label>
-
-                <!-- Latitude + Longitude side-by-side -->
-                <div class="row2">
-                    <label>
-                        Latitude (optional)
-                        <input type="number" id="latitude" step="any" />
-                    </label>
-
-                    <label>
-                        Longitude (optional)
-                        <input type="number" id="longitude" step="any" />
-                    </label>
-                </div>
-
-                <div class="btnRow">
-                    <button
-                        id="findLocation"
-                        type="button"
-                        class="btn btnSmall"
-                    >
-                        Find Location (Free)
-                    </button>
-                    <a
-                        id="locationPreview"
-                        class="mapLink"
-                        target="_blank"
-                        rel="noopener"
-                        hidden
-                    >
-                        View Found Location
-                    </a>
-                </div>
-                <p id="locationStatus" class="tiny muted">
-                    Find the location, then click the exact property on the map.
-                </p>
-                <div
-                    id="locationMap"
-                    class="locationMap"
-                    aria-label="Location pin map"
-                    hidden
-                ></div>
-
-                <label>
-                    Notes (optional)
-                    <textarea id="notes"></textarea>
-                </label>
-
-                <button type="submit" class="btn">Save Address</button>
-                <p id="addressCorrectionStatus" class="tiny muted">
-                    When you correct an address, the app saves that correction
-                    permanently in Google Drive.
-                </p>
-            </form>
-        </section>
-
-        <!-- Manual Gig Entry -->
-        <section class="section appPage" data-page="addresses" hidden>
-            <h2>Manual Gig</h2>
-            <p class="tiny muted">
-                Add paid work such as HNP without turning it into an InspectorADE job.
-                Multiple gigs may share one physical address and one route stop.
-            </p>
-            <form id="gigForm">
-                <label>
-                    Address *
-                    <input
-                        type="text"
-                        id="gigAddress"
-                        required
-                        list="addressSuggestions"
-                        autocomplete="off"
-                    />
-                </label>
-                <div class="row2">
-                    <label>
-                        Company / source *
-                        <select id="gigSource" required>
-                            <option value="HNP">HNP</option>
-                            <option value="OTHER">Other</option>
-                        </select>
-                    </label>
-                    <label>
-                        Work order / job ID (optional)
-                        <input type="text" id="gigWorkOrderId" />
-                    </label>
-                </div>
-                <label>
-                    Expected pay (optional)
-                    <input
-                        type="number"
-                        id="gigExpectedPay"
-                        min="0"
-                        step="0.01"
-                        inputmode="decimal"
-                    />
-                </label>
-                <label>
-                    Notes (optional)
-                    <textarea id="gigNotes"></textarea>
-                </label>
-                <label>
-                    <input type="checkbox" id="gigRouteIncluded" checked />
-                    Include this gig's physical stop in both saved route versions
-                </label>
-                <div class="btnRow">
-                    <button type="submit" class="btn">Save Gig</button>
-                    <button
-                        id="cancelGigEdit"
-                        type="button"
-                        class="btn btnSmall"
-                        hidden
-                    >
-                        Cancel Edit
-                    </button>
-                </div>
-                <p id="gigStatus" class="tiny muted">
-                    Manual gigs stay separate from InspectorADE prediction history.
-                </p>
-            </form>
-            <h3>Manual Gigs</h3>
-            <ul id="gigList"></ul>
-            <h3>Manual Work Library</h3>
-            <p class="tiny muted">
-                Reusable manual properties are kept separately from today's route
-                and from InspectorADE address-correction memory.
-            </p>
-            <div class="btnRow">
-                <button id="syncManualWork" type="button" class="btn btnSmall">
-                    Sync Library
-                </button>
-            </div>
-            <p id="manualWorkStatus" class="tiny muted">
-                Saving a manual gig also attempts to save its property permanently
-                in Google Drive.
-            </p>
-            <ul id="manualWorkList"></ul>
-        </section>
-
-        <!-- Address List -->
+        <!-- Addresses internal views -->
         <section class="section appPage" data-page="addresses" hidden>
             <h2>Addresses</h2>
-            <ul id="jobList"></ul>
+            <p class="tiny muted">
+                Choose the part of Addresses you need. Only one large list is shown at a time.
+            </p>
+
+            <input
+                class="addressViewChoice"
+                type="radio"
+                name="addressView"
+                id="addressViewAddEdit"
+            />
+            <input
+                class="addressViewChoice"
+                type="radio"
+                name="addressView"
+                id="addressViewManualGigs"
+            />
+            <input
+                class="addressViewChoice"
+                type="radio"
+                name="addressView"
+                id="addressViewWorkLibrary"
+            />
+            <input
+                class="addressViewChoice"
+                type="radio"
+                name="addressView"
+                id="addressViewSaved"
+                checked
+            />
+
+            <div class="addressViewTabs" role="tablist" aria-label="Addresses views">
+                <label for="addressViewAddEdit">Add / Edit</label>
+                <label for="addressViewManualGigs">Manual Gigs</label>
+                <label for="addressViewWorkLibrary">Work Library</label>
+                <label for="addressViewSaved">Saved Addresses</label>
+            </div>
+
+            <div class="addressViewPanes">
+                <div class="addressViewPane" data-address-view="add-edit">
+                    <h3>Add / Edit Address</h3>
+                    <form id="jobForm">
+                        <label>
+                            Address *
+                            <input
+                                type="text"
+                                id="address"
+                                required
+                                list="addressSuggestions"
+                                autocomplete="off"
+                            />
+                            <datalist id="addressSuggestions"></datalist>
+                        </label>
+                        <p class="tiny muted" style="margin-top: -6px">
+                            Suggestions come from your saved addresses.
+                        </p>
+                        <label>
+                            Label (optional)
+                            <input
+                                type="text"
+                                id="label"
+                                placeholder="Anything that helps you recognize this stop"
+                            />
+                        </label>
+
+                        <div class="row2">
+                            <label>
+                                Latitude (optional)
+                                <input type="number" id="latitude" step="any" />
+                            </label>
+
+                            <label>
+                                Longitude (optional)
+                                <input type="number" id="longitude" step="any" />
+                            </label>
+                        </div>
+
+                        <div class="btnRow">
+                            <button
+                                id="findLocation"
+                                type="button"
+                                class="btn btnSmall"
+                            >
+                                Find Location (Free)
+                            </button>
+                            <a
+                                id="locationPreview"
+                                class="mapLink"
+                                target="_blank"
+                                rel="noopener"
+                                hidden
+                            >
+                                View Found Location
+                            </a>
+                        </div>
+                        <p id="locationStatus" class="tiny muted">
+                            Find the location, then click the exact property on the map.
+                        </p>
+                        <div
+                            id="locationMap"
+                            class="locationMap"
+                            aria-label="Location pin map"
+                            hidden
+                        ></div>
+
+                        <label>
+                            Notes (optional)
+                            <textarea id="notes"></textarea>
+                        </label>
+
+                        <button type="submit" class="btn">Save Address</button>
+                        <p id="addressCorrectionStatus" class="tiny muted">
+                            When you correct an address, the app saves that correction
+                            permanently in Google Drive.
+                        </p>
+                    </form>
+                </div>
+
+                <div class="addressViewPane" data-address-view="manual-gigs">
+                    <h3>Manual Gig</h3>
+                    <p class="tiny muted">
+                        Add paid work such as HNP without turning it into an InspectorADE job.
+                        Multiple gigs may share one physical address and one route stop.
+                    </p>
+                    <form id="gigForm">
+                        <label>
+                            Address *
+                            <input
+                                type="text"
+                                id="gigAddress"
+                                required
+                                list="addressSuggestions"
+                                autocomplete="off"
+                            />
+                        </label>
+                        <div class="row2">
+                            <label>
+                                Company / source *
+                                <select id="gigSource" required>
+                                    <option value="HNP">HNP</option>
+                                    <option value="OTHER">Other</option>
+                                </select>
+                            </label>
+                            <label>
+                                Work order / job ID (optional)
+                                <input type="text" id="gigWorkOrderId" />
+                            </label>
+                        </div>
+                        <label>
+                            Expected pay (optional)
+                            <input
+                                type="number"
+                                id="gigExpectedPay"
+                                min="0"
+                                step="0.01"
+                                inputmode="decimal"
+                            />
+                        </label>
+                        <label>
+                            Notes (optional)
+                            <textarea id="gigNotes"></textarea>
+                        </label>
+                        <label>
+                            <input type="checkbox" id="gigRouteIncluded" checked />
+                            Include this gig's physical stop in both saved route versions
+                        </label>
+                        <div class="btnRow">
+                            <button type="submit" class="btn">Save Gig</button>
+                            <button
+                                id="cancelGigEdit"
+                                type="button"
+                                class="btn btnSmall"
+                                hidden
+                            >
+                                Cancel Edit
+                            </button>
+                        </div>
+                        <p id="gigStatus" class="tiny muted">
+                            Manual gigs stay separate from InspectorADE prediction history.
+                        </p>
+                    </form>
+                    <h3>Manual Gigs</h3>
+                    <ul id="gigList"></ul>
+                </div>
+
+                <div class="addressViewPane" data-address-view="work-library">
+                    <h3>Manual Work Library</h3>
+                    <p class="tiny muted">
+                        Reusable manual properties are kept separately from today's route
+                        and from InspectorADE address-correction memory.
+                    </p>
+                    <div class="btnRow">
+                        <button id="syncManualWork" type="button" class="btn btnSmall">
+                            Sync Library
+                        </button>
+                    </div>
+                    <p id="manualWorkStatus" class="tiny muted">
+                        Saving a manual gig also attempts to save its property permanently
+                        in Google Drive.
+                    </p>
+                    <input
+                        id="showArchivedManualWork"
+                        type="checkbox"
+                        class="addressViewChoice"
+                    />
+                    <label class="showArchivedControl" for="showArchivedManualWork">
+                        Show Archived
+                    </label>
+                    <ul id="manualWorkList"></ul>
+                </div>
+
+                <div class="addressViewPane" data-address-view="saved-addresses">
+                    <h3>Saved Addresses</h3>
+                    <ul id="jobList"></ul>
+                </div>
+            </div>
         </section>
 
         <!-- Route Builder -->
@@ -516,7 +566,7 @@
         <script src="routing.js?v=1.5.0"></script>
         <script src="garmin-gpx.js?v=1.2.0"></script>
         <script src="vendor/leaflet.js?v=1.9.4"></script>
-        <script src="manual-gigs.js?v=1.1.0"></script>
+        <script src="manual-gigs.js?v=1.2.0"></script>
         <script src="route-work-controls.js?v=1.0.0"></script>
         <script src="app.js?v=3.31.0"></script>
         <script src="google-route-browser.js?v=1.7.0"></script>
