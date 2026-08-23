@@ -4,8 +4,9 @@
 **Repository:** `timbone72-CC/free-map-router`  
 **Branch:** `work/manual-work-library-foundation-20260822`  
 **Rollback commit:** `045f83ba9a9edd37bfd3dc0e3c0b8e7c41e15a1e`  
+**Runtime head verified:** `e8e615d0ea2c406df1160fb558531cb124e521ca`  
 **Change level:** Level 3 — new persistent Drive record plus automatic Drive writes  
-**Status:** IMPLEMENTATION AUTHORIZED / PRE-MERGE APPROVAL STILL REQUIRED
+**Status:** IMPLEMENTED / CI VERIFIED 261/261 / PRE-MERGE APPROVAL STILL REQUIRED
 
 ## Problem
 
@@ -26,8 +27,8 @@ This change will:
 - keep the reusable property when a gig is removed from a route or when a gig occurrence is deleted;
 - provide an archive/restore path for reusable manual properties instead of treating routine cleanup as permanent deletion;
 - prevent ordinary address deletion from silently destroying or orphaning a protected Manual Work Library property;
-- merge remote and local Manual Work Library records by stable property identity and per-record timestamps so an older device state does not silently replace a newer property record;
-- restore non-archived Manual Work Library properties into the local saved-address collection when the library is synchronized through an existing Drive interaction;
+- merge remote and local Manual Work Library records by stable property identity and per-record timestamps so an older unchanged device state does not silently replace a newer property record during library synchronization;
+- restore non-archived Manual Work Library properties into the local saved-address collection when the operator uses **Sync Library**;
 - preserve current ADE permanent correction behavior unchanged.
 
 ## Explicitly excluded from this runtime piece
@@ -80,8 +81,9 @@ The permanent manual-property record does **not** store GIS/DCFS source, Inspect
 - Exact current address or exact saved alias may associate a local stop with an existing property.
 - A property address correction keeps `propertyId` and stores the prior exact address as an alias.
 - Remote/local merge compares matching `propertyId`s and keeps the newer `updatedAt` record.
-- When two records independently represent the same exact current address, normalization must converge them without creating two local driving stops.
-- An archived remote property must not be silently resurrected by an older local copy.
+- When two records independently represent the same exact current address, normalization converges them without creating two local driving stops.
+- A newer archived property is not resurrected by an older unchanged active copy during Sync Library.
+- A deliberate later operator action such as restoring/reusing a property may create a newer property update; this is not treated as passive stale-device replacement.
 
 ## Drive behavior and permissions
 
@@ -89,9 +91,10 @@ The permanent manual-property record does **not** store GIS/DCFS source, Inspect
 - No broad Drive-read permission is added.
 - The app may read/write only app-created or app-selected files available under that scope.
 - Saving/editing a manual gig automatically attempts the small Manual Work Library write.
-- If the Drive write fails or Google authorization is not approved, the local gig/property remains saved and the UI must clearly state that the permanent Drive save did not complete.
-- The app must never claim a property is permanent when the Drive write failed.
+- If the Drive write fails or Google authorization is not approved, the local gig/property remains saved and the UI clearly states that the permanent Drive save did not complete.
+- The app never claims a property is permanent when the Drive write failed.
 - Existing **Back Up Now** remains a separate point-in-time recovery action and is not redefined as the Manual Work Library writer.
+- **Sync Library** is the explicit recovery/cross-device refresh control for this property library; the change does not add polling, background sync, or live multi-device gig synchronization.
 
 ## Read/write surfaces
 
@@ -100,7 +103,7 @@ The permanent manual-property record does **not** store GIS/DCFS source, Inspect
 - current saved stops;
 - current manual gigs;
 - local Manual Work Library state;
-- remote `Free Map Router Manual Work.json` when a valid Drive token is available.
+- remote `Free Map Router Manual Work.json` when Save Gig/Edit or Sync Library obtains a valid Drive token.
 
 ### Writes
 
@@ -113,7 +116,7 @@ No workbook file, route-order file, address inbox, permanent ADE correction reco
 
 ## Protected behavior
 
-The change must preserve:
+The change preserves:
 
 - five-page menu and current page names/order;
 - workbook route import and pending-route behavior;
@@ -133,7 +136,8 @@ The change must preserve:
 - **Delete Gig** deletes only that gig occurrence and keeps its property.
 - A Manual Work Library property uses **Archive** for normal removal from reusable lists.
 - Archived properties remain in the permanent record and can be restored.
-- Ordinary Address-page deletion must not silently erase the only active Manual Work Library property record.
+- Ordinary Address-page deletion is blocked while a manual gig references the address or while the reusable property remains active.
+- Archive requires an explicit confirmation and attempts to persist the archive state to Drive.
 - Permanent hard-delete of Manual Work Library records is not introduced in this change.
 
 ## Hard limits
@@ -145,49 +149,64 @@ The change must preserve:
 
 ## Stale-output behavior
 
-If Drive sync cannot complete, the local copy remains usable but must be labeled as not yet saved permanently. A later successful sync merges the newer per-property record instead of replacing the whole library with an older device snapshot.
+If Drive sync cannot complete, the local copy remains usable but is labeled as not yet saved permanently. A later successful Sync Library merges per-property records rather than replacing the whole library with an older unchanged device snapshot. This foundation does not claim transactional simultaneous-write conflict resolution or live multi-device gig synchronization.
 
 ## Realistic fixture / safe validation plan
 
-Use representative fixtures covering:
+Representative automated fixtures cover:
 
 1. one HNP property with a normal street address and manual pin;
 2. two gigs sharing one physical property;
-3. the same Manual Work Library property present on two simulated devices with different `updatedAt` values;
+3. the same Manual Work Library property present on two simulated device states with different `updatedAt` values;
 4. an archived property versus an older active copy;
-5. a manual property sharing an existing ADE physical stop;
-6. a Drive-save failure that leaves local data intact and reports the failure;
-7. a remote property missing locally that is restored as one unselected saved address.
+5. separation from ADE source and workbook Order IDs;
+6. Drive-save failure messaging that leaves local work intact;
+7. a remote property missing locally that restores as one unselected saved address;
+8. exact Drive file create/update/load behavior under the existing limited scope.
 
-No live workbook data needs to be modified for development verification.
+No live workbook data is modified for development verification.
 
 ## Focused automated tests
 
-Add focused coverage for:
+Coverage now protects:
 
 - Manual Work Library normalization and stable property identity;
 - exact-address/alias association;
 - timestamp-aware stale-safe merge;
 - archive winning over an older active copy;
 - Drive file find/create/update/load behavior under the existing scope;
-- automatic manual-property save success and failure messaging;
+- automatic manual-property save success/failure paths and status copy;
 - Delete Gig preserving the property;
 - Build Route removal preserving the property;
 - library sync restoring one missing address without route inclusion;
 - protected ADE source/Order-ID isolation;
-- no new page and no new permission.
+- five-page navigation, script order, and no new permission/background process.
 
-## Baseline and final gate
+## Verification result
 
-Last runtime-tested baseline before the documentation-only roadmap merge: **243/243 tests passed**. The roadmap merge changed documentation only, so it does not invalidate that runtime baseline.
+The first PR run failed only because two pre-existing backup tests still asserted the old wording that permanent address corrections were the sole narrow automatic Drive-write exception. Those assertions were updated to the newly approved contract; no runtime failure was bypassed.
 
-Before merge of this runtime change:
+Final runtime head `e8e615d0ea2c406df1160fb558531cb124e521ca` passed GitHub Actions run `32611876196`, job `97126125329`:
 
-- all new focused tests must pass;
-- one complete repository test suite must pass on the final runtime head;
-- all first-party root JavaScript syntax checks must pass;
-- final diff must contain no unrelated runtime changes;
-- explicit operator approval is required before merge.
+- **261 tests / 261 passed / 0 failed**;
+- all focused Manual Work Library tests passed;
+- all first-party root JavaScript files passed `node --check`;
+- no workbook, backend, routing algorithm, deployment, or Drive-permission file changed.
+
+Per `TESTING_CONTRACT.md`, this documentation-only verification record update does not invalidate that successful final runtime result.
+
+## Final diff review
+
+Compared with rollback/base `045f83ba9a9edd37bfd3dc0e3c0b8e7c41e15a1e`, the runtime scope is limited to:
+
+- Manual Work Library property contract;
+- narrow Drive adapter using the existing `drive.file` scope;
+- Manual Gig integration and delete/archive protection;
+- Addresses-page Manual Work Library controls;
+- governing contract/checklist updates;
+- focused tests and this impact record.
+
+`app.js`, workbook handoff schemas, route-history logic, routing/optimization, backend, Cloud Run/deployment configuration, and InspectorADE repository/runtime are unchanged.
 
 ## Live smoke after publication
 
@@ -198,7 +217,7 @@ After merge/publication, validate with a disposable manual property:
 3. delete only the gig and confirm the reusable property remains;
 4. remove the property from the route and confirm the reusable property remains;
 5. archive and restore the property;
-6. on a second/recovered browser state, perform an existing Drive interaction and confirm the non-archived property restores exactly once and is not automatically added to either route;
+6. use **Sync Library** from a second/recovered browser state and confirm the non-archived property restores exactly once and is not automatically added to either route;
 7. confirm a known ADE correction still resolves normally.
 
 ## Failure recovery / rollback
@@ -206,10 +225,10 @@ After merge/publication, validate with a disposable manual property:
 If tests or live validation fail:
 
 - do not merge while the branch is failing;
-- if a published build fails, revert runtime to `045f83ba9a9edd37bfd3dc0e3c0b8e7c41e15a1e` before further changes to the affected surface;
+- if a published build fails, restore runtime to `045f83ba9a9edd37bfd3dc0e3c0b8e7c41e15a1e` before further changes to the affected surface;
 - the new Manual Work Library file is additive and separate, so rollback does not require deleting it;
 - existing local stops/gigs and ADE correction records remain authoritative for the pre-change app after rollback.
 
 ## Pre-merge approval
 
-Implementation is authorized by the operator's approved Phase 1B roadmap direction. Because this is Level 3, a separate explicit **pre-merge approval** is still required after implementation and verification on the pull request head.
+Implementation is authorized by the operator's approved Phase 1B roadmap direction. Because this is Level 3, a separate explicit **pre-merge approval** is still required on PR #55 after this verification record.
