@@ -47,6 +47,13 @@ test("Addresses keeps the approved five top-level pages and adds four internal v
     );
 });
 
+test("Saved Addresses Edit reveals the Add / Edit pane before the existing edit handler runs", () => {
+    assert.match(
+        html,
+        /getElementById\("jobList"\)\?\.addEventListener\([\s\S]*"click"[\s\S]*button\.textContent\.trim\(\) !== "Edit"[\s\S]*getElementById\("addressViewAddEdit"\)[\s\S]*addEditView\.checked = true[\s\S]*true,/,
+    );
+});
+
 test("Manual Gig edit controls stay with the Manual Gigs view", () => {
     const manualPane = html.match(
         /<div class="addressViewPane" data-address-view="manual-gigs">([\s\S]*?)<div class="addressViewPane" data-address-view="work-library">/,
