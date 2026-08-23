@@ -68,6 +68,11 @@ identity, or a script that can affect the Address page.
 - [ ] Refresh preserves saved addresses.
 - [ ] An address with attached manual gigs cannot be deleted until those gigs
       are deleted, so no gig is orphaned.
+- [ ] An active Manual Work Library property is protected from ordinary address
+      deletion until the property is archived.
+- [ ] Archiving a manual property does not delete its saved address by itself;
+      after archive and with no attached gig, normal local address deletion is
+      available if the operator still wants it.
 
 ## Manual gig checks
 
@@ -87,7 +92,8 @@ changes.
       and never removes real workbook Order IDs.
 - [ ] Editing/correcting a physical stop preserves every attached gig through
       the retained stop ID or governed ID remap.
-- [ ] Deleting a gig does not delete its physical saved address.
+- [ ] Deleting a gig does not delete its physical saved address or reusable
+      Manual Work Library property.
 - [ ] Starting a newer workbook route reapplies every `routeIncluded` manual gig
       to both usable route versions without modifying the pending workbook route.
 - [ ] Manual gig details may appear as secondary route detail, but HNP/OTHER is
@@ -101,6 +107,40 @@ changes.
       IDs still need that physical stop, and keeps pre-existing app-only/manual
       stops that were not added solely by gig inclusion.
 
+## Manual Work Library checks
+
+Required after reusable-property storage, Drive sync, archive/restore, or
+manual-property deletion protection changes.
+
+- [ ] Saving a manual gig creates or updates exactly one reusable property for
+      its physical address and attempts the permanent Drive save automatically.
+- [ ] A successful save reports that the property was saved permanently in
+      Google Drive; a failed/cancelled Drive save leaves the local gig/property
+      intact and clearly reports that permanent storage did not complete.
+- [ ] The library uses one **Free Map Router Manual Work.json** file in the
+      existing app folder and keeps the existing `drive.file` permission.
+- [ ] Two gigs at the same physical address still map to one reusable property
+      and one physical stop.
+- [ ] Editing a manual property's saved address keeps its `propertyId` and
+      remembers the prior exact address as an alias.
+- [ ] A newer per-property update/archive wins over an older device copy during
+      remote/local merge.
+- [ ] Sync restores a missing non-archived property as one saved address and does
+      not add it to Google Route or Basic Route.
+- [ ] Sync does not create GIS/DCFS source, workbook Order IDs, route metadata,
+      gig pay, or work-order IDs inside the permanent property record.
+- [ ] **Delete Gig**, Build Route **Remove**, Clear Manual Gig Work, and Clear
+      InspectorADE Jobs do not archive or delete the reusable property.
+- [ ] **Archive** keeps the property in the library and Drive record and can be
+      reversed with **Restore**.
+- [ ] Archive is blocked while a manual gig occurrence still references that
+      property.
+- [ ] No permanent hard-delete control is introduced for Manual Work Library
+      property records in this phase.
+- [ ] The library adds no sixth page, timer, polling loop, MutationObserver,
+      background notification service, Google Calendar integration, or automatic
+      Add to Route behavior.
+
 ## Build Route checks
 
 Required after route-list, numbering, optimization, Google Maps, or Garmin
@@ -109,6 +149,7 @@ changes.
 - [ ] Selected addresses appear exactly once.
 - [ ] Up and Down move exactly one selected stop.
 - [ ] Remove removes exactly one stop and updates the Address checkbox.
+- [ ] Build Route Remove does not delete/archive a Manual Work Library property.
 - [ ] Optimize preserves every selected address exactly once.
 - [ ] Home remains the unnumbered start and finish.
 - [ ] Visible numbering, when present, matches the current route order.
@@ -148,9 +189,11 @@ Required for Level 3 data changes and any Level 2 import or storage change.
 - [ ] Manual pins are not weakened by imports or automatic lookup.
 - [ ] Duplicate physical-stop identity remains address-based.
 - [ ] Manual gig identity remains `Gig_ID`-based and separate from stop identity.
+- [ ] Manual Work Library property identity remains `propertyId`-based and
+      separate from both physical-stop identity and `Gig_ID`.
 - [ ] Home remains separate from job stops.
 - [ ] Backup and restore preserve saved stops, Home, manual gigs, and named route
-      snapshots.
+      snapshots; the separate permanent Manual Work Library remains intact.
 - [ ] An older version-1 backup without gigs still restores normally with an
       empty manual-gig collection.
 - [ ] Damaged/orphan gig rows in a backup cannot damage valid Home, stops, or
@@ -173,6 +216,9 @@ Required for Level 3 data changes and any Level 2 import or storage change.
       route snapshots, Order IDs, and attached manual gigs to the retained stop.
 - [ ] Route-order return happens only after the operator taps its button and
       writes one exact JSON file in the existing app folder.
+- [ ] Manual Work Library writes do not change Drive permission, inbox structure,
+      route-order JSON structure, workbook data, InspectorADE history, or
+      prediction data.
 - [ ] Neither source-specific clear action changes backup schema, Drive
       permissions, inbox structure, route-order JSON structure, workbook data,
       InspectorADE history, or prediction data.
