@@ -11,7 +11,7 @@ const validIds = new Set(["ade", "gig", "shared", "manual", "pending"]);
 
 function mixedHistory() {
     return {
-        version: 4,
+        version: 5,
         google: {
             routeIds: ["ade", "gig", "shared", "manual"],
             sourceUpdatedAt: "2026-08-22T12:00:00.000Z",
@@ -19,6 +19,10 @@ function mixedHistory() {
             orderIdsByStopId: {
                 ade: ["ADE-1"],
                 shared: ["ADE-2"],
+            },
+            workbookPayByStopId: {
+                ade: { expectedPay: 18, expectedPayComplete: true },
+                shared: { expectedPay: 9, expectedPayComplete: false },
             },
             gigIdsByStopId: {
                 gig: ["gig_1"],
@@ -34,6 +38,10 @@ function mixedHistory() {
                 ade: ["ADE-1"],
                 shared: ["ADE-2"],
             },
+            workbookPayByStopId: {
+                ade: { expectedPay: 18, expectedPayComplete: true },
+                shared: { expectedPay: 9, expectedPayComplete: false },
+            },
             gigIdsByStopId: {
                 gig: ["gig_1"],
                 shared: ["gig_2"],
@@ -45,6 +53,9 @@ function mixedHistory() {
             sourceUpdatedAt: "2026-08-22T13:00:00.000Z",
             optimizationStatus: "not_optimized",
             orderIdsByStopId: { pending: ["ADE-P"] },
+            workbookPayByStopId: {
+                pending: { expectedPay: 21, expectedPayComplete: true },
+            },
         },
     };
 }
@@ -57,6 +68,8 @@ test("Clear InspectorADE Jobs removes ADE-only stops but keeps gig and app-only 
     assert.deepEqual(result.history.basic.routeIds, ["manual", "shared", "gig"]);
     assert.deepEqual(result.history.google.orderIdsByStopId, {});
     assert.deepEqual(result.history.basic.orderIdsByStopId, {});
+    assert.deepEqual(result.history.google.workbookPayByStopId, {});
+    assert.deepEqual(result.history.basic.workbookPayByStopId, {});
     assert.deepEqual(result.history.google.gigIdsByStopId, {
         gig: ["gig_1"],
         shared: ["gig_2"],
@@ -71,12 +84,15 @@ test("Clear InspectorADE Jobs removes ADE-only stops but keeps gig and app-only 
 
 test("Clear InspectorADE Jobs preserves optimizer status when shared stops stay visible", () => {
     const history = {
-        version: 4,
+        version: 5,
         google: {
             routeIds: ["shared"],
             sourceUpdatedAt: "2026-08-22T12:00:00.000Z",
             optimizationStatus: "google_optimized",
             orderIdsByStopId: { shared: ["ADE-2"] },
+            workbookPayByStopId: {
+                shared: { expectedPay: 9, expectedPayComplete: true },
+            },
             gigIdsByStopId: { shared: ["gig_2"] },
             gigManagedStopIds: [],
         },
@@ -87,6 +103,7 @@ test("Clear InspectorADE Jobs preserves optimizer status when shared stops stay 
     const result = clearInspectorAdeRouteWork(history, validIds);
     assert.deepEqual(result.history.google.routeIds, ["shared"]);
     assert.deepEqual(result.history.google.orderIdsByStopId, {});
+    assert.deepEqual(result.history.google.workbookPayByStopId, {});
     assert.equal(result.history.google.optimizationStatus, "google_optimized");
     assert.equal(result.removedStopCount, 0);
 });
@@ -104,6 +121,10 @@ test("Clear Manual Gig Work removes only gig-managed gig-only stops", () => {
         ade: ["ADE-1"],
         shared: ["ADE-2"],
     });
+    assert.deepEqual(result.history.google.workbookPayByStopId, {
+        ade: { expectedPay: 18, expectedPayComplete: true },
+        shared: { expectedPay: 9, expectedPayComplete: false },
+    });
     assert.equal(result.history.google.optimizationStatus, "manually_changed");
     assert.equal(result.history.basic.optimizationStatus, "not_optimized");
     assert.deepEqual(result.history.pending, before.pending);
@@ -113,12 +134,15 @@ test("Clear Manual Gig Work removes only gig-managed gig-only stops", () => {
 
 test("Clear Manual Gig Work keeps shared and pre-existing stops when route membership does not change", () => {
     const history = {
-        version: 4,
+        version: 5,
         google: {
             routeIds: ["shared", "manual"],
             sourceUpdatedAt: null,
             optimizationStatus: "google_optimized",
             orderIdsByStopId: { shared: ["ADE-2"] },
+            workbookPayByStopId: {
+                shared: { expectedPay: 9, expectedPayComplete: true },
+            },
             gigIdsByStopId: {
                 shared: ["gig_2"],
                 manual: ["gig_3"],
@@ -134,6 +158,9 @@ test("Clear Manual Gig Work keeps shared and pre-existing stops when route membe
     assert.deepEqual(result.history.google.gigIdsByStopId, {});
     assert.deepEqual(result.history.google.orderIdsByStopId, {
         shared: ["ADE-2"],
+    });
+    assert.deepEqual(result.history.google.workbookPayByStopId, {
+        shared: { expectedPay: 9, expectedPayComplete: true },
     });
     assert.equal(result.history.google.optimizationStatus, "google_optimized");
     assert.equal(result.removedStopCount, 0);
