@@ -11,7 +11,7 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function buildGigContract() {
     "use strict";
 
-    const GIG_SCHEMA_VERSION = 1;
+    const GIG_SCHEMA_VERSION = 2;
     const GIGS_STORAGE_KEY = "fmr_v1_gigs";
 
     function text(value) {
@@ -46,6 +46,41 @@
         return Math.round((number + Number.EPSILON) * 100) / 100;
     }
 
+    function normalizeCalendarDate(value) {
+        if (value === null || value === undefined || text(value) === "") {
+            return null;
+        }
+
+        const raw = text(value);
+        const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+        if (!match) {
+            throw new Error("Date must be a valid local calendar date.");
+        }
+        const year = Number(match[1]);
+        const month = Number(match[2]);
+        const day = Number(match[3]);
+        const check = new Date(Date.UTC(year, month - 1, day));
+        if (
+            check.getUTCFullYear() !== year ||
+            check.getUTCMonth() !== month - 1 ||
+            check.getUTCDate() !== day
+        ) {
+            throw new Error("Date must be a valid local calendar date.");
+        }
+        return raw;
+    }
+
+    function localCalendarDate(now = new Date()) {
+        const date = new Date(now);
+        if (Number.isNaN(date.getTime())) {
+            throw new Error("The current local calendar date is invalid.");
+        }
+        const year = String(date.getFullYear()).padStart(4, "0");
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+    }
+
     function normalizeTimestamp(value, fallback = null) {
         const raw = text(value);
         if (!raw) return fallback;
@@ -73,8 +108,12 @@
         const updatedAt = normalizeTimestamp(raw.updatedAt, createdAt);
 
         let expectedPay;
+        let dueDate;
+        let completedDate;
         try {
             expectedPay = normalizeExpectedPay(raw.expectedPay);
+            dueDate = normalizeCalendarDate(raw.dueDate);
+            completedDate = normalizeCalendarDate(raw.completedDate);
         } catch (error) {
             if (options.skipInvalid) return null;
             throw error;
@@ -89,6 +128,8 @@
             expectedPay,
             notes: text(raw.notes),
             routeIncluded: Boolean(raw.routeIncluded),
+            dueDate,
+            completedDate,
             createdAt,
             updatedAt,
         };
@@ -219,6 +260,8 @@
         GIGS_STORAGE_KEY,
         normalizeGigSource,
         normalizeExpectedPay,
+        normalizeCalendarDate,
+        localCalendarDate,
         normalizeGig,
         normalizeGigList,
         readGigs,

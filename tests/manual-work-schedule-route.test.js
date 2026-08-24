@@ -49,6 +49,7 @@ test("materializing scheduled work creates a distinct gig and one physical stop 
             expectedPay: template.expectedPay,
             notes: template.notes,
             routeIncluded: true,
+            dueDate: template.nextDueDate,
         },
         {
             validStopIds,
@@ -85,6 +86,7 @@ test("materializing scheduled work creates a distinct gig and one physical stop 
     assert.equal(gig.source, "HNP");
     assert.equal(gig.expectedPay, 18);
     assert.equal(gig.routeIncluded, true);
+    assert.equal(gig.dueDate, "2026-09-18");
     assert.deepEqual(history.google.routeIds, ["ade-stop", "manual-stop"]);
     assert.deepEqual(history.basic.routeIds, ["ade-stop", "manual-stop"]);
     assert.equal(history.google.routeIds.filter((id) => id === "manual-stop").length, 1);

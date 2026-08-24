@@ -33,6 +33,7 @@
         createGig,
         deleteGig,
         gigsForStop,
+        localCalendarDate,
         readGigs,
         remapGigStopIds,
         writeGigs,
@@ -250,6 +251,8 @@
         if (gig.workOrderId) parts.push(`WO ${gig.workOrderId}`);
         const pay = moneyLabel(gig.expectedPay);
         if (pay) parts.push(pay);
+        if (gig.dueDate) parts.push(`Due ${gig.dueDate}`);
+        if (gig.completedDate) parts.push(`Completed ${gig.completedDate}`);
         if (stop?.address) parts.push(stop.address);
         if (gig.notes) parts.push(`Notes: ${gig.notes}`);
         if (!gig.routeIncluded) parts.push("Not included in route");
@@ -363,6 +366,9 @@
         document.getElementById("gigWorkOrderId").value = gig.workOrderId || "";
         document.getElementById("gigExpectedPay").value =
             Number.isFinite(gig.expectedPay) ? String(gig.expectedPay) : "";
+        document.getElementById("gigDueDate").value = gig.dueDate || "";
+        document.getElementById("gigCompletedDate").value =
+            gig.completedDate || "";
         document.getElementById("gigNotes").value = gig.notes || "";
         document.getElementById("gigRouteIncluded").checked = gig.routeIncluded;
         const cancel = document.getElementById("cancelGigEdit");
@@ -387,6 +393,25 @@
         renderManualGigsList();
         renderManualWorkList();
         renderHomeDueSummary();
+    }
+
+    function completeGigToday(gigId) {
+        const gig = manualGigs.find((item) => item.id === gigId);
+        if (!gig || gig.completedDate) return;
+        try {
+            persistManualGigs(
+                applyGigEdit(
+                    manualGigs,
+                    gig.id,
+                    { completedDate: localCalendarDate(new Date()) },
+                    { validStopIds: currentStopIds() },
+                ),
+            );
+            renderManualGigsList();
+            if (editingGigId === gig.id) startGigEdit(gig.id);
+        } catch (error) {
+            alert(error?.message || "The manual gig could not be completed.");
+        }
     }
 
     function renderManualGigsList() {
@@ -423,6 +448,15 @@
             li.appendChild(label);
             li.appendChild(document.createTextNode(" "));
             li.appendChild(edit);
+            if (!gig.completedDate) {
+                const complete = document.createElement("button");
+                complete.type = "button";
+                complete.textContent = "Complete Today";
+                complete.style.width = "auto";
+                complete.addEventListener("click", () => completeGigToday(gig.id));
+                li.appendChild(document.createTextNode(" "));
+                li.appendChild(complete);
+            }
             li.appendChild(document.createTextNode(" "));
             li.appendChild(remove);
             list.appendChild(li);
@@ -574,6 +608,8 @@
                     expectedPay: template.expectedPay,
                     notes: template.notes,
                     routeIncluded: true,
+                    dueDate: template.nextDueDate,
+                    completedDate: null,
                 },
                 { validStopIds: currentStopIds() },
             );
@@ -756,6 +792,9 @@
         const expectedPay =
             document.getElementById("gigExpectedPay")?.value || "";
         const notes = document.getElementById("gigNotes")?.value || "";
+        const dueDate = document.getElementById("gigDueDate")?.value || "";
+        const completedDate =
+            document.getElementById("gigCompletedDate")?.value || "";
         const routeIncluded = Boolean(
             document.getElementById("gigRouteIncluded")?.checked,
         );
@@ -783,6 +822,8 @@
                         expectedPay,
                         notes,
                         routeIncluded,
+                        dueDate,
+                        completedDate,
                     },
                     { validStopIds: currentStopIds() },
                 );
@@ -810,6 +851,8 @@
                         expectedPay,
                         notes,
                         routeIncluded,
+                        dueDate,
+                        completedDate,
                     },
                     { validStopIds: currentStopIds() },
                 );
