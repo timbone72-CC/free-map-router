@@ -296,12 +296,14 @@
 
     function combineWorkbookPay(left, right) {
         if (!left && !right) return null;
+        if (!left) return { ...right };
+        if (!right) return { ...left };
         return {
             expectedPay: roundedMoney(
-                (left?.expectedPay || 0) + (right?.expectedPay || 0),
+                left.expectedPay + right.expectedPay,
             ),
             expectedPayComplete: Boolean(
-                left?.expectedPayComplete && right?.expectedPayComplete,
+                left.expectedPayComplete && right.expectedPayComplete,
             ),
         };
     }
