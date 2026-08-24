@@ -78,17 +78,18 @@
 
         function mergeExpectedPay(left, right) {
             if (!left && !right) return null;
+            if (!left) return { ...right };
+            if (!right) return { ...left };
             return {
                 expectedPay:
                     Math.round(
-                        (((left?.expectedPay || 0) +
-                            (right?.expectedPay || 0) +
+                        (((left.expectedPay || 0) +
+                            (right.expectedPay || 0) +
                             Number.EPSILON) *
                             100),
                     ) / 100,
                 expectedPayComplete: Boolean(
-                    left?.expectedPayComplete &&
-                        right?.expectedPayComplete,
+                    left.expectedPayComplete && right.expectedPayComplete,
                 ),
             };
         }
