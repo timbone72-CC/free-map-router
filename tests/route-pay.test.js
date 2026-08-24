@@ -173,6 +173,26 @@ test("removing a stop removes only that selected route's pay metadata", () => {
     });
 });
 
+test("single complete workbook pay stays complete through a stop-ID remap", () => {
+    const remapped = remapRouteStopIds(
+        {
+            google: {
+                routeIds: ["old-a"],
+                orderIdsByStopId: { "old-a": ["ADE-1"] },
+                workbookPayByStopId: {
+                    "old-a": { expectedPay: 10, expectedPayComplete: true },
+                },
+            },
+        },
+        { "old-a": "merged" },
+        new Set(["merged"]),
+    );
+
+    assert.deepEqual(remapped.google.workbookPayByStopId, {
+        merged: { expectedPay: 10, expectedPayComplete: true },
+    });
+});
+
 test("stop-ID merge combines known workbook subtotals and completeness conservatively", () => {
     const remapped = remapRouteStopIds(
         {
