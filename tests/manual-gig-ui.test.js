@@ -32,8 +32,27 @@ test("manual gigs use the existing five-page navigation and Addresses page", () 
     assert.match(html, /id="gigSource"/);
     assert.match(html, /id="gigWorkOrderId"/);
     assert.match(html, /id="gigExpectedPay"/);
+    assert.match(html, /id="gigDueDate"/);
+    assert.match(html, /id="gigCompletedDate"/);
     assert.match(html, /id="gigRouteIncluded"/);
     assert.match(html, /id="gigList"/);
+});
+
+test("manual gig dates stay in the existing form with one local Complete Today action", () => {
+    assert.match(manualGigSource, /function completeGigToday\(gigId\)/);
+    assert.match(manualGigSource, /localCalendarDate\(new Date\(\)\)/);
+    assert.match(manualGigSource, /complete\.textContent = "Complete Today"/);
+    assert.match(manualGigSource, /completedDate: localCalendarDate/);
+    assert.doesNotMatch(manualGigSource, /setGigRouteMembership[\s\S]{0,250}completedDate/);
+});
+
+test("scheduled Add to Route copies the current due date before cadence advancement", () => {
+    const addStart = manualGigSource.indexOf("async function addScheduledWorkToRoute");
+    const advance = manualGigSource.indexOf("advanceTemplateDue(", addStart);
+    const dueCopy = manualGigSource.indexOf("dueDate: template.nextDueDate", addStart);
+    assert.ok(addStart >= 0);
+    assert.ok(dueCopy > addStart);
+    assert.ok(advance > dueCopy);
 });
 
 test("manual gig contracts load before the app and do not use a post-app UI rewrite", () => {

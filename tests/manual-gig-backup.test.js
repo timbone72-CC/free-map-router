@@ -19,6 +19,8 @@ test("version 2 backup preserves manual gigs beside existing routes", () => {
                 expectedPay: 18,
                 notes: "Gate code",
                 routeIncluded: true,
+                dueDate: "2026-08-25",
+                completedDate: "2026-08-23",
                 createdAt: "2026-08-22T18:00:00.000Z",
                 updatedAt: "2026-08-22T18:00:00.000Z",
             },
@@ -39,8 +41,33 @@ test("version 2 backup preserves manual gigs beside existing routes", () => {
     assert.equal(restored.gigs[0].id, "gig_1");
     assert.equal(restored.gigs[0].stopId, "stop_1");
     assert.equal(restored.gigs[0].expectedPay, 18);
+    assert.equal(restored.gigs[0].dueDate, "2026-08-25");
+    assert.equal(restored.gigs[0].completedDate, "2026-08-23");
     assert.deepEqual(restored.routes.google.routeIds, ["stop_1", "stop_2"]);
     assert.deepEqual(restored.routes.basic.routeIds, ["stop_2", "stop_1"]);
+});
+
+test("a version 2 backup migrates embedded version 1 gigs without changing Gig ID", () => {
+    const restored = parseBackup(JSON.stringify({
+        app: "free-map-router",
+        backupVersion: 2,
+        home: null,
+        stops: [{ id: "stop_1", address: "100 Main St" }],
+        routeIds: ["stop_1"],
+        gigs: [{
+            schemaVersion: 1,
+            id: "gig_legacy_backup",
+            stopId: "stop_1",
+            source: "HNP",
+            routeIncluded: true,
+            createdAt: "2026-08-22T18:00:00.000Z",
+            updatedAt: "2026-08-22T18:00:00.000Z",
+        }],
+    }));
+    assert.equal(restored.gigs[0].id, "gig_legacy_backup");
+    assert.equal(restored.gigs[0].schemaVersion, 2);
+    assert.equal(restored.gigs[0].dueDate, null);
+    assert.equal(restored.gigs[0].completedDate, null);
 });
 
 test("legacy version 1 backup remains restorable with an empty gig collection", () => {
