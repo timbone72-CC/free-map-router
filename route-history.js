@@ -12,13 +12,17 @@
     "use strict";
 
     const STORAGE_KEY = "fmr_route_history_v1";
-    const ROUTE_HISTORY_VERSION = 4;
+    const ROUTE_HISTORY_VERSION = 5;
     const OPTIMIZATION_STATUSES = new Set([
         "not_optimized",
         "basic_optimized",
         "google_optimized",
         "manually_changed",
     ]);
+
+    function roundedMoney(value) {
+        return Math.round((value + Number.EPSILON) * 100) / 100;
+    }
 
     function normalizedOptimizationStatus(value) {
         return OPTIMIZATION_STATUSES.has(value) ? value : "not_optimized";
@@ -92,6 +96,26 @@
         return normalizedStringIds(values).filter((id) => validRouteIds.has(id));
     }
 
+    function normalizedWorkbookPayEntry(value) {
+        if (!value || typeof value !== "object") return null;
+        const expectedPay = Number(value.expectedPay);
+        if (!Number.isFinite(expectedPay) || expectedPay < 0) return null;
+        return {
+            expectedPay: roundedMoney(expectedPay),
+            expectedPayComplete: value.expectedPayComplete === true,
+        };
+    }
+
+    function normalizedWorkbookPayByStopId(value, routeIds) {
+        const result = {};
+        const source = value && typeof value === "object" ? value : {};
+        for (const stopId of routeIds) {
+            const entry = normalizedWorkbookPayEntry(source[stopId]);
+            if (entry) result[stopId] = entry;
+        }
+        return result;
+    }
+
     function normalizeRouteSnapshot(value, validIds = null) {
         if (!value || typeof value !== "object") return null;
         const routeIds = normalizedRouteIds(value.routeIds, validIds);
@@ -107,6 +131,10 @@
                     : normalizedOptimizationStatus(value.optimizationStatus),
             orderIdsByStopId: normalizedOrderIdsByStopId(
                 value.orderIdsByStopId,
+                routeIds,
+            ),
+            workbookPayByStopId: normalizedWorkbookPayByStopId(
+                value.workbookPayByStopId,
                 routeIds,
             ),
             gigIdsByStopId: normalizedGigIdsByStopId(
@@ -129,6 +157,10 @@
                 optimizationStatus || snapshot.optimizationStatus,
             orderIdsByStopId: normalizedOrderIdsByStopId(
                 snapshot.orderIdsByStopId,
+                snapshot.routeIds,
+            ),
+            workbookPayByStopId: normalizedWorkbookPayByStopId(
+                snapshot.workbookPayByStopId,
                 snapshot.routeIds,
             ),
             gigIdsByStopId: normalizedGigIdsByStopId(
@@ -232,6 +264,7 @@
                 optimizationStatus:
                     existing?.optimizationStatus || "not_optimized",
                 orderIdsByStopId: existing?.orderIdsByStopId,
+                workbookPayByStopId: existing?.workbookPayByStopId,
                 gigIdsByStopId: existing?.gigIdsByStopId,
                 gigManagedStopIds: existing?.gigManagedStopIds,
             },
@@ -261,6 +294,18 @@
         return normalized;
     }
 
+    function combineWorkbookPay(left, right) {
+        if (!left && !right) return null;
+        return {
+            expectedPay: roundedMoney(
+                (left?.expectedPay || 0) + (right?.expectedPay || 0),
+            ),
+            expectedPayComplete: Boolean(
+                left?.expectedPayComplete && right?.expectedPayComplete,
+            ),
+        };
+    }
+
     function remapRouteStopIds(
         history,
         idRemap = {},
@@ -276,6 +321,7 @@
             const routeIds = [];
             const seenRouteIds = new Set();
             const orderIdsByStopId = {};
+            const workbookPayByStopId = {};
             const gigIdsByStopId = {};
             const managedState = {};
             const originalManaged = new Set(snapshot.gigManagedStopIds || []);
@@ -308,6 +354,16 @@
                     orderIdsByStopId[stopId] = combinedOrderIds;
                 }
 
+                const oldPay = normalizedWorkbookPayEntry(
+                    snapshot.workbookPayByStopId?.[oldId],
+                );
+                if (oldPay) {
+                    workbookPayByStopId[stopId] = combineWorkbookPay(
+                        workbookPayByStopId[stopId] || null,
+                        oldPay,
+                    );
+                }
+
                 const combinedGigIds = gigIdsByStopId[stopId] || [];
                 for (const gigId of normalizedStringIds(
                     snapshot.gigIdsByStopId?.[oldId],
@@ -330,6 +386,7 @@
                     ...snapshot,
                     routeIds,
                     orderIdsByStopId,
+                    workbookPayByStopId,
                     gigIdsByStopId,
                     gigManagedStopIds,
                 },
@@ -390,6 +447,8 @@
                         sourceUpdatedAt: existing?.sourceUpdatedAt || null,
                         optimizationStatus,
                         orderIdsByStopId: existing?.orderIdsByStopId || {},
+                        workbookPayByStopId:
+                            existing?.workbookPayByStopId || {},
                         gigIdsByStopId,
                         gigManagedStopIds: Array.from(managed),
                     },
@@ -483,6 +542,7 @@
         sourceUpdatedAt,
         validIds = null,
         orderIdsByStopId = null,
+        workbookPayByStopId = null,
     ) {
         const normalized = normalizeRouteHistory(history, validIds);
         const result = workbookRouteRelation(normalized, sourceUpdatedAt);
@@ -494,6 +554,7 @@
                 sourceUpdatedAt,
                 optimizationStatus: "not_optimized",
                 orderIdsByStopId,
+                workbookPayByStopId,
             },
             validIds,
         );
@@ -521,6 +582,87 @@
         };
     }
 
+    function summarizeRouteExpectedPay(snapshot, gigs = []) {
+        const normalized = normalizeRouteSnapshot(snapshot);
+        if (!normalized) {
+            return {
+                inspectorAdeExpectedPay: 0,
+                manualGigExpectedPay: 0,
+                totalKnownExpectedPay: 0,
+                payIncomplete: false,
+                hasRepresentedWork: false,
+            };
+        }
+
+        let inspectorAdeExpectedPay = 0;
+        let manualGigExpectedPay = 0;
+        let payIncomplete = false;
+        let hasRepresentedWork = false;
+
+        for (const stopId of normalized.routeIds) {
+            const orderIds = normalizedOrderIds(
+                normalized.orderIdsByStopId?.[stopId],
+            );
+            const pay = normalizedWorkbookPayEntry(
+                normalized.workbookPayByStopId?.[stopId],
+            );
+            if (orderIds.length > 0 || pay) {
+                hasRepresentedWork = true;
+                if (pay) {
+                    inspectorAdeExpectedPay += pay.expectedPay;
+                    if (!pay.expectedPayComplete) payIncomplete = true;
+                } else if (orderIds.length > 0) {
+                    payIncomplete = true;
+                }
+            }
+        }
+
+        const gigById = new Map();
+        for (const gig of Array.isArray(gigs) ? gigs : []) {
+            const gigId = String(gig?.id || "").trim();
+            if (gigId && !gigById.has(gigId)) gigById.set(gigId, gig);
+        }
+
+        const countedGigIds = new Set();
+        for (const stopId of normalized.routeIds) {
+            for (const gigId of normalizedStringIds(
+                normalized.gigIdsByStopId?.[stopId],
+            )) {
+                if (countedGigIds.has(gigId)) continue;
+                countedGigIds.add(gigId);
+                hasRepresentedWork = true;
+                const gig = gigById.get(gigId);
+                const expectedPay = gig?.expectedPay;
+                if (
+                    expectedPay === null ||
+                    expectedPay === undefined ||
+                    expectedPay === ""
+                ) {
+                    payIncomplete = true;
+                    continue;
+                }
+                const amount = Number(expectedPay);
+                if (!Number.isFinite(amount) || amount < 0) {
+                    payIncomplete = true;
+                    continue;
+                }
+                manualGigExpectedPay += amount;
+            }
+        }
+
+        inspectorAdeExpectedPay = roundedMoney(inspectorAdeExpectedPay);
+        manualGigExpectedPay = roundedMoney(manualGigExpectedPay);
+        return {
+            inspectorAdeExpectedPay,
+            manualGigExpectedPay,
+            totalKnownExpectedPay: roundedMoney(
+                inspectorAdeExpectedPay + manualGigExpectedPay,
+            ),
+            payIncomplete,
+            hasRepresentedWork,
+        };
+    }
+
     return {
         ROUTE_HISTORY_VERSION,
         STORAGE_KEY,
@@ -533,6 +675,7 @@
         setRouteOptimizationStatus,
         stageWorkbookRoute,
         startPendingRoute,
+        summarizeRouteExpectedPay,
         workbookRouteRelation,
         writeRouteHistory,
     };
