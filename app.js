@@ -13,6 +13,10 @@ if (!globalThis.FMRContract) {
     throw new Error("Free Map Router contract failed to load.");
 }
 
+if (!globalThis.FMRGigContract) {
+    throw new Error("Free Map Router gig contract failed to load.");
+}
+
 if (!globalThis.FMRGeocoder) {
     throw new Error("Free Map Router geocoder failed to load.");
 }
@@ -51,6 +55,7 @@ const {
     readHome,
     writeHome,
 } = globalThis.FMRContract;
+const { readGigs } = globalThis.FMRGigContract;
 
 const {
     findAddress,
@@ -93,6 +98,7 @@ const {
     setRouteOptimizationStatus,
     stageWorkbookRoute,
     startPendingRoute,
+    summarizeRouteExpectedPay,
     workbookRouteRelation,
     writeRouteHistory,
 } = globalThis.FMRRouteHistory;
@@ -472,6 +478,7 @@ const els = {
     routeOptimizationStatus: document.getElementById(
         "routeOptimizationStatus",
     ),
+    routePaySummary: document.getElementById("routePaySummary"),
     sendRouteOrder: document.getElementById("sendRouteOrder"),
     workbookRouteOrderStatus: document.getElementById(
         "workbookRouteOrderStatus",
@@ -702,6 +709,35 @@ function selectedRouteJobs() {
         .filter(Boolean);
 }
 
+function moneyText(value) {
+    return `$${Number(value || 0).toFixed(2)}`;
+}
+
+function renderRoutePaySummary() {
+    if (!els.routePaySummary) return;
+    const routeName =
+        activeRouteSlot === "basic" ? "Basic Route" : "Google Route";
+    const manualGigs = readGigs(localStorage, savedJobIds());
+    const summary = summarizeRouteExpectedPay(
+        routeHistory[activeRouteSlot],
+        manualGigs,
+    );
+
+    if (!summary.hasRepresentedWork) {
+        els.routePaySummary.textContent =
+            `${routeName} expected pay: no InspectorADE or manual gig pay attached.`;
+        return;
+    }
+
+    const parts = [
+        `InspectorADE ${moneyText(summary.inspectorAdeExpectedPay)}`,
+        `Manual gigs ${moneyText(summary.manualGigExpectedPay)}`,
+        `Total known ${moneyText(summary.totalKnownExpectedPay)}`,
+    ];
+    if (summary.payIncomplete) parts.push("Pay incomplete");
+    els.routePaySummary.textContent = parts.join(" • ");
+}
+
 function renderGoogleMapsActions() {
     if (!els.exportRoute || !els.routeMapLinks) return;
 
@@ -812,6 +848,7 @@ function renderRouteList() {
     if (!list) return;
     renderRouteChoice();
     renderRouteOptimizationStatus();
+    renderRoutePaySummary();
     list.innerHTML = "";
     renderGoogleMapsActions();
 
@@ -1959,6 +1996,7 @@ async function syncWorkbookInboxFrom(
             inbox.updatedAt,
             savedJobIds(),
             imported.orderIdsByStopId,
+            imported.workbookPayByStopId,
         );
         routeHistory = writeRouteHistory(
             localStorage,

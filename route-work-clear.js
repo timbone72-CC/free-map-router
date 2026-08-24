@@ -80,6 +80,7 @@
                     routeIds,
                 ),
                 orderIdsByStopId: {},
+                workbookPayByStopId: {},
                 gigIdsByStopId: snapshot.gigIdsByStopId,
                 gigManagedStopIds: snapshot.gigManagedStopIds,
             },

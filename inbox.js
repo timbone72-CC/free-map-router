@@ -44,6 +44,56 @@
             return result;
         }
 
+        function normalizedExpectedPay(raw) {
+            const hasPay = Object.hasOwn(raw || {}, "expectedPay");
+            const hasComplete = Object.hasOwn(
+                raw || {},
+                "expectedPayComplete",
+            );
+            if (!hasPay && !hasComplete) return null;
+            if (!hasPay || !hasComplete) {
+                throw new Error(
+                    "The workbook address inbox has incomplete expected-pay metadata.",
+                );
+            }
+
+            const expectedPay = Number(raw.expectedPay);
+            if (!Number.isFinite(expectedPay) || expectedPay < 0) {
+                throw new Error(
+                    "The workbook address inbox has invalid expected-pay metadata.",
+                );
+            }
+            if (typeof raw.expectedPayComplete !== "boolean") {
+                throw new Error(
+                    "The workbook address inbox has invalid expected-pay completeness metadata.",
+                );
+            }
+
+            return {
+                expectedPay:
+                    Math.round((expectedPay + Number.EPSILON) * 100) / 100,
+                expectedPayComplete: raw.expectedPayComplete,
+            };
+        }
+
+        function mergeExpectedPay(left, right) {
+            if (!left && !right) return null;
+            if (!left) return { ...right };
+            if (!right) return { ...left };
+            return {
+                expectedPay:
+                    Math.round(
+                        (((left.expectedPay || 0) +
+                            (right.expectedPay || 0) +
+                            Number.EPSILON) *
+                            100),
+                    ) / 100,
+                expectedPayComplete: Boolean(
+                    left.expectedPayComplete && right.expectedPayComplete,
+                ),
+            };
+        }
+
         function originalAliases(raw) {
             const addresses = [];
             const keys = [];
@@ -71,9 +121,11 @@
             for (const raw of Array.isArray(entries) ? entries : []) {
                 const normalizedStop = normalizeStop(raw);
                 if (!normalizedStop) continue;
+                const pay = normalizedExpectedPay(raw);
                 const stop = {
                     ...normalizedStop,
                     orderIds: normalizeOrderIds(raw?.orderIds),
+                    ...(pay || {}),
                 };
 
                 const aliases = originalAliases(raw);
@@ -89,13 +141,14 @@
                     continue;
                 }
 
-                const merged = normalizeStopList([result[index], stop])[0];
-                const orderIds = [...(result[index].orderIds || [])];
+                const existing = result[index];
+                const merged = normalizeStopList([existing, stop])[0];
+                const orderIds = [...(existing.orderIds || [])];
                 const originalAddresses = [
-                    ...(result[index].originalAddresses || []),
+                    ...(existing.originalAddresses || []),
                 ];
                 const originalAddressKeys = [
-                    ...(result[index].originalAddressKeys || []),
+                    ...(existing.originalAddressKeys || []),
                 ];
 
                 for (const address of aliases.addresses) {
@@ -108,11 +161,16 @@
                     addUnique(orderIds, orderId);
                 }
 
+                const combinedPay = mergeExpectedPay(
+                    normalizedExpectedPay(existing),
+                    pay,
+                );
                 result[index] = {
                     ...merged,
                     orderIds,
                     originalAddresses,
                     originalAddressKeys,
+                    ...(combinedPay || {}),
                 };
             }
 
@@ -261,6 +319,7 @@
                 );
                 if (!aliasOwner) return incoming;
 
+                const pay = normalizedExpectedPay(incoming);
                 return {
                     ...aliasOwner,
                     source: incoming.source || aliasOwner.source,
@@ -271,6 +330,7 @@
                     originalAddressKeys: [
                         ...(incoming.originalAddressKeys || []),
                     ],
+                    ...(pay || {}),
                 };
             });
             const stops = normalizeStopList([
@@ -282,15 +342,30 @@
             );
             const routeIds = [];
             const orderIdsByStopId = {};
+            const workbookPayByStopId = {};
             const selected = new Set();
 
             for (const stop of resolvedIncomingStops) {
                 const id = idByAddress.get(addressKey(stop.address));
-                if (!id || selected.has(id)) continue;
-                selected.add(id);
-                routeIds.push(id);
+                if (!id) continue;
+                if (!selected.has(id)) {
+                    selected.add(id);
+                    routeIds.push(id);
+                }
                 if (stop.orderIds.length > 0) {
-                    orderIdsByStopId[id] = stop.orderIds.slice();
+                    const combinedOrderIds = orderIdsByStopId[id] || [];
+                    for (const orderId of stop.orderIds) {
+                        addUnique(combinedOrderIds, orderId);
+                    }
+                    orderIdsByStopId[id] = combinedOrderIds;
+                }
+
+                const pay = normalizedExpectedPay(stop);
+                if (pay) {
+                    workbookPayByStopId[id] = mergeExpectedPay(
+                        workbookPayByStopId[id] || null,
+                        pay,
+                    );
                 }
             }
 
@@ -298,6 +373,7 @@
                 stops,
                 routeIds,
                 orderIdsByStopId,
+                workbookPayByStopId,
                 importedCount: routeIds.length,
             };
         }
@@ -309,6 +385,7 @@
             applyAddressInbox,
             formatInboxImportStatus,
             isAddressInboxExportedToday,
+            normalizeInboxAddresses,
             parseAddressInbox,
         });
     },
