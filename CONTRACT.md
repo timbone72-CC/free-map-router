@@ -161,6 +161,32 @@ versions of one job route, and opens the selected version in Google Maps.
     Archived properties stay in the permanent record and can be restored.
     Permanent hard-delete of Manual Work Library property records is not part of
     the current feature.
+24. Manual Work Library version 2 adds repeat-work templates while retaining
+    the existing property structure and the same **Free Map Router Manual
+    Work.json** file. A valid version-1 Manual Work Library remains readable and
+    migrates to version 2 with its properties intact and no repeat templates.
+25. The initial repeat-work model allows at most one active repeat template per
+    reusable property. A template has its own immutable `templateId` and stores
+    its `propertyId`, source/company, optional expected pay, optional default
+    notes, cadence count and unit, next due date, fixed four-day alert lead,
+    active state, and `updatedAt`. It never stores GIS/DCFS source, workbook
+    Order IDs, route membership, Home, or API keys.
+26. Repeat-template synchronization is stale-safe by immutable `templateId` and
+    per-template `updatedAt`. An older device copy must not silently replace a
+    newer saved cadence or next due date. Schedule saves and schedule
+    advancement reuse the existing limited `drive.file` permission and the
+    existing Manual Work Library file; no broader Drive access is requested.
+27. A schedule write failure leaves the local schedule or locally advanced next
+    due date intact and reports that permanent Drive storage did not complete.
+    **Sync Library** remains the manual retry path.
+28. Due status is derived from local calendar dates when the app opens or
+    rerenders. It is **Due Soon** from four days before the scheduled date
+    through the day before, **Due Today** on the scheduled date, and **Overdue**
+    after it. No polling loop, timer, background notification, push permission,
+    or Google Calendar integration is required to derive that in-app status.
+29. Home may show one compact summary of repeat work that is due soon, due
+    today, or overdue. Opening that summary may navigate to the existing
+    Addresses → Work Library view; it must not create a gig or modify a route.
 
 ## 5. Route rules
 
@@ -292,6 +318,24 @@ versions of one job route, and opens the selected version in Google Maps.
 15. Archiving a Manual Work Library property is not gig deletion and is not
     permanent data deletion. An active gig must be resolved before its property
     can be archived through the normal control.
+16. A repeat template is reusable planning data attached to a property. It is
+    not today's gig and its `templateId` is never used as a `Gig_ID`.
+17. **Add to Route** is the only Phase 1C action that materializes due repeat
+    work into today's work. It creates one new manual gig with a new immutable
+    `Gig_ID`, inherits the template source, expected pay, and default notes,
+    leaves work-order/job ID blank for the current assignment, and includes the
+    physical stop in both saved route versions without duplicating that stop.
+18. Due status alone must never create a gig, select an address, or add a stop
+    to either route. The operator must press **Add to Route**.
+19. When due repeat work is added to the route, the template advances from its
+    scheduled due date rather than the button-press date. Daily and weekly
+    cadence skips missed periods to the first future scheduled occurrence;
+    monthly cadence preserves its scheduled day where possible and clamps to
+    the last valid day of shorter months. This prevents late or early work from
+    causing cadence drift.
+20. Creating a scheduled gig never invents workbook Order IDs, never changes
+    the pending workbook route, and never changes InspectorADE source,
+    prediction, or history data.
 
 ## 7. Change control
 
@@ -332,6 +376,10 @@ Tests must continue to protect:
 - gig attachment surviving physical-stop correction/remap;
 - permanent Manual Work Library property identity, stale-safe merge, archive,
   restore, and no automatic route inclusion;
+- version-1 Manual Work Library compatibility plus repeat-template identity,
+  stale-safe schedule merge, four-day due boundaries, and anchored recurrence;
+- explicit scheduled **Add to Route** creating a distinct gig without workbook
+  identity or automatic route insertion;
 - Manual Work Library separation from InspectorADE source, Order IDs, and
   permanent address-correction memory;
 - symmetric ADE/gig route-work clearing without deleting the other source or
