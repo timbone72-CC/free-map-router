@@ -307,6 +307,18 @@
                         </p>
                     </form>
                     <h3>Manual Gigs</h3>
+                    <div class="btnRow">
+                        <button
+                            id="syncGigsToWorkbook"
+                            type="button"
+                            class="btn btnSmall"
+                        >
+                            Sync Gigs to Workbook
+                        </button>
+                    </div>
+                    <p id="gigHandoffStatus" class="tiny muted">
+                        Sync is manual. It sends the current gig records to the workbook handoff without changing InspectorADE history.
+                    </p>
                     <ul id="gigList"></ul>
                 </div>
 
@@ -586,12 +598,14 @@
         <script src="https://accounts.google.com/gsi/client" async></script>
         <script src="google-drive.js?v=1.8.0"></script>
         <script src="manual-work-drive.js?v=1.0.0"></script>
+        <script src="gig-handoff.js?v=1.0.0"></script>
         <script src="route-order.js?v=1.0.0"></script>
         <script src="google-route-contract.js?v=1.1.0"></script>
         <script src="routing.js?v=1.5.0"></script>
         <script src="garmin-gpx.js?v=1.2.0"></script>
         <script src="vendor/leaflet.js?v=1.9.4"></script>
         <script src="manual-gigs.js?v=2.0.0"></script>
+        <script src="gig-handoff-ui.js?v=1.0.0"></script>
         <script src="route-work-controls.js?v=1.0.0"></script>
         <script src="app.js?v=3.32.0"></script>
         <script src="google-route-browser.js?v=1.7.0"></script>
