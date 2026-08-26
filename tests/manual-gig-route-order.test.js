@@ -1,7 +1,19 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 
 const { buildWorkbookRouteOrder } = require("../route-order.js");
+const {
+    setGigRouteMembership,
+    stageWorkbookRoute,
+    startPendingRoute,
+} = require("../route-history.js");
+
+const indexHtml = fs.readFileSync(
+    path.join(__dirname, "..", "index.html"),
+    "utf8",
+);
 
 test("manual gig route metadata is returned by exact Gig ID without inventing Order IDs", () => {
     const routeOrder = buildWorkbookRouteOrder({
@@ -39,6 +51,59 @@ test("manual gig route metadata is returned by exact Gig ID without inventing Or
             gigIds: ["gig_2"],
         },
     ]);
+});
+
+test("real workbook-start route state reaches the route-order artifact with the routed Gig ID", () => {
+    const validIds = new Set(["workbook", "manual"]);
+    const staged = stageWorkbookRoute(
+        { version: 5, google: null, basic: null, pending: null },
+        ["workbook"],
+        "2026-08-26T02:34:00.525Z",
+        validIds,
+        { workbook: ["112008694"] },
+        null,
+    );
+
+    assert.equal(staged.result, "newer");
+
+    const started = startPendingRoute(staged.history, validIds);
+    assert.equal(started.result, "started");
+
+    const historyWithGig = setGigRouteMembership(
+        started.history,
+        { id: "gig_1", stopId: "manual" },
+        true,
+        validIds,
+    );
+
+    const routeOrder = buildWorkbookRouteOrder({
+        routeSlot: "google",
+        routeSnapshot: historyWithGig.google,
+        routeStops: [
+            { id: "workbook", address: "927 SW 35TH ST, Lawton, OK 73505" },
+            { id: "manual", address: "413 NW 57TH ST, Lawton, OK 73505" },
+        ],
+        now: new Date("2026-08-26T02:35:34.122Z"),
+    });
+
+    assert.deepEqual(routeOrder.stops, [
+        {
+            stopNumber: 1,
+            address: "927 SW 35TH ST, Lawton, OK 73505",
+            orderIds: ["112008694"],
+        },
+        {
+            stopNumber: 2,
+            address: "413 NW 57TH ST, Lawton, OK 73505",
+            orderIds: [],
+            gigIds: ["gig_1"],
+        },
+    ]);
+});
+
+test("the live page cache-busts the Phase 2E route-order module", () => {
+    assert.match(indexHtml, /route-order\.js\?v=1\.1\.0/);
+    assert.doesNotMatch(indexHtml, /route-order\.js\?v=1\.0\.0/);
 });
 
 test("one Gig ID cannot identify two physical route stops", () => {
