@@ -20,6 +20,7 @@ Inspect both repositories before changing either side only when the proposed cha
 - how the app imports, merges, replaces, or preserves workbook-sent stops; or
 - workbook Order IDs, displayed stop numbers, the route-order return filename,
   or how the workbook clears and applies returned Route Number values; or
+- routed manual Gig IDs carried by the route-order return; or
 - the manual-gig handoff filename/version/fields, immutable `Gig_ID`, or workbook `Gig_Log` ownership/stale-write rules.
 
 When triggered, the change record must say whether the other project remains compatible or needs a companion change. Do not merge or deploy an incompatible one-sided change. Keep one side backward-compatible during ordered deployment whenever practical.
@@ -44,17 +45,40 @@ label, client, and inferred alias matching are prohibited.
 
 The workbook may send optional `orderIds` beside one de-duplicated physical
 address. The app preserves them inside the specific pending, Google, and Basic
-route snapshots instead of treating them as permanent address identity. The
-manual return file is named **Free Map Router Route Order.json** and contains
-the selected route slot, optimization status, source export time, sent time,
-and visible stop number with its real Order IDs. Address text is audit context
-only; the workbook must match jobs by exact Order ID.
+route snapshots instead of treating them as permanent address identity.
+Manual gigs likewise retain immutable `Gig_ID` values in the selected route
+snapshot's `gigIdsByStopId`; those IDs are route/work-item identity, not
+physical-stop identity.
+
+The manual return file is named **Free Map Router Route Order.json** and keeps
+`routeOrderVersion: 1`. Each returned physical stop contains its visible stop
+number and address plus optional exact `orderIds` and optional exact `gigIds`.
+At least one of those identifier arrays must contain work for the returned
+stop. Address text is audit/print context only; the workbook matches
+InspectorADE jobs by exact Order ID and manual gigs by exact `Gig_Log.Gig_ID`.
+A shared physical stop may contain both types of work without merging their
+identities.
+
+When any InspectorADE Order ID is returned, the existing source export time is
+required and the workbook must retain the exact current-inbox freshness and
+Order-ID-set checks before route-number writes. A manual-gig-only return has no
+workbook source snapshot to verify and may omit `sourceUpdatedAt`; it is
+validated against the current healthy `Gig_Log` by exact Gig ID. A missing,
+duplicated, or ambiguous routed Gig ID stops before the workbook clears or
+changes existing route numbers and instructs the operator to sync gigs first
+when appropriate.
+
+Phase 2E uses this existing route-order file as transient route context only.
+It does not write route state into `Gig_Log`, does not alter `Actual_Pay`, and
+does not add another Drive handoff file or broader permission. The workbook's
+Google Print packet may use the returned stop number/address together with the
+matched `Gig_Log` row to render routed manual-gig details.
 
 The app-side file write and workbook-side clear/write/rebuild must remain
-backward-compatible during ordered deployment. The app may create the return
-file before the workbook receiver is published; the workbook must ignore a
-missing file and reject damaged, duplicate, stale, or structurally invalid
-return data without clearing Route Number values.
+backward-compatible during ordered deployment. The workbook companion is
+deployed first; older order-only route files remain valid. The workbook must
+ignore a missing file and reject damaged, duplicate, stale, or structurally
+invalid return data without clearing Route Number values.
 
 ## Manual-gig handoff
 
