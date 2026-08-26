@@ -99,7 +99,8 @@ changes.
 - [ ] Manual gig details may appear as secondary route detail, but HNP/OTHER is
       never presented as the governed GIS/DCFS route source.
 - [ ] Manual gigs never receive invented workbook Order IDs and never change the
-      workbook inbox or route-order JSON contract.
+      workbook inbox. Phase 2E may carry an already-routed exact `Gig_ID` in the
+      explicit route-order return only as transient print/route context.
 - [ ] **Clear Manual Gig Work** keeps every gig record, Gig_ID, source, work-order
       ID, pay, notes, and physical-stop attachment while setting `routeIncluded`
       false and removing only gig route work from both usable route versions.
@@ -183,7 +184,12 @@ changes.
 - [ ] Reordering or re-optimizing produces one stable render, not a loop.
 - [ ] Send Route Order uses the selected Google or Basic route and its visible
       stop positions.
-- [ ] App-only stops are not assigned invented workbook Order IDs.
+- [ ] Send Route Order carries exact workbook Order IDs and exact routed manual
+      Gig IDs for their physical stops; a shared stop may contain both.
+- [ ] A route containing only manual gigs can still return those exact Gig IDs
+      without inventing workbook Order IDs or requiring workbook source time.
+- [ ] App-only stops with neither workbook nor gig work are not returned and are
+      not assigned invented identifiers.
 - [ ] Multiple workbook jobs at one physical stop receive the same stop number.
 - [ ] Multiple manual gigs at one physical stop also receive one physical stop
       number rather than duplicate driving stops.

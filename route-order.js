@@ -25,18 +25,26 @@
         return String(value ?? "").trim();
     }
 
-    function normalizedOrderIds(values) {
+    function normalizedIds(values) {
         const result = [];
         const seen = new Set();
 
         for (const value of Array.isArray(values) ? values : []) {
-            const orderId = text(value);
-            if (!orderId || seen.has(orderId)) continue;
-            seen.add(orderId);
-            result.push(orderId);
+            const id = text(value);
+            if (!id || seen.has(id)) continue;
+            seen.add(id);
+            result.push(id);
         }
 
         return result;
+    }
+
+    function normalizedOrderIds(values) {
+        return normalizedIds(values);
+    }
+
+    function normalizedGigIds(values) {
+        return normalizedIds(values);
     }
 
     function validTimestamp(value) {
@@ -60,15 +68,22 @@
             typeof snapshot.orderIdsByStopId === "object"
                 ? snapshot.orderIdsByStopId
                 : {};
+        const gigIdsByStopId =
+            snapshot.gigIdsByStopId &&
+            typeof snapshot.gigIdsByStopId === "object"
+                ? snapshot.gigIdsByStopId
+                : {};
         const stops = [];
         const usedOrderIds = new Set();
+        const usedGigIds = new Set();
 
         for (const [index, stop] of (Array.isArray(routeStops)
             ? routeStops
             : []).entries()) {
             const stopId = text(stop?.id);
             const orderIds = normalizedOrderIds(orderIdsByStopId[stopId]);
-            if (orderIds.length === 0) continue;
+            const gigIds = normalizedGigIds(gigIdsByStopId[stopId]);
+            if (orderIds.length === 0 && gigIds.length === 0) continue;
 
             for (const orderId of orderIds) {
                 if (usedOrderIds.has(orderId)) {
@@ -79,16 +94,27 @@
                 usedOrderIds.add(orderId);
             }
 
-            stops.push({
+            for (const gigId of gigIds) {
+                if (usedGigIds.has(gigId)) {
+                    throw new Error(
+                        `Manual Gig ID ${gigId} belongs to more than one route stop.`,
+                    );
+                }
+                usedGigIds.add(gigId);
+            }
+
+            const returnedStop = {
                 stopNumber: index + 1,
                 address: text(stop?.address),
                 orderIds,
-            });
+            };
+            if (gigIds.length > 0) returnedStop.gigIds = gigIds;
+            stops.push(returnedStop);
         }
 
         if (stops.length === 0) {
             throw new Error(
-                "This route has no workbook Order IDs to send. Start a route sent from the workbook first.",
+                "This route has no workbook jobs or manual gigs to send.",
             );
         }
 
@@ -119,11 +145,21 @@
             );
     }
 
+    function manualGigIdCount(routeOrder) {
+        return (Array.isArray(routeOrder?.stops) ? routeOrder.stops : [])
+            .reduce(
+                (count, stop) =>
+                    count + normalizedGigIds(stop?.gigIds).length,
+                0,
+            );
+    }
+
     return Object.freeze({
         ROUTE_ORDER_APP,
         ROUTE_ORDER_TARGET,
         ROUTE_ORDER_VERSION,
         buildWorkbookRouteOrder,
         workbookOrderIdCount,
+        manualGigIdCount,
     });
 });

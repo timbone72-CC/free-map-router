@@ -252,10 +252,14 @@ versions of one job route, and opens the selected version in Google Maps.
     selected route as manually changed; Start New Route creates both route
     versions as not optimized before any included manual-gig stops are reapplied.
 21. The route-order return uses the visible stop positions, including any gaps
-    caused by app-only stops, and sends every real workbook Order ID attached to
-    a physical stop. It never guesses an Order ID from address text. The button
-    stops with a clear message when the displayed route contains no workbook
-    Order IDs or one Order ID identifies more than one physical stop.
+    caused by app-only stops, and sends every real workbook Order ID plus every
+    routed manual `Gig_ID` attached to each physical stop. It never guesses an
+    Order ID or Gig ID from address text. A returned stop may contain workbook
+    work, manual-gig work, or both. The button stops with a clear message when
+    the displayed route contains neither kind of work, when one Order ID
+    identifies more than one physical stop, or when one Gig ID identifies more
+    than one physical stop. A manual-gig-only return may omit workbook source
+    time because there is no workbook inbox snapshot to identify.
 22. Correcting or de-duplicating a workbook-linked stop preserves its Order IDs
     in the pending, Google, and Basic snapshots. When an existing duplicate is
     merged, every affected snapshot is remapped to the retained workbook stop
@@ -336,6 +340,11 @@ versions of one job route, and opens the selected version in Google Maps.
 20. Creating a scheduled gig never invents workbook Order IDs, never changes
     the pending workbook route, and never changes InspectorADE source,
     prediction, or history data.
+21. Phase 2E may carry an already-routed manual gig's exact immutable `Gig_ID`
+    in the explicit route-order return so the workbook can print that work at
+    the correct visible stop. This route context never converts the gig into a
+    workbook Order ID, never changes `Gig_Log`, and never uses address or work-
+    order text as gig identity.
 
 ## 7. Change control
 
@@ -374,6 +383,8 @@ Tests must continue to protect:
 - manual Gig_ID identity without weakening physical-stop identity;
 - same-address gigs remaining distinct while routing once;
 - gig attachment surviving physical-stop correction/remap;
+- route-order return preserving exact workbook Order IDs and routed manual
+  Gig_IDs without guessing identity from address text;
 - permanent Manual Work Library property identity, stale-safe merge, archive,
   restore, and no automatic route inclusion;
 - version-1 Manual Work Library compatibility plus repeat-template identity,

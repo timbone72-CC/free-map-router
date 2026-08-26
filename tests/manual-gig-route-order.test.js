@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 
 const { buildWorkbookRouteOrder } = require("../route-order.js");
 
-test("manual gig route metadata never invents workbook Order IDs", () => {
+test("manual gig route metadata is returned by exact Gig ID without inventing Order IDs", () => {
     const routeOrder = buildWorkbookRouteOrder({
         routeSlot: "google",
         routeSnapshot: {
@@ -27,11 +27,35 @@ test("manual gig route metadata never invents workbook Order IDs", () => {
 
     assert.deepEqual(routeOrder.stops, [
         {
+            stopNumber: 1,
+            address: "100 Manual St",
+            orderIds: [],
+            gigIds: ["gig_1"],
+        },
+        {
             stopNumber: 2,
             address: "200 Workbook St",
             orderIds: ["ORDER-1"],
+            gigIds: ["gig_2"],
         },
     ]);
-    assert.equal(JSON.stringify(routeOrder).includes("gig_1"), false);
-    assert.equal(JSON.stringify(routeOrder).includes("gig_2"), false);
+});
+
+test("one Gig ID cannot identify two physical route stops", () => {
+    assert.throws(
+        () =>
+            buildWorkbookRouteOrder({
+                routeSnapshot: {
+                    gigIdsByStopId: {
+                        a: ["gig_1"],
+                        b: ["gig_1"],
+                    },
+                },
+                routeStops: [
+                    { id: "a", address: "First" },
+                    { id: "b", address: "Second" },
+                ],
+            }),
+        /belongs to more than one route stop/,
+    );
 });
