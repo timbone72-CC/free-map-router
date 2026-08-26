@@ -42,7 +42,6 @@ test("displayed Google route becomes workbook stop numbers by real work identity
                 stopNumber: 1,
                 address: "200 Second St",
                 orderIds: ["DCFS-202", "DCFS-203"],
-                gigIds: [],
             },
             {
                 stopNumber: 2,
@@ -54,7 +53,6 @@ test("displayed Google route becomes workbook stop numbers by real work identity
                 stopNumber: 3,
                 address: "100 First St",
                 orderIds: ["GIS-101"],
-                gigIds: [],
             },
         ],
     });
