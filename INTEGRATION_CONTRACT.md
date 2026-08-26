@@ -29,6 +29,20 @@ When triggered, the change record must say whether the other project remains com
 
 During development, run only focused handoff tests in each repository whose runtime changes. Before merge, run one complete suite on the final runtime head of each runtime-changed repository. Do not rerun unrelated suites after every small correction, and do not run runtime tests in a repository receiving documentation only. `TESTING_CONTRACT.md` controls failure-stop behavior and reuse of a valid final result.
 
+## Cross-System Reality Gate
+
+For any runtime change that alters or depends on data crossing between the workbook and Free Map Router, complete this gate before calling the change ready, mergeable, publishable, or deployable:
+
+1. Write the actual operator sequence from the initiating user action to the final visible result. Do not substitute a helper-call sequence for the real workflow.
+2. Map every changed boundary as `producer → actual state/file → consumer`. Identify the real Drive file, stored route snapshot, sheet, account, or other state that carries the data.
+3. Verify the target environment prerequisites before the smoke check. Required sheets, files, identities, permissions, and route state must actually exist. A workbook named Sandbox is not assumed to be a fully isolated integration sandbox.
+4. Focused coverage must exercise the real state-building path through the changed boundary. A test that injects the expected internal state directly into the last serializer, writer, parser, or consumer is not sufficient as the only workflow proof.
+5. Before merge/publication/deployment, inspect the handoff artifact produced by that realistic path and confirm the new or changed field/data is actually present and accepted by the receiving side. This may be automated when the test genuinely produces and consumes that artifact.
+6. An ordered rollout instruction is a hard gate. If the plan says A must succeed before B, do not perform B until the required evidence for A exists.
+7. If a sandbox workbook uses the same Free Map Router Drive folder, filenames, integration identity, or other live handoff resource, label the test environment as **workbook sandbox / shared FMR handoff** and treat those writes as touching the shared integration resource.
+
+This gate applies only to affected cross-system behavior. It does not add repeated full-suite runs, unrelated smoke checks, or extra approval loops to workbook-only or app-only work.
+
 ## Corrected output addresses
 
 The workbook may send optional `originalAddress` values beside a corrected `address` when output-only formatting changes visible address text. The app retains every distinct exact original alias for the corrected route entry, migrates only saved stops whose normalized full address exactly matches one of those aliases, and then de-duplicates them into one corrected stop while preserving the strongest pin and other saved data. The field is optional, is not stored as a second stop, and older address-only inboxes remain valid.
@@ -84,7 +98,7 @@ invalid return data without clearing Route Number values.
 
 Phase 2C adds a separate explicit app → workbook handoff named **Free Map Router Gig Handoff.json** in the existing governed Free Map Router folder. It uses the existing limited `drive.file` permission and is written only when the operator presses **Sync Gigs to Workbook** on the Manual Gigs surface. Saving/editing/completing a gig, starting a route, syncing the Manual Work Library, opening the app, and Dashboard activity do not write this file automatically.
 
-`gigHandoffVersion: 1` carries a snapshot of current manual gig occurrences. Each row is identified only by immutable `gigId` and may mirror source (`HNP` or `OTHER`), attached address, work-order/job ID, expected pay, due date, completed date, notes, and the gig's `updatedAt`. It never carries InspectorADE Order IDs, GIS/DCFS source, route membership, repeat-template identity, Home, prediction fields, or workbook-owned Actual Pay.
+`gigHandoffVersion: 1` carries a snapshot of current manual gig occurrences. Each row is identified only by immutable `gigId` and may mirror source (`HNP` or `OTHER`), attached address, work-order/job ID, expected pay, due date, completed date, notes, and the gig's `updatedAt`. It never carries InspectorADE Order IDs, GIS/DCFS source impersonation, route membership, repeat-template identity, Home, prediction fields, or workbook-owned Actual Pay.
 
 The workbook companion validates the full payload before planned writes and upserts `Gig_Log` by exact `Gig_ID` only. Address and work-order text are never identity substitutes. A newer FMR timestamp may update only FMR-owned mirror fields; an older incoming row is skipped; same timestamp with different FMR-owned content is ambiguous and must stop rather than guess. A later handoff that omits a previously mirrored Gig_ID is not a deletion instruction. Existing `Gig_Log.Actual_Pay` is workbook-owned and may never be overwritten or cleared by this handoff.
 
