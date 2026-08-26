@@ -37,6 +37,10 @@ A documentation-only commit after a successful runtime test does not invalidate 
 
 For a workbook-router handoff change, run focused handoff coverage in each repository whose runtime changes. Run one final complete suite in each runtime-changed repository before merge. A repository receiving documentation only does not need runtime tests.
 
+For a cross-system workflow, focused coverage must exercise the real state-building path through the changed handoff boundary. A helper test that injects the expected internal state directly into the final serializer, writer, parser, or consumer is useful unit coverage but is not sufficient by itself to prove the operator workflow.
+
+The focused evidence must include the actual producer path that creates the handoff state or artifact and the receiving path that consumes it. `INTEGRATION_CONTRACT.md` owns the required Cross-System Reality Gate, including environment-prerequisite checks, actual handoff-artifact inspection, and ordered-rollout stops. This does not add repeated full-suite runs or unrelated smoke tests.
+
 ## Reporting
 
 - Label focused runs as focused or targeted.

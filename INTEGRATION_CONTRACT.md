@@ -29,6 +29,20 @@ When triggered, the change record must say whether the other project remains com
 
 During development, run only focused handoff tests in each repository whose runtime changes. Before merge, run one complete suite on the final runtime head of each runtime-changed repository. Do not rerun unrelated suites after every small correction, and do not run runtime tests in a repository receiving documentation only. `TESTING_CONTRACT.md` controls failure-stop behavior and reuse of a valid final result.
 
+## Cross-System Reality Gate
+
+For any runtime change that alters or depends on data crossing between the workbook and Free Map Router, complete this gate before calling the change ready, mergeable, publishable, or deployable:
+
+1. Write the actual operator sequence from the initiating user action to the final visible result. Do not substitute a helper-call sequence for the real workflow.
+2. Map every changed boundary as `producer → actual state/file → consumer`. Identify the real Drive file, stored route snapshot, sheet, account, or other state that carries the data.
+3. Verify the target environment prerequisites before the smoke check. Required sheets, files, identities, permissions, and route state must actually exist. A workbook named Sandbox is not assumed to be a fully isolated integration sandbox.
+4. Focused coverage must exercise the real state-building path through the changed boundary. A test that injects the expected internal state directly into the last serializer, writer, parser, or consumer is not sufficient as the only workflow proof.
+5. Before merge/publication/deployment, inspect the handoff artifact produced by that realistic path and confirm the new or changed field/data is actually present and accepted by the receiving side. This may be automated when the test genuinely produces and consumes that artifact.
+6. An ordered rollout instruction is a hard gate. If the plan says A must succeed before B, do not perform B until the required evidence for A exists.
+7. If a sandbox workbook uses the same Free Map Router Drive folder, filenames, integration identity, or other live handoff resource, label the test environment as **workbook sandbox / shared FMR handoff** and treat those writes as touching the shared integration resource.
+
+This gate applies only to affected cross-system behavior. It does not add repeated full-suite runs, unrelated smoke checks, or extra approval loops to workbook-only or app-only work.
+
 ## Corrected output addresses
 
 The workbook may send optional `originalAddress` values beside a corrected `address` when output-only formatting changes visible address text. The app retains every distinct exact original alias for the corrected route entry, migrates only saved stops whose normalized full address exactly matches one of those aliases, and then de-duplicates them into one corrected stop while preserving the strongest pin and other saved data. The field is optional, is not stored as a second stop, and older address-only inboxes remain valid.

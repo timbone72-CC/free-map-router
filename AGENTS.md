@@ -69,6 +69,13 @@ handoff. When the handoff is not affected, record `No workbook/router
 integration impact.` and continue with the normal risk-matched process; do not
 open the other repository or add cross-project tests merely as paperwork.
 
+When the handoff is affected, satisfy the **Cross-System Reality Gate** in
+`INTEGRATION_CONTRACT.md` before calling the change ready, mergeable, or
+publishable. Trace the real operator action through the actual handoff state or
+file to the receiving system, verify the target environment prerequisites, and
+do not assume that a workbook named Sandbox means the shared Free Map Router
+handoff resources are isolated.
+
 ## Live-app protection
 
 - Never make an intentional behavior change directly on `main`.
