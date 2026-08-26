@@ -34,8 +34,37 @@ test("manual gigs use the existing five-page navigation and Addresses page", () 
     assert.match(html, /id="gigExpectedPay"/);
     assert.match(html, /id="gigDueDate"/);
     assert.match(html, /id="gigCompletedDate"/);
-    assert.match(html, /id="gigRouteIncluded"/);
+    assert.doesNotMatch(html, /id="gigRouteIncluded"/);
     assert.match(html, /id="gigList"/);
+});
+
+test("manual gig list exposes visible Include in Route checkboxes", () => {
+    assert.match(
+        manualGigSource,
+        /function setManualGigRouteIncluded\(gigId, included\)/,
+    );
+    assert.match(manualGigSource, /routeToggle\.type = "checkbox"/);
+    assert.match(manualGigSource, /routeToggle\.checked = gig\.routeIncluded/);
+    assert.match(manualGigSource, /Include in Route/);
+    assert.match(
+        manualGigSource,
+        /changeGigRouteMembership\(nextGig, nextIncluded\)/,
+    );
+    assert.match(manualGigSource, /const previousHistory = routeHistory/);
+    assert.match(manualGigSource, /persistManualGigs\(previousGigs\)/);
+    assert.match(manualGigSource, /persistRouteHistory\(previousHistory\)/);
+});
+
+test("normal gig edits preserve route selection and new gigs start unchecked", () => {
+    const start = manualGigSource.indexOf("async function submitManualGig");
+    const end = manualGigSource.indexOf("function deriveStopRemap", start);
+    assert.ok(start >= 0);
+    assert.ok(end > start);
+
+    const submit = manualGigSource.slice(start, end);
+    assert.doesNotMatch(submit, /gigRouteIncluded/);
+    assert.match(submit, /routeIncluded: previous\.routeIncluded/);
+    assert.match(submit, /routeIncluded: false/);
 });
 
 test("manual gig dates stay in the existing form with one local Complete Today action", () => {
