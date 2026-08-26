@@ -103,12 +103,13 @@
                 usedGigIds.add(gigId);
             }
 
-            stops.push({
+            const returnedStop = {
                 stopNumber: index + 1,
                 address: text(stop?.address),
                 orderIds,
-                gigIds,
-            });
+            };
+            if (gigIds.length > 0) returnedStop.gigIds = gigIds;
+            stops.push(returnedStop);
         }
 
         if (stops.length === 0) {
