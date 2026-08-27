@@ -9,6 +9,15 @@ const {
     saveManualWorkToDrive,
 } = require("../manual-work-drive.js");
 
+function governedFolder() {
+    return {
+        id: googleDrive.WORKBOOK_FOLDER_ID,
+        name: googleDrive.DRIVE_FOLDER_NAME,
+        mimeType: "application/vnd.google-apps.folder",
+        trashed: false,
+    };
+}
+
 test("Manual Work Library keeps the existing limited Drive permission", () => {
     assert.equal(
         googleDrive.DRIVE_SCOPE,
@@ -51,7 +60,7 @@ test("first Manual Work Library save creates the JSON file in the app folder", a
         async (url, options) => {
             requests.push({ url, options });
             if (requests.length === 1) {
-                return { ok: true, json: async () => ({ files: [{ id: "folder-1" }] }) };
+                return { ok: true, json: async () => governedFolder() };
             }
             if (requests.length === 2) {
                 return { ok: true, json: async () => ({ files: [] }) };
@@ -64,7 +73,10 @@ test("first Manual Work Library save creates the JSON file in the app folder", a
     assert.equal(requests[2].options.method, "POST");
     assert.match(requests[2].options.body, /Free Map Router Manual Work\.json/);
     assert.match(requests[2].options.body, /manual-work-library/);
-    assert.match(requests[2].options.body, /"parents":\["folder-1"\]/);
+    assert.match(
+        requests[2].options.body,
+        new RegExp(googleDrive.WORKBOOK_FOLDER_ID),
+    );
 });
 
 test("existing Manual Work Library is patched instead of duplicated", async () => {
@@ -79,7 +91,7 @@ test("existing Manual Work Library is patched instead of duplicated", async () =
         async (url, options) => {
             requests.push({ url, options });
             if (requests.length === 1) {
-                return { ok: true, json: async () => ({ files: [{ id: "folder-1" }] }) };
+                return { ok: true, json: async () => governedFolder() };
             }
             if (requests.length === 2) {
                 return { ok: true, json: async () => ({ files: [{ id: "manual-work-1" }] }) };
@@ -97,7 +109,7 @@ test("Manual Work Library load returns null when no app file exists and reads th
     const missing = await loadManualWorkFromDrive("token", async () => {
         missingCount += 1;
         if (missingCount === 1) {
-            return { ok: true, json: async () => ({ files: [{ id: "folder-1" }] }) };
+            return { ok: true, json: async () => governedFolder() };
         }
         return { ok: true, json: async () => ({ files: [] }) };
     });
@@ -107,7 +119,7 @@ test("Manual Work Library load returns null when no app file exists and reads th
     const loaded = await loadManualWorkFromDrive("token", async (url) => {
         count += 1;
         if (count === 1) {
-            return { ok: true, json: async () => ({ files: [{ id: "folder-1" }] }) };
+            return { ok: true, json: async () => governedFolder() };
         }
         if (count === 2) {
             return { ok: true, json: async () => ({ files: [{ id: "manual-work-1" }] }) };

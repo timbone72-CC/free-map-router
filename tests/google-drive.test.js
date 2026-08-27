@@ -29,6 +29,15 @@ const {
     saveRouteOrderToDrive,
 } = require("../google-drive.js");
 
+function governedFolder() {
+    return {
+        id: WORKBOOK_FOLDER_ID,
+        name: DRIVE_FOLDER_NAME,
+        mimeType: "application/vnd.google-apps.folder",
+        trashed: false,
+    };
+}
+
 test("Drive save queue always writes the latest queued backup last", async () => {
     const calls = [];
     let finishFirst;
@@ -71,7 +80,7 @@ test("Drive token is not exposed before the user connects", () => {
     assert.equal(currentDriveToken(), "");
 });
 
-test("app folder search is limited to the app folder name", async () => {
+test("app folder lookup uses the exact governed folder ID", async () => {
     let requestedUrl = "";
     const folder = await findBackupFolder("token", async (url, options) => {
         requestedUrl = url;
@@ -79,16 +88,17 @@ test("app folder search is limited to the app folder name", async () => {
         return {
             ok: true,
             json: async () => ({
-                files: [{ id: "folder-1", name: DRIVE_FOLDER_NAME }],
+                id: WORKBOOK_FOLDER_ID,
+                name: DRIVE_FOLDER_NAME,
+                mimeType: "application/vnd.google-apps.folder",
+                trashed: false,
             }),
         };
     });
 
     const request = new URL(requestedUrl);
-    assert.match(request.searchParams.get("q"), /Free Map Router/);
-    assert.match(request.searchParams.get("q"), /google-apps\.folder/);
-    assert.equal(request.searchParams.get("pageSize"), "1");
-    assert.equal(folder.id, "folder-1");
+    assert.equal(request.pathname, `/drive/v3/files/${WORKBOOK_FOLDER_ID}`);
+    assert.equal(folder.id, WORKBOOK_FOLDER_ID);
 });
 
 test("workbook route folder is verified by exact governed folder ID", async () => {
@@ -129,6 +139,15 @@ test("backup search stays inside the app folder", async () => {
     const request = new URL(requestedUrl);
     assert.match(request.searchParams.get("q"), /Free Map Router Backup\.json/);
     assert.match(request.searchParams.get("q"), /'folder-1' in parents/);
+    assert.equal(request.searchParams.get("pageSize"), "2");
+
+    await assert.rejects(
+        () => findBackupFile("token", "folder-1", async () => ({
+            ok: true,
+            json: async () => ({ files: [{ id: "one" }, { id: "two" }] }),
+        })),
+        /More than one Free Map Router backup/,
+    );
 });
 
 test("address inbox search stays inside the app folder", async () => {
@@ -141,6 +160,15 @@ test("address inbox search stays inside the app folder", async () => {
     const request = new URL(requestedUrl);
     assert.match(request.searchParams.get("q"), /Address Inbox\.json/);
     assert.match(request.searchParams.get("q"), /'folder-1' in parents/);
+    assert.equal(request.searchParams.get("pageSize"), "2");
+
+    await assert.rejects(
+        () => findAddressInbox("token", "folder-1", async () => ({
+            ok: true,
+            json: async () => ({ files: [{ id: "one" }, { id: "two" }] }),
+        })),
+        /More than one Free Map Router address inbox/,
+    );
 });
 
 test("route order search stays inside the app folder and rejects duplicates", async () => {
@@ -172,7 +200,7 @@ test("missing address inbox is created for the live workbook", async () => {
         if (count === 1) {
             return {
                 ok: true,
-                json: async () => ({ files: [{ id: "folder-1" }] }),
+                json: async () => governedFolder(),
             };
         }
         if (count === 2) {
@@ -190,18 +218,97 @@ test("missing address inbox is created for the live workbook", async () => {
     assert.equal(inbox.id, "inbox-1");
 });
 
-test("missing app folder is created", async () => {
-    let count = 0;
-    const folder = await ensureBackupFolder("token", async (url, options) => {
-        count++;
-        if (count === 1) {
-            return { ok: true, json: async () => ({ files: [] }) };
+test("missing governed folder fails closed without creating a replacement", async () => {
+    const requests = [];
+    await assert.rejects(
+        () => ensureBackupFolder("token", async (url, options) => {
+            requests.push({ url, options });
+            return { ok: false, status: 404, json: async () => ({}) };
+        }),
+        (error) => error?.code === WORKBOOK_DRIVE_ACCOUNT_ERROR_CODE,
+    );
+    assert.equal(requests.length, 1);
+    assert.match(requests[0].url, new RegExp(WORKBOOK_FOLDER_ID));
+    assert.equal(requests[0].options?.method, undefined);
+});
+
+test("transient governed-folder failures preserve a valid Drive token and use retry recovery", async () => {
+    const modulePath = require.resolve("../google-drive.js");
+    const previousGoogle = globalThis.google;
+    const previousDrive = globalThis.FMRGoogleDrive;
+
+    delete require.cache[modulePath];
+    const freshDrive = require("../google-drive.js");
+
+    let requestArgs = null;
+    const tokenClient = {
+        callback: () => {},
+        requestAccessToken(args) {
+            requestArgs = args;
+            tokenClient.callback({
+                access_token: "transient-drive-token",
+                expires_in: 3600,
+            });
+        },
+    };
+
+    globalThis.google = {
+        accounts: {
+            oauth2: {
+                initTokenClient: () => tokenClient,
+            },
+        },
+    };
+
+    try {
+        const token = await freshDrive.requestDriveToken();
+        assert.equal(token, "transient-drive-token");
+        assert.equal(requestArgs.prompt, "select_account");
+        assert.equal(
+            freshDrive.currentDriveToken(),
+            "transient-drive-token",
+        );
+
+        for (const status of [429, 500, 503]) {
+            await assert.rejects(
+                () =>
+                    freshDrive.requireWorkbookRouteFolder(
+                        token,
+                        async () => ({
+                            ok: false,
+                            status,
+                        }),
+                    ),
+                (error) => {
+                    assert.equal(error?.code, undefined);
+                    assert.match(
+                        error?.message || "",
+                        /Try this Drive action again/,
+                    );
+                    return true;
+                },
+            );
+
+            assert.equal(
+                freshDrive.currentDriveToken(),
+                "transient-drive-token",
+            );
         }
-        assert.equal(options.method, "POST");
-        assert.match(options.body, /Free Map Router/);
-        return { ok: true, json: async () => ({ id: "folder-1" }) };
-    });
-    assert.equal(folder.id, "folder-1");
+    } finally {
+        if (previousGoogle === undefined) {
+            delete globalThis.google;
+        } else {
+            globalThis.google = previousGoogle;
+        }
+
+        if (previousDrive === undefined) {
+            delete globalThis.FMRGoogleDrive;
+        } else {
+            globalThis.FMRGoogleDrive = previousDrive;
+        }
+
+        delete require.cache[modulePath];
+    }
 });
 
 test("first folder Drive save creates a JSON backup", async () => {
@@ -210,11 +317,16 @@ test("first folder Drive save creates a JSON backup", async () => {
         requests.push({ url, options });
         if (
             requests.length === 1 &&
-            url.startsWith("https://www.googleapis.com/drive/v3/files?")
+            url.includes(`/drive/v3/files/${WORKBOOK_FOLDER_ID}`)
         ) {
             return {
                 ok: true,
-                json: async () => ({ files: [{ id: "folder-1" }] }),
+                json: async () => ({
+                    id: WORKBOOK_FOLDER_ID,
+                    name: DRIVE_FOLDER_NAME,
+                    mimeType: "application/vnd.google-apps.folder",
+                    trashed: false,
+                }),
             };
         }
         if (requests.length === 2) {
@@ -234,7 +346,7 @@ test("first folder Drive save creates a JSON backup", async () => {
     assert.equal(result.id, "created-1");
     assert.equal(requests[2].options.method, "POST");
     assert.match(requests[2].options.body, /Free Map Router Backup\.json/);
-    assert.match(requests[2].options.body, /"parents":\["folder-1"\]/);
+    assert.match(requests[2].options.body, new RegExp(`"parents":\\["${WORKBOOK_FOLDER_ID}"\\]`));
     assert.match(requests[2].options.body, /"address": "Home"/);
 });
 
@@ -320,7 +432,7 @@ test("Drive restore downloads the existing backup", async () => {
         if (count === 1) {
             return {
                 ok: true,
-                json: async () => ({ files: [{ id: "folder-1" }] }),
+                json: async () => governedFolder(),
             };
         }
         if (count === 2) {
@@ -345,7 +457,7 @@ test("Drive inbox load downloads the workbook handoff file", async () => {
         if (count === 1) {
             return {
                 ok: true,
-                json: async () => ({ files: [{ id: "folder-1" }] }),
+                json: async () => governedFolder(),
             };
         }
         if (count === 2) {
@@ -377,7 +489,7 @@ test("permanent correction memory creates, updates, and reads one app-owned file
         async (url, options) => {
             createRequests.push({ url, options });
             if (createRequests.length === 1) {
-                return { ok: true, json: async () => ({ files: [{ id: "folder-1" }] }) };
+                return { ok: true, json: async () => governedFolder() };
             }
             if (createRequests.length === 2) {
                 return { ok: true, json: async () => ({ files: [] }) };
@@ -395,7 +507,7 @@ test("permanent correction memory creates, updates, and reads one app-owned file
         async (url, options) => {
             updateRequests.push({ url, options });
             if (updateRequests.length === 1) {
-                return { ok: true, json: async () => ({ files: [{ id: "folder-1" }] }) };
+                return { ok: true, json: async () => governedFolder() };
             }
             if (updateRequests.length === 2) {
                 return { ok: true, json: async () => ({ files: [{ id: "corrections-1" }] }) };
@@ -410,7 +522,7 @@ test("permanent correction memory creates, updates, and reads one app-owned file
     const loaded = await loadAddressCorrectionsFromDrive("token", async (url) => {
         reads += 1;
         if (reads === 1) {
-            return { ok: true, json: async () => ({ files: [{ id: "folder-1" }] }) };
+            return { ok: true, json: async () => governedFolder() };
         }
         if (reads === 2) {
             return { ok: true, json: async () => ({ files: [{ id: "corrections-1" }] }) };

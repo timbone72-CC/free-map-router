@@ -255,7 +255,6 @@
         if (gig.completedDate) parts.push(`Completed ${gig.completedDate}`);
         if (stop?.address) parts.push(stop.address);
         if (gig.notes) parts.push(`Notes: ${gig.notes}`);
-        if (!gig.routeIncluded) parts.push("Not included in route");
         return parts.filter(Boolean).join(" — ");
     }
 
@@ -339,11 +338,9 @@
         const form = document.getElementById("gigForm");
         form?.reset();
         const source = document.getElementById("gigSource");
-        const included = document.getElementById("gigRouteIncluded");
         const cancel = document.getElementById("cancelGigEdit");
         const status = document.getElementById("gigStatus");
         if (source) source.value = "HNP";
-        if (included) included.checked = true;
         if (cancel) cancel.hidden = true;
         if (status) {
             status.textContent =
@@ -370,7 +367,6 @@
         document.getElementById("gigCompletedDate").value =
             gig.completedDate || "";
         document.getElementById("gigNotes").value = gig.notes || "";
-        document.getElementById("gigRouteIncluded").checked = gig.routeIncluded;
         const cancel = document.getElementById("cancelGigEdit");
         const status = document.getElementById("gigStatus");
         if (cancel) cancel.hidden = false;
@@ -414,6 +410,47 @@
         }
     }
 
+    function setManualGigRouteIncluded(gigId, included) {
+        const previous = manualGigs.find((item) => item.id === gigId);
+        if (!previous) return;
+
+        const nextIncluded = Boolean(included);
+        if (previous.routeIncluded === nextIncluded) return;
+
+        const previousGigs = manualGigs.map((gig) => ({ ...gig }));
+        const previousHistory = routeHistory;
+
+        try {
+            const nextGigs = applyGigEdit(
+                manualGigs,
+                previous.id,
+                { routeIncluded: nextIncluded },
+                { validStopIds: currentStopIds() },
+            );
+            const nextGig = nextGigs.find((gig) => gig.id === previous.id);
+            if (!nextGig) {
+                throw new Error("The manual gig is no longer saved.");
+            }
+
+            persistManualGigs(nextGigs);
+            changeGigRouteMembership(nextGig, nextIncluded);
+            renderManualGigsList();
+            renderRouteList();
+        } catch (error) {
+            try {
+                persistManualGigs(previousGigs);
+                persistRouteHistory(previousHistory);
+            } catch {
+                // Existing backup remains the recovery path.
+            }
+            renderManualGigsList();
+            alert(
+                error?.message ||
+                    "The manual gig route selection could not be changed.",
+            );
+        }
+    }
+
     function renderManualGigsList() {
         const list = document.getElementById("gigList");
         if (!list) return;
@@ -430,6 +467,21 @@
             const li = document.createElement("li");
             li.dataset.gigId = gig.id;
 
+            const routeControl = document.createElement("label");
+            routeControl.className = "gigRouteControl";
+
+            const routeToggle = document.createElement("input");
+            routeToggle.type = "checkbox";
+            routeToggle.checked = gig.routeIncluded;
+            routeToggle.addEventListener("change", () =>
+                setManualGigRouteIncluded(gig.id, routeToggle.checked),
+            );
+
+            routeControl.appendChild(routeToggle);
+            routeControl.appendChild(
+                document.createTextNode(" Include in Route"),
+            );
+
             const label = document.createElement("span");
             label.textContent = gigSummary(gig);
 
@@ -445,6 +497,8 @@
             remove.style.width = "auto";
             remove.addEventListener("click", () => deleteManualGig(gig.id));
 
+            li.appendChild(routeControl);
+            li.appendChild(document.createTextNode(" "));
             li.appendChild(label);
             li.appendChild(document.createTextNode(" "));
             li.appendChild(edit);
@@ -795,9 +849,6 @@
         const dueDate = document.getElementById("gigDueDate")?.value || "";
         const completedDate =
             document.getElementById("gigCompletedDate")?.value || "";
-        const routeIncluded = Boolean(
-            document.getElementById("gigRouteIncluded")?.checked,
-        );
 
         if (!address) {
             alert("Address is required.");
@@ -821,7 +872,7 @@
                         workOrderId,
                         expectedPay,
                         notes,
-                        routeIncluded,
+                        routeIncluded: previous.routeIncluded,
                         dueDate,
                         completedDate,
                     },
@@ -850,7 +901,7 @@
                         workOrderId,
                         expectedPay,
                         notes,
-                        routeIncluded,
+                        routeIncluded: false,
                         dueDate,
                         completedDate,
                     },

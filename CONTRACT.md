@@ -295,8 +295,12 @@ versions of one job route, and opens the selected version in Google Maps.
 6. `Expected_Pay` is an optional nonnegative planning value. Actual pay,
    submission state, completion lifecycle, and photo state are outside Phase 1A.
 7. `routeIncluded=true` means the gig's physical stop is included in both saved
-   route versions. Multiple included gigs at one property still produce one
-   physical stop.
+   route versions. The Manual Gigs list shows this state with a visible
+   **Include in Route** checkbox. Checking or unchecking that box changes route
+   membership directly without requiring Edit. Editing the gig's work details
+   preserves its current route choice. Newly entered ordinary manual gigs start
+   unchecked. Multiple included gigs at one property still produce one physical
+   stop.
 8. Removing the last included gig may remove a route stop only when that stop
    was added solely by manual-gig inclusion. A pre-existing manually selected
    stop or a stop carrying workbook Order IDs must remain.

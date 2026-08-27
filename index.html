@@ -4,7 +4,7 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Free Map Router</title>
-        <link rel="stylesheet" href="styles.css" />
+        <link rel="stylesheet" href="styles.css?v=1.1.0" />
         <link
             rel="stylesheet"
             href="vendor/leaflet.css?v=1.9.4"
@@ -287,10 +287,6 @@
                             Notes (optional)
                             <textarea id="gigNotes"></textarea>
                         </label>
-                        <label>
-                            <input type="checkbox" id="gigRouteIncluded" checked />
-                            Include this gig's physical stop in both saved route versions
-                        </label>
                         <div class="btnRow">
                             <button type="submit" class="btn">Save Gig</button>
                             <button
@@ -307,6 +303,10 @@
                         </p>
                     </form>
                     <h3>Manual Gigs</h3>
+                    <p class="tiny muted">
+                        Check Include in Route beside the gigs you want on today's route.
+                        New manual gigs start unchecked.
+                    </p>
                     <div class="btnRow">
                         <button
                             id="syncGigsToWorkbook"
@@ -596,7 +596,7 @@
         <script src="inbox.js?v=1.6.0"></script>
         <script src="address-corrections.js?v=1.0.0"></script>
         <script src="https://accounts.google.com/gsi/client" async></script>
-        <script src="google-drive.js?v=1.8.0"></script>
+        <script src="google-drive.js?v=1.9.0"></script>
         <script src="manual-work-drive.js?v=1.0.0"></script>
         <script src="gig-handoff.js?v=1.0.0"></script>
         <script src="route-order.js?v=1.1.0"></script>
@@ -604,7 +604,7 @@
         <script src="routing.js?v=1.5.0"></script>
         <script src="garmin-gpx.js?v=1.2.0"></script>
         <script src="vendor/leaflet.js?v=1.9.4"></script>
-        <script src="manual-gigs.js?v=2.0.0"></script>
+        <script src="manual-gigs.js?v=2.1.0"></script>
         <script src="gig-handoff-ui.js?v=1.0.0"></script>
         <script src="route-work-controls.js?v=1.0.0"></script>
         <script src="app.js?v=3.32.0"></script>

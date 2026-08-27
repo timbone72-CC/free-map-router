@@ -59,7 +59,14 @@
             `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(WORKBOOK_FOLDER_ID)}?fields=id,name,mimeType,trashed`,
             { headers: authorizationHeaders(token) },
         );
-        if (!response.ok) throw workbookDriveAccountError(token);
+        if (!response.ok) {
+            if (response.status === 429 || response.status >= 500) {
+                throw new Error(
+                    "Google Drive could not verify the InspectorADE workbook route folder right now. Try this Drive action again.",
+                );
+            }
+            throw workbookDriveAccountError(token);
+        }
 
         const folder = await response.json();
         if (
@@ -74,54 +81,11 @@
     }
 
     async function findBackupFolder(token, fetchFn = globalThis.fetch) {
-        const url = new URL("https://www.googleapis.com/drive/v3/files");
-        url.searchParams.set(
-            "q",
-            `name = '${DRIVE_FOLDER_NAME}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
-        );
-        url.searchParams.set("spaces", "drive");
-        url.searchParams.set("fields", "files(id,name)");
-        url.searchParams.set("pageSize", "1");
-
-        const response = await fetchFn(url.toString(), {
-            headers: authorizationHeaders(token),
-        });
-        requireSuccessfulResponse(
-            response,
-            "Google Drive could not find the app folder.",
-        );
-        const data = await response.json();
-        return Array.isArray(data?.files) ? data.files[0] || null : null;
-    }
-
-    async function createBackupFolder(token, fetchFn = globalThis.fetch) {
-        const response = await fetchFn(
-            "https://www.googleapis.com/drive/v3/files?fields=id,name",
-            {
-                method: "POST",
-                headers: {
-                    ...authorizationHeaders(token),
-                    "Content-Type": "application/json; charset=UTF-8",
-                },
-                body: JSON.stringify({
-                    name: DRIVE_FOLDER_NAME,
-                    mimeType: "application/vnd.google-apps.folder",
-                    appProperties: { app: "free-map-router" },
-                }),
-            },
-        );
-        requireSuccessfulResponse(
-            response,
-            "Google Drive could not create the app folder.",
-        );
-        return response.json();
+        return requireWorkbookRouteFolder(token, fetchFn);
     }
 
     async function ensureBackupFolder(token, fetchFn = globalThis.fetch) {
-        return (
-            (await findBackupFolder(token, fetchFn)) ||
-            createBackupFolder(token, fetchFn)
-        );
+        return requireWorkbookRouteFolder(token, fetchFn);
     }
 
     async function findBackupFile(
@@ -137,7 +101,7 @@
         url.searchParams.set("spaces", "drive");
         url.searchParams.set("fields", "files(id,name,modifiedTime,parents)");
         url.searchParams.set("orderBy", "modifiedTime desc");
-        url.searchParams.set("pageSize", "1");
+        url.searchParams.set("pageSize", "2");
 
         const response = await fetchFn(url.toString(), {
             headers: authorizationHeaders(token),
@@ -147,7 +111,11 @@
             "Google Drive could not find the backup.",
         );
         const data = await response.json();
-        return Array.isArray(data?.files) ? data.files[0] || null : null;
+        const files = Array.isArray(data?.files) ? data.files : [];
+        if (files.length > 1) {
+            throw new Error("More than one Free Map Router backup was found.");
+        }
+        return files[0] || null;
     }
 
     async function findAddressInbox(
@@ -162,7 +130,7 @@
         );
         url.searchParams.set("spaces", "drive");
         url.searchParams.set("fields", "files(id,name,modifiedTime,parents)");
-        url.searchParams.set("pageSize", "1");
+        url.searchParams.set("pageSize", "2");
 
         const response = await fetchFn(url.toString(), {
             headers: authorizationHeaders(token),
@@ -172,7 +140,13 @@
             "Google Drive could not find the address inbox.",
         );
         const data = await response.json();
-        return Array.isArray(data?.files) ? data.files[0] || null : null;
+        const files = Array.isArray(data?.files) ? data.files : [];
+        if (files.length > 1) {
+            throw new Error(
+                "More than one Free Map Router address inbox was found.",
+            );
+        }
+        return files[0] || null;
     }
 
     async function findRouteOrderFile(
@@ -563,9 +537,6 @@
         fetchFn = globalThis.fetch,
     ) {
         const folder = await findBackupFolder(token, fetchFn);
-        if (!folder) {
-            throw new Error("The Free Map Router folder was not found.");
-        }
         const existing = await findBackupFile(token, folder.id, fetchFn);
         if (!existing) {
             throw new Error("No Free Map Router backup was found in Google Drive.");
@@ -587,9 +558,6 @@
         fetchFn = globalThis.fetch,
     ) {
         const folder = await findBackupFolder(token, fetchFn);
-        if (!folder) {
-            throw new Error("The Free Map Router folder was not found.");
-        }
         const existing = await findAddressInbox(token, folder.id, fetchFn);
         if (!existing) {
             throw new Error(
@@ -613,7 +581,6 @@
         fetchFn = globalThis.fetch,
     ) {
         const folder = await findBackupFolder(token, fetchFn);
-        if (!folder) return null;
         const existing = await findCorrectionFile(token, folder.id, fetchFn);
         if (!existing) return null;
 
