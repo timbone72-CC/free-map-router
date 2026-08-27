@@ -232,6 +232,85 @@ test("missing governed folder fails closed without creating a replacement", asyn
     assert.equal(requests[0].options?.method, undefined);
 });
 
+test("transient governed-folder failures preserve a valid Drive token and use retry recovery", async () => {
+    const modulePath = require.resolve("../google-drive.js");
+    const previousGoogle = globalThis.google;
+    const previousDrive = globalThis.FMRGoogleDrive;
+
+    delete require.cache[modulePath];
+    const freshDrive = require("../google-drive.js");
+
+    let requestArgs = null;
+    const tokenClient = {
+        callback: () => {},
+        requestAccessToken(args) {
+            requestArgs = args;
+            tokenClient.callback({
+                access_token: "transient-drive-token",
+                expires_in: 3600,
+            });
+        },
+    };
+
+    globalThis.google = {
+        accounts: {
+            oauth2: {
+                initTokenClient: () => tokenClient,
+            },
+        },
+    };
+
+    try {
+        const token = await freshDrive.requestDriveToken();
+        assert.equal(token, "transient-drive-token");
+        assert.equal(requestArgs.prompt, "select_account");
+        assert.equal(
+            freshDrive.currentDriveToken(),
+            "transient-drive-token",
+        );
+
+        for (const status of [429, 500, 503]) {
+            await assert.rejects(
+                () =>
+                    freshDrive.requireWorkbookRouteFolder(
+                        token,
+                        async () => ({
+                            ok: false,
+                            status,
+                        }),
+                    ),
+                (error) => {
+                    assert.equal(error?.code, undefined);
+                    assert.match(
+                        error?.message || "",
+                        /Try this Drive action again/,
+                    );
+                    return true;
+                },
+            );
+
+            assert.equal(
+                freshDrive.currentDriveToken(),
+                "transient-drive-token",
+            );
+        }
+    } finally {
+        if (previousGoogle === undefined) {
+            delete globalThis.google;
+        } else {
+            globalThis.google = previousGoogle;
+        }
+
+        if (previousDrive === undefined) {
+            delete globalThis.FMRGoogleDrive;
+        } else {
+            globalThis.FMRGoogleDrive = previousDrive;
+        }
+
+        delete require.cache[modulePath];
+    }
+});
+
 test("first folder Drive save creates a JSON backup", async () => {
     const requests = [];
     const fetchFn = async (url, options) => {

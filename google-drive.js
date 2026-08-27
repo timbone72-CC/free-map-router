@@ -59,7 +59,14 @@
             `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(WORKBOOK_FOLDER_ID)}?fields=id,name,mimeType,trashed`,
             { headers: authorizationHeaders(token) },
         );
-        if (!response.ok) throw workbookDriveAccountError(token);
+        if (!response.ok) {
+            if (response.status === 429 || response.status >= 500) {
+                throw new Error(
+                    "Google Drive could not verify the InspectorADE workbook route folder right now. Try this Drive action again.",
+                );
+            }
+            throw workbookDriveAccountError(token);
+        }
 
         const folder = await response.json();
         if (

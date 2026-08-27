@@ -12,6 +12,25 @@ folder `1DEqVNh2-Z8RkzMftxd4vOxsahRwD3mvf`. It removes automatic folder creation
 If that exact folder is missing, inaccessible, renamed, the wrong MIME type, or
 trashed, the operation fails closed and clears the cached Drive token.
 
+## PR Review Correction — Drive Failure Classification
+
+PR review found that the exact-folder delegation treated every non-OK folder
+lookup as an account mismatch. A temporary Drive 429 or 5xx response could
+therefore clear an otherwise valid cached Drive token and show account-switch
+recovery during Backup, Restore, Address Corrections, or Manual Work activity.
+
+The correction keeps the exact-folder fail-closed rule while separating temporary
+service failures from account/access failures:
+
+- HTTP 429 and 5xx folder responses fail closed without clearing the cached token
+  and instruct the operator to retry the same Drive action.
+- Other non-OK governed-folder responses retain the existing account/access
+  recovery behavior.
+- Exact folder ID, `drive.file` scope, duplicate-file rejection, schemas, and
+  no-auto-create behavior are unchanged.
+- The browser cache key for `google-drive.js` is bumped from `v=1.8.0` to
+  `v=1.9.0` so the corrected runtime is actually requested after publication.
+
 ## Affected Runtime Paths
 
 - whole-app Backup save/load;
