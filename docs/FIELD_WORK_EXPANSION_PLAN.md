@@ -1,7 +1,7 @@
 # Free Map Router — Field Work Expansion Roadmap
 
-**Status:** IN PROGRESS — PHASE 1A IMPLEMENTED / PHASE 1B APPROVED FOR PLANNING  
-**Updated:** 2026-08-22  
+**Status:** IN PROGRESS — PHASE 2 PRODUCTION-VALIDATED / PHASE 3 DESIGN AUDIT STARTED  
+**Updated:** 2026-08-27  
 **Primary repo:** `timbone72-CC/free-map-router`
 
 ## Purpose
@@ -16,8 +16,8 @@ This is the single planning source of truth for this expansion. Add future ideas
 - Vendor work-order IDs remain stored separately when available.
 - InspectorADE jobs and HNP/other gigs may share one route experience, but HNP/other gigs must not enter InspectorADE prediction history or be treated as InspectorADE repeats.
 - The app owns route-stop state and field capture state.
-- A dedicated workbook surface such as `Gig_Log` becomes the durable gig/pay record when that integration is implemented.
-- Google Drive owns job media files; the app records their upload state and location.
+- `Gig_Log` is the durable workbook mirror/ledger for manual gig/pay data; workbook-owned `Actual_Pay` must survive later FMR syncs.
+- Google Drive owns job media files once the Phase 4 storage design is approved; the app will record upload state and location rather than treating transient browser state as the durable media archive.
 - Existing InspectorADE/workbook address corrections remain owned by the permanent address-corrections store. They are not replaced by the Manual Work Library or by point-in-time backups.
 - Cross-device writes must be stale-safe so an older phone/PC state cannot silently replace newer job data.
 
@@ -28,11 +28,12 @@ This is the single planning source of truth for this expansion. Add future ideas
 3. Optimize using the existing Basic or Google route paths.
 4. Show expected route pay across all paid stops.
 5. Tap an HNP stop to open its job/work-order view.
-6. Capture required job-site photos from the phone, grouped by work-order category such as Outside and Inside.
-7. Keep each photo tied to the correct `Gig_ID`, work order, category, and capture session from the moment it is taken.
-8. Save/upload job media safely to the configured Google Drive destination, with recoverable pending state when offline or interrupted.
-9. Send the HNP/gig record and relevant work-order information to the gig side of the workbook and include it on the Google Print route output where appropriate.
-10. Record actual pay later without overwriting what the route was expected to earn when planned.
+6. Capture or attach required job-site photos from the phone using an evidence plan tied to the exact gig/work order, not merely a loose camera roll.
+7. Keep each photo tied to the correct `Gig_ID`, work order, evidence category/line item, and capture session from the moment it enters the job workflow.
+8. Preserve the original field evidence and any required capture metadata; derivative resize/compression is allowed only after the client-specific requirement is known.
+9. Save/upload job media safely to the configured Google Drive destination, with recoverable pending state when offline or interrupted.
+10. Send the HNP/gig record and relevant work-order information to the gig side of the workbook and include it on the Google Print route output where appropriate.
+11. Record actual pay later without overwriting what the route was expected to earn when planned.
 
 ## Planned Job Lifecycle
 
@@ -78,7 +79,7 @@ Acceptance direction:
 - Manual and workbook stops can coexist in the same route.
 - A stale device state cannot silently delete or replace a newer manually entered gig.
 
-**Current status:** Phase 1A manual-gig foundation is implemented and live-tested. Manual gigs remain separate from InspectorADE history and can share one physical stop with workbook work.
+**Current status:** Implemented and live-tested. Manual gigs remain separate from InspectorADE history and can share one physical stop with workbook work.
 
 ### Phase 1B — Manual Work Library and Due Dates
 
@@ -126,47 +127,76 @@ Phase 1B exclusions:
 - no route auto-add from schedules;
 - no photo/media workflow yet.
 
-### Phase 2 — Gig Workbook Handoff and Route Pay
+**Current status:** Implemented as the durable Manual Work Library / repeat-template foundation used by the later Phase 2 gig flow.
+
+### Phase 2 — Gig Workbook Handoff, Route Pay, and Mixed Print
 
 Create a separate gig data path rather than reusing InspectorADE `Job_Log`.
 
-Planned behavior:
+Implemented behavior:
 
-- HNP/other gig records can be sent from the app to a dedicated workbook area such as `Gig_Log`.
-- `Gig_ID` is preserved across app, workbook, print output, photo storage, and later updates.
-- Store at least `Expected_Pay` and later `Actual_Pay` as separate concepts.
-- Route pay can combine InspectorADE expected pay plus HNP/other expected pay without merging their underlying histories.
-- Later reconciliation can compare expected versus actual pay without rewriting the original route-planning value.
-- Google Print can show both InspectorADE stops and gig/work-order details in the same daily route packet.
-- Define field ownership before writes are enabled: which system is authoritative for gig creation, field completion, pay edits, and submission state.
+- manual gigs carry due/completed dates while preserving immutable `Gig_ID` identity;
+- expected route pay combines InspectorADE and manual-gig work without combining their histories;
+- manual gig records sync explicitly through the governed Gig Handoff into workbook `Gig_Log`;
+- workbook `Actual_Pay` remains workbook-owned and is preserved by later FMR syncs;
+- route return carries exact workbook Order IDs and exact manual `Gig_ID` values by visible physical stop;
+- Google Print can show InspectorADE and manual-gig cards in the same current route packet;
+- blank manual expected pay remains visibly unknown rather than silently becoming `$0`;
+- visible **Include in Route** checkboxes show and control manual-gig route membership directly;
+- Drive identity is pinned to the governed Free Map Router folder/resources rather than name-based duplicate-folder lookup.
 
-### Phase 3 — HNP Work-Order View and Field Photo Capture
+**Production checkpoint — 2026-08-27:** Phase 2A through Phase 2E were production-validated after an ordered workbook-first rollout. The governed workbook handoff produced a current 13-job LIVE route, the production FMR read it successfully, and the mixed exact Order-ID/Gig-ID round trip had already passed in the Live Sandbox/shared handoff with mixed Google Doc output. See `docs/2026-08-27_PHASE_2_PRODUCTION_COMPLETION_RECORD.md`.
 
-An HNP stop can open a job/work-order screen in the app.
+Use a real-work soak before adding photo/media runtime. Watch for route-pay mismatches, stale gig sync, wrong route membership, mixed-print identity errors, and Drive handoff failures. Phase 2 completion does not authorize Phase 3 runtime edits.
 
-Initial photo/work-order concept:
+### Phase 3 — HNP Work-Order View and Field Photo Evidence
 
-- work-order/job details
-- Outside photos
-- Inside photos
-- optional future required-shot categories driven by the work order
-- required/collected photo counts
-- job notes
-- completion action
+**Status:** DESIGN AUDIT IN PROGRESS — NO RUNTIME CODING AUTHORIZED.
 
-Photo evidence requirements:
+An HNP stop should be able to open a job/work-order view in the app, but the photo workflow must preserve field evidence and client-specific requirements rather than reducing every job to a generic Inside/Outside photo bucket.
 
-- Every photo is associated at capture time with `Gig_ID`, work-order ID when present, photo category, and capture session.
-- Decide before implementation whether capture time and location metadata must be preserved.
-- Retakes/duplicates must be identifiable rather than silently mixed with required evidence.
-- Compression may be used only after confirming the client accepts the resulting image quality and metadata behavior.
-- The app must verify required photo state before claiming the job is ready for submission.
+Initial work-order concept to audit:
+
+- work-order/job details and current instructions;
+- evidence plan / required-shot checklist for the active order;
+- broad groups such as Identity/Access, Exterior, Interior, Work/Line Item, Damage/Measurements, Notices/Final Secure where useful;
+- before/during/after stages for work line items when required;
+- required/collected photo counts as a completeness aid, not as a substitute for coverage;
+- job notes and unable-to-complete/exception notes;
+- field QC before leaving the property;
+- completion action that cannot claim evidence-ready status when required evidence is missing.
+
+Photo evidence requirements already established by the Phase 3 audit:
+
+- Every photo entering the job workflow must be associated with exact `Gig_ID`, work-order ID when present, evidence category/line item, and capture/visit context.
+- Original field photos are source evidence and must not be overwritten, renamed in place, moved, deleted, or silently stripped of metadata by the workflow.
+- The active work order/client instructions control exact shot count, allowed image type/size, date/time/GPS requirements, line-item mapping, and submission deadline.
+- Preserve capture date/time and GPS/location when the client requires them; do not invent missing metadata.
+- Retakes and true accidental duplicates must remain distinguishable enough to avoid mixing required angles or visits.
+- Before/during/after work should retain stage identity and matching-angle context when required.
+- The app must support a field QC check before the operator leaves when a return trip would be costly or impossible.
+- Compression/resizing may be used only after confirming client acceptance; originals remain retained separately.
 
 Reliability requirements:
 
-- Prefer processing/compressing each image as it is captured or queued instead of waiting to process a large full-resolution batch at job completion.
-- Offline or failed uploads remain recoverable and visibly pending.
-- Closing/reopening the app must not lose captured-but-not-yet-uploaded job state.
+- Do not hold a large batch of full-resolution images only in volatile browser memory.
+- Captured/attached evidence must have recoverable pending state before it is considered safe.
+- Offline or failed uploads remain visibly pending; a failed upload cannot mark the job uploaded.
+- Closing/reopening the app must not lose the job/evidence manifest for photos already accepted into the workflow.
+- A later visit or correction must not overwrite the original visit record or original submitted package.
+
+#### Phase 3 audit boundary with Field Photo Prep
+
+A separate `field-photo-prep` project already has a contract foundation for protecting original photos while creating resized copies. Its approved role is company-neutral derivative preparation: select existing photos, create separate resized copies, preserve supported metadata, and share/upload those copies through Android. Its contract explicitly excludes a job database, vendor-specific workflow, automatic upload, and direct Drive API integration in the initial release.
+
+Therefore the current design direction is:
+
+- Free Map Router owns job identity, work-order context, evidence requirements, evidence manifest, route linkage, and job-level completion/QC state.
+- Field Photo Prep may later remain an optional derivative-processing helper, but it must not become the authority for `Gig_ID`, work-order state, route state, or evidence completeness.
+- Do not make Phase 3 depend on Field Photo Prep runtime until that project is itself approved and implemented; its GitHub `main` currently does not contain a production Android runtime.
+- Do not duplicate photo-byte ownership in both apps without an explicit handoff contract.
+
+See `docs/2026-08-27_PHASE_3_FIELD_PHOTO_DESIGN_AUDIT.md` for the evidence-based starting audit.
 
 ### Phase 4 — Business Google Drive Job Media
 
@@ -183,26 +213,27 @@ Field Jobs/
       <ADDRESS>/
         <GIG_OR_WORK_ORDER_ID>/
           Work Order/
-          Outside Photos/
-          Inside Photos/
+          Original Photos/
+          Prepared Photos/
           <ADDRESS>-<GIG_OR_WORK_ORDER_ID>.zip
 ```
 
 Drive requirements to settle before implementation:
 
-- exact business account/folder ownership
-- authorization method used by the app/backend
-- private-by-default sharing behavior
-- who may access job folders
-- retention period for work orders, individual photos, and ZIP packages
-- whether old personal-Drive records are migrated or only new jobs use business Drive
-- whether Drive retains individual photos, a ZIP package, or both
+- exact business account/folder ownership;
+- authorization method used by the app/backend;
+- private-by-default sharing behavior;
+- who may access job folders;
+- retention period for work orders, original photos, prepared copies, and ZIP packages;
+- whether old personal-Drive records are migrated or only new jobs use business Drive;
+- whether Drive retains individual photos, a ZIP package, or both.
 
 Upload integrity:
 
 - The app records pending, uploaded, and failed media state.
 - A job is not marked fully uploaded until the expected files are verified at the destination.
 - Cross-device retries must not duplicate or overwrite unrelated job media.
+- Original evidence and prepared/upload copies must remain distinguishable.
 
 ### Phase 5 — Existing File Organizer Integration
 
@@ -210,7 +241,7 @@ Review the existing file-organizer workbook before assigning it responsibilities
 
 Preferred separation:
 
-- Free Map Router owns the relationship between route stop, gig/work order, and captured photos.
+- Free Map Router owns the relationship between route stop, gig/work order, and the job evidence manifest.
 - The organizer may handle later filing, cleanup, retention, movement, indexing, or archival.
 - The organizer must not be required to infer which unsorted photos belong to which job.
 - Do not duplicate a filing function in both systems unless one is explicitly the authoritative writer and the other is read-only/supporting.
@@ -219,41 +250,49 @@ Preferred separation:
 
 After the core features work together:
 
-- streamline taps and status visibility for phone use
-- clearly show job state, photo state, upload state, and pay state
-- confirm remote/multi-device edits cannot overwrite newer field state
-- add practical recovery for interrupted work
-- validate representative real HNP jobs before broad use
+- streamline taps and status visibility for phone use;
+- clearly show job state, photo state, upload state, and pay state;
+- confirm remote/multi-device edits cannot overwrite newer field state;
+- add practical recovery for interrupted work;
+- validate representative real HNP jobs before broad use.
 
 A successful test run is not the end of the rollout. Use a controlled soak period with real jobs and watch for sync conflicts, missing photos, duplicate uploads, Drive filing errors, route-pay mismatches, and workbook handoff problems before expanding the feature set.
 
-## Decisions Still Needed Before Photo Implementation
+## Decisions Still Needed Before Phase 3 Photo Runtime
 
-- Whether HNP requires original-resolution images or accepts compressed JPGs.
-- Whether HNP work orders use only broad groups such as Inside/Outside or individual required-shot checklists.
-- Whether HNP requires capture-time or GPS metadata to remain intact.
-- Whether Drive should retain individual image files, a ZIP package, or both.
-- Exact business Drive account/folder ownership and authorization method.
-- Exact `Gig_Log` schema and which system is authoritative for gig completion, submission, and pay edits.
-- Whether HNP work-order details are entered manually, imported from a file, or later parsed from another source.
+- Exact HNP/client image requirements: original resolution versus accepted resized copies, maximum/minimum dimensions, file type, and file-size limits.
+- Exact HNP/client metadata requirements: visible timestamp, EXIF capture time, GPS/location metadata, or combinations of these.
+- Whether work-order evidence is entered manually, imported from a file/message, or later parsed from another source.
+- Whether the first Phase 3 runtime slice attaches existing camera photos to the exact gig or launches a camera/capture path from inside the job view.
+- Whether required-shot rules begin as operator-entered checklists or use a small set of reusable work-type templates.
+- Whether and how Field Photo Prep participates in derivative preparation without becoming a second job database.
+- Exact business Drive account/folder ownership and authorization method for Phase 4.
+- Whether Drive retains originals plus prepared copies, originals plus ZIP, or all three.
+- Retention/deletion rules for original evidence, prepared copies, and corrected/resubmitted packages.
 
 ## Protected Existing Behavior
 
 Future work must preserve unless a later approved change explicitly says otherwise:
 
 - existing InspectorADE workbook-to-router import;
+- exact workbook Order-ID and manual `Gig_ID` identity handoff;
 - permanent InspectorADE/workbook address corrections: once a correction is successfully stored in Google Drive, future matching workbook imports should reuse it rather than requiring the operator to correct the same incoming address again;
+- governed Free Map Router Drive resource identity and limited `drive.file` scope unless a later approved design proves a permission change is required;
 - Basic and Google route choices;
 - corrected-address behavior and source association;
+- manual **Include in Route** selections and shared-stop behavior;
 - route persistence and backup behavior;
-- Google Print output for current InspectorADE work;
+- route expected-pay behavior and blank-pay warning semantics;
+- Google Print output for current InspectorADE and manual gig work;
 - navigation/export behavior;
-- InspectorADE prediction/history isolation from unrelated gigs.
+- InspectorADE prediction/history isolation from unrelated gigs;
+- workbook ownership of `Actual_Pay`.
 
 ## Risk and Change-Control Notes
 
-- Manual-stop UI is likely a normal feature change when it does not alter storage contracts or broad permissions.
-- New persistent gig schemas, permanent Manual Work Library writes, cross-device synchronization, automatic workbook writes, Drive permissions/account migration, and automatic photo uploads are higher-risk changes.
-- Phase 1B implementation must be split into the smallest safe runtime pieces; documenting it here does not authorize merging a storage-schema or automatic-Drive-write change without the repository's required Level 3 pre-merge approval.
-- Each implementation phase must use the repository's change-control process, the smallest honest scope, focused tests during development, a recoverable rollback point, and required integration review when workbook handoff is affected.
-- Do not combine all phases into one release. Each phase must establish a stable baseline for the next.
+- This 2026-08-27 roadmap/status update and Phase 3 audit are documentation-only Level 1 work. They authorize no runtime, permission, schema, Drive-media, or deployment change.
+- A work-order view that only presents already-stored gig data may be normal feature work, but any new persistent evidence/job schema must be classified by its real storage impact.
+- Photo persistence, automatic uploads, business Drive media creation, new OAuth scopes, cross-device media state, and deletion/retention behavior are Level 3 candidates and require their own impact record and explicit pre-merge approval.
+- Do not combine work-order UI, photo-byte storage, compression, Drive upload, and file-organizer integration into one release.
+- Each implementation slice must establish one durable ownership boundary and rollback point before the next slice starts.
+- Phase 2 remains in real-work soak while Phase 3 is designed; do not reopen or modify R6 conflict reconciliation as part of this expansion.
