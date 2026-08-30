@@ -43,6 +43,18 @@ For any runtime change that alters or depends on data crossing between the workb
 
 This gate applies only to affected cross-system behavior. It does not add repeated full-suite runs, unrelated smoke checks, or extra approval loops to workbook-only or app-only work.
 
+## Selectable forward route sync
+
+The workbook's `Print` checkbox is the operator's existing selection for **Send Checked Jobs to Free Map Router**. For router sync it is a one-shot outbound selection, not permanent route membership.
+
+Only checked assignments that satisfy the workbook's existing OPEN-job predicate belong in a new Address Inbox. Completed/turned-in/cancelled checked rows are not part of the new route, and unchecked or merely route-sequenced old jobs are not substituted for the current selection.
+
+After a successful Address Inbox write, the workbook clears the consumed Print selections. A failed handoff write leaves them intact for retry. A deliberate resend remains supported by explicitly checking the desired open assignments again. No permanent sent-history field, extra handoff file, or new route identity is introduced by this rule.
+
+Free Map Router consumes only the current version-1 Address Inbox artifact. It does not infer old workbook membership from saved stops, prior pending routes, Google/Basic route slots, address corrections, or route-order history. A newer valid inbox replaces the pending workbook snapshot; it does not merge older pending Order IDs into the new selection.
+
+Multiple selected workbook assignments at one physical address remain one route stop with multiple exact Order IDs. Those IDs remain route-snapshot work identity and are returned together with the same visible stop number. They never become permanent saved-stop identity.
+
 ## Corrected output addresses
 
 The workbook may send optional `originalAddress` values beside a corrected `address` when output-only formatting changes visible address text. The app retains every distinct exact original alias for the corrected route entry, migrates only saved stops whose normalized full address exactly matches one of those aliases, and then de-duplicates them into one corrected stop while preserving the strongest pin and other saved data. The field is optional, is not stored as a second stop, and older address-only inboxes remain valid.
