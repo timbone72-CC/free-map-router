@@ -13,6 +13,16 @@ function durationSeconds(value) {
 }
 
 const TRAFFIC_WINDOW_HOURS = 24;
+const LARGE_ROUTE_MIN_STOPS = 33;
+const STANDARD_SOLVER_TIMEOUT = "30s";
+const LARGE_ROUTE_SOLVER_TIMEOUT = "60s";
+
+function solverTimeoutForStopCount(stopCount) {
+    const count = Number(stopCount);
+    return Number.isFinite(count) && count >= LARGE_ROUTE_MIN_STOPS
+        ? LARGE_ROUTE_SOLVER_TIMEOUT
+        : STANDARD_SOLVER_TIMEOUT;
+}
 
 function buildTrafficWindow(now = new Date()) {
     const start = new Date(now);
@@ -37,7 +47,7 @@ function buildGoogleOptimizeToursRequest(backendRequest, { now } = {}) {
     const trafficWindow = buildTrafficWindow(now);
 
     return {
-        timeout: "30s",
+        timeout: solverTimeoutForStopCount(request.stops.length),
         searchMode: "CONSUME_ALL_AVAILABLE_TIME",
         model: {
             ...trafficWindow,
