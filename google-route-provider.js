@@ -159,5 +159,4 @@ function interpretGoogleOptimizeToursResponse(backendRequest, googleResponse) {
 module.exports = {
     buildGoogleOptimizeToursRequest,
     interpretGoogleOptimizeToursResponse,
-    solverTimeoutForStopCount,
 };
