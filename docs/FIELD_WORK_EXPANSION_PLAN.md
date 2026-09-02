@@ -322,7 +322,7 @@ Real-world soak and calibration:
 
 ### Phase 3 — HNP Work-Order View and Field Photo Evidence
 
-**Status:** DESIGN AUDIT IN PROGRESS — NO RUNTIME CODING AUTHORIZED.**
+**Status:** DESIGN AUDIT IN PROGRESS — NO RUNTIME CODING AUTHORIZED.
 
 An HNP stop should be able to open a job/work-order view in the app, but the photo workflow must preserve field evidence and client-specific requirements rather than reducing every job to a generic Inside/Outside photo bucket.
 
