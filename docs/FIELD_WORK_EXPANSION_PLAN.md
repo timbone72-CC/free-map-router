@@ -32,7 +32,7 @@ This is the single planning source of truth for this expansion. Add future ideas
 4. For a larger workload, create a multi-day Route Plan so work can be divided into Day 1 / Day 2 / Day 3 or an automatic number of days without losing or duplicating any selected work item.
 5. Optimize each chosen day using the existing Basic or Google route paths; Google remains the traffic-aware time-planning authority while Basic remains the protected fallback route-order option.
 6. Show expected route pay, work-item count, physical-stop count, estimated service time, and estimated finish/home time for the selected day where the available data supports it.
-7. Optionally apply operator-entered known-road/construction avoidance information when a road closure or field condition is known before Google's road data catches up. This feature is never required to build, optimize, print, or navigate a route.
+7. Use the built-in known-road/construction-avoidance capability when field knowledge says a road or corridor should not be used even if Google's current road data has not caught up. The capability is a standard part of route planning, while entering a restriction is only necessary when there is actually something to avoid.
 8. Tap an HNP stop to open its job/work-order view.
 9. Capture or attach required job-site photos from the phone using an evidence plan tied to the exact gig/work order, not merely a loose camera roll.
 10. Keep each photo tied to the correct `Gig_ID`, work order, evidence category/line item, and capture session from the moment it enters the job workflow.
@@ -40,6 +40,15 @@ This is the single planning source of truth for this expansion. Add future ideas
 12. Save/upload job media safely to the configured Google Drive destination, with recoverable pending state when offline or interrupted.
 13. Send the HNP/gig record and relevant work-order information to the gig side of the workbook and include it on the Google Print route output where appropriate.
 14. Record actual pay later without overwriting what the route was expected to earn when planned.
+
+## Route-Planning Usability Principle
+
+The route-planning upgrades are capabilities, not mandatory wizard steps.
+
+- The current simple one-day routing path must remain quick and usable when the operator does not need advanced planning controls.
+- Departure time, stop-work time, home-by time, per-work-item duration overrides, multi-day planning, manual day locking, and similar planning controls should be available when useful without forcing the operator to configure every field for every route.
+- Sensible defaults should carry ordinary routes so the operator can use the extra detail only when the day requires it.
+- Standard built-in capabilities such as known-road/construction avoidance remain part of the product even though no restriction entry is needed on days when there is nothing known to avoid.
 
 ## Planned Job Lifecycle
 
@@ -205,7 +214,8 @@ Initial workday controls:
 - **Stop working jobs:** default **3:00 PM**, editable for the selected day;
 - **Home by:** default **5:00 PM**, editable for the selected day;
 - the 3:00 PM target means the field work itself should normally be finished by then, not merely that a final long inspection may begin at 2:59 PM;
-- the home-by value reserves the remaining time for the return trip and may be changed on days the operator is willing to work later.
+- the home-by value reserves the remaining time for the return trip and may be changed on days the operator is willing to work later;
+- these controls should have usable defaults and must not force an extra setup workflow for an ordinary one-day route.
 
 Google-route requirements:
 
@@ -235,6 +245,7 @@ Target model:
 Planner behavior:
 
 - allow Day 1 / Day 2 / Day 3 or automatic day count;
+- multi-day planning is available when needed and must not replace the simple one-day path for smaller workloads;
 - split the workload using geography plus due dates / priority plus realistic service time and daily hours;
 - keep multiple work items at one physical address on the same day by default so the operator is not sent to the same property on separate days without a deliberate override;
 - allow manual movement or locking of work items between days before final optimization;
@@ -267,7 +278,7 @@ Required boundary:
 
 This phase is cross-application work and must use the Integration Contract / Cross-System Reality Gate when implementation is authorized.
 
-### Phase 2K — Replanning, Persistence, Optional Road Avoidance, and Real-World Soak
+### Phase 2K — Replanning, Persistence, Road Avoidance, and Real-World Soak
 
 Finish the route-planning track by protecting it against the changes that happen during actual field work.
 
@@ -280,26 +291,28 @@ Replanning and persistence:
 - any future true multi-device route-plan editing must use stale-safe revision rules rather than treating backup/restore as live synchronization;
 - API usage should be guarded so FMR performs local/geographic candidate splitting first and sends only serious day candidates to Google rather than brute-force retrying many combinations.
 
-#### Optional known-road / construction avoidance
+#### Standard known-road / construction avoidance
 
-This is a **user-controlled optional feature**, not a required routing step.
+Known-road/construction avoidance is a **standard built-in route-planning capability**.
+
+It is not an optional add-on that may be omitted from the planned product. At the same time, ordinary routing must not force the operator to enter or acknowledge a restriction when there is no known road problem that day.
 
 Design direction:
 
-- default state is off / no known-road restrictions;
+- the feature ships as part of the standard route-planning toolset;
+- when no known restrictions are recorded, routing proceeds normally with no extra required setup;
 - the operator may add a known closed or undesirable road/corridor with a short name, reason, and optional until-date;
 - the operator may remove, ignore, or temporarily disable any saved road restriction;
-- no road-avoidance entry is required to build, optimize, print, export, or navigate a route;
 - the feature must never modify saved job addresses, Order IDs, `Gig_ID`s, permanent correction aliases, or prediction identity;
-- when enabled for a plan/day, FMR should use the known restriction as planning guidance and/or warn when the selected Google route appears to depend on that blocked corridor;
+- when a restriction applies to a plan/day, FMR should use the known restriction as planning guidance and/or warn when the selected Google route appears to depend on that blocked corridor;
 - because normal Google Maps multi-stop links recalculate the actual road path, the first version must not falsely promise that a marked road can never be used by Google Maps navigation;
 - any later stronger enforcement method (for example, forced detour waypoints or a different route-path/navigation contract) requires its own design and approval rather than silently replacing the current Google Maps behavior.
 
-This optional feature exists for cases where field knowledge is newer or more accurate than Google's current road-closure data. It must remain easy to ignore on ordinary days.
+This standard feature exists for cases where field knowledge is newer or more accurate than Google's current road-closure data. The capability should always be available even though the operator only needs to enter restrictions when a real closure or avoidance condition exists.
 
 Real-world soak and calibration:
 
-- test representative large routes, same-address multi-order stops, manual gigs, interior inspections, different departure/stop/home times, and day-to-day replanning;
+- test representative large routes, same-address multi-order stops, manual gigs, interior inspections, different departure/stop/home times, known road closures, and day-to-day replanning;
 - compare predicted versus actual finish/home times;
 - keep five-minute normal and twenty-minute interior service defaults as starting estimates, not immutable truths;
 - add a configurable daily reserve/buffer only if field evidence shows the planner is consistently too aggressive;
@@ -446,20 +459,20 @@ Future work must preserve unless a later approved change explicitly says otherwi
 - Google Print output for current InspectorADE and manual gig work;
 - navigation/export behavior;
 - current Google Maps navigation behavior unless a later road-avoidance design explicitly changes it;
-- optional road/construction avoidance never becoming a mandatory prerequisite for ordinary routing;
+- known-road/construction avoidance is a standard built-in planning capability, while ordinary routing remains usable with no restriction entries when nothing is known to be blocked;
 - InspectorADE prediction/history isolation from unrelated gigs;
 - workbook ownership of `Actual_Pay`.
 
 ## Risk and Change-Control Notes
 
-- This 2026-09-02 roadmap update is documentation-only Level 1 work. It records the Phase 2F-2K route-planning direction and the optional known-road/construction-avoidance idea; it authorizes no runtime, storage-schema, handoff, API-permission, route-algorithm, Drive, workbook-data, or deployment change.
-- Changed surface for this roadmap update: `docs/FIELD_WORK_EXPANSION_PLAN.md` only.
+- This 2026-09-02 roadmap correction is documentation-only Level 1 work. It clarifies that known-road/construction avoidance is a standard planned route feature and that earlier advanced planning controls are capabilities with usable defaults rather than mandatory setup steps; it authorizes no runtime, storage-schema, handoff, API-permission, route-algorithm, Drive, workbook-data, or deployment change.
+- Changed surface for this roadmap correction: `docs/FIELD_WORK_EXPANSION_PLAN.md` only.
 - Protected behavior: all current production routing, Google/Basic selection, exact Order-ID/`Gig_ID` identity, Drive resources, workbook handoffs, predictions, manual gigs, printing, navigation, and five-page app navigation remain unchanged by this documentation update.
 - Verification for this Level 1 update is diff/contract review only; no runtime test or live smoke check is required because no runtime file changes.
 - No workbook/router integration impact from this documentation-only change. Future Phase 2F/2G/2J implementation will have cross-system impact and must use `INTEGRATION_CONTRACT.md` and the Cross-System Reality Gate when separately authorized.
 - The prior 2026-08-27 roadmap/status update and Phase 3 audit were also documentation-only Level 1 work and authorized no runtime, permission, schema, Drive-media, or deployment change.
 - A work-order view that only presents already-stored gig data may be normal feature work, but any new persistent evidence/job schema must be classified by its real storage impact.
 - Photo persistence, automatic uploads, business Drive media creation, new OAuth scopes, cross-device media state, and deletion/retention behavior are Level 3 candidates and require their own impact record and explicit pre-merge approval.
-- Do not combine selectable sync, work-item planning metadata, time-aware routing, multi-day storage migration, day-aware workbook return, optional road avoidance, work-order UI, photo-byte storage, compression, Drive upload, and file-organizer integration into one release.
+- Do not combine selectable sync, work-item planning metadata, time-aware routing, multi-day storage migration, day-aware workbook return, road avoidance, work-order UI, photo-byte storage, compression, Drive upload, and file-organizer integration into one release.
 - Each implementation slice must establish one durable ownership boundary and rollback point before the next slice starts.
 - Phase 2 remains in real-work soak while Phase 3 is designed; do not reopen or modify R6 conflict reconciliation as part of this expansion.
