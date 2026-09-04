@@ -1,7 +1,7 @@
 # Phase 2G — Work-Item Planning Foundation Implementation Record
 
 **Date:** 2026-09-03  
-**Status:** IMPLEMENTATION IN PROGRESS / FOUNDATION AND EXACT WRITE SEAM BUILT / NOT MERGE-READY  
+**Status:** IMPLEMENTATION IN PROGRESS / FOUNDATION, EXACT WRITE SEAM, AND MINIMAL OPERATOR CONTROLS BUILT / NOT MERGE-READY  
 **Change class:** Level 3  
 **Repository:** `timbone72-CC/free-map-router`  
 **Branch:** `work/phase-2g-work-item-planning-20260903`  
@@ -10,7 +10,7 @@
 
 ## Purpose
 
-Record the Phase 2G runtime foundation as it is implemented so later work does not have to reconstruct the data model, backup boundary, route-snapshot seam, mutation boundary, or deferred scope from commit history.
+Record the Phase 2G runtime foundation as it is implemented so later work does not have to reconstruct the data model, backup boundary, route-snapshot seam, mutation boundary, operator-control boundary, or deferred scope from commit history.
 
 This record does not authorize merge or deployment.
 
@@ -58,7 +58,7 @@ Planning edits require the expected current revision. An older edit cannot silen
 
 Same-revision conflicting records fail closed rather than choosing a winner by timestamp alone.
 
-The exact runtime mutation seam now uses compare-and-save semantics:
+The exact runtime mutation seam uses compare-and-save semantics:
 
 - `expectedRevision: 0` means create this exact work item only if it does not already exist;
 - an existing record can be edited only when `expectedRevision` equals its exact current saved revision;
@@ -70,7 +70,7 @@ This local revision boundary reduces stale-write risk. It is not a substitute fo
 
 ### Exact per-work-item write API
 
-`work-item-planning-runtime.js` now exposes targeted runtime operations:
+`work-item-planning-runtime.js` exposes targeted runtime operations:
 
 - `list()` — read-only copies of all normalized planning records;
 - `get(kind, workItemId)` — one exact planning record or `null`;
@@ -96,6 +96,8 @@ Validation behavior:
 - `lockedDay` must be an actual boolean `true` or `false` so a string such as `"false"` cannot accidentally become a locked day;
 - at least one supported planning field must be supplied.
 
+`assignedDate` and `lockedDay` remain independent planning fields exactly as approved by the Phase 2G model. This UI slice does not invent an additional rule requiring one field to be present before the other can be saved.
+
 Workbook and manual-gig records with the same text ID remain separate because `kind + workItemId` is the identity key.
 
 ### Backup and restore
@@ -118,7 +120,7 @@ Added `work-item-planning-runtime.js`.
 
 It initializes and normalizes local planning storage, participates in the existing backup restore hook, returns copies of records to consumers, exposes exact per-item read/write operations, and exposes a route-projection seam.
 
-The route-projection dependency is intentionally lazy. The current app can load and operate without `route-work-planning.js` being loaded because no current UI consumes route planning yet. Calling the projection API without that module fails explicitly rather than breaking app startup.
+The route-projection dependency remains intentionally lazy. `route-work-planning.js` is not loaded merely to support the minimal editor because the editor reads the exact Order IDs and Gig_IDs already present in the active route snapshot and does not need route-level optimization output.
 
 ### Exact route-work projection
 
@@ -151,9 +153,48 @@ Example supported by the foundation:
 - two distinct work identities;
 - derived stop service time = 25 minutes.
 
+### Minimal operator planning controls
+
+Added `work-item-planning-controls.js` as an isolated Build Route editor rather than expanding every route row into its own form.
+
+The existing `route-work-controls.js` keeps ownership of its proven InspectorADE/manual clear behavior and only loads the planning-control module. The planning module is safe whether it finishes loading before or after `DOMContentLoaded`.
+
+The Build Route planning surface is intentionally compact:
+
+- one **Plan Work Item** panel;
+- one exact work-item selector for the active Google or Basic route;
+- one service-minutes field;
+- one assigned-day field;
+- one locked-day checkbox;
+- one **Save Planning** action;
+- one small status area.
+
+The selector is derived only from the exact identities already attached to the active route snapshot:
+
+- workbook work from `orderIdsByStopId`;
+- manual work from `gigIdsByStopId`.
+
+Several work items at one physical address remain separate choices. A workbook Order ID and a Gig_ID with the same text also remain separate because the selector key includes `kind + workItemId`.
+
+If the same exact work identity is attached to two different route stops, the editor fails closed instead of presenting a potentially unsafe choice.
+
+The form never writes planning storage directly. It uses only the exact runtime `get()` and `save()` operations.
+
+When a record is loaded, its current revision is carried in the form. A stale save is not silently retried: the current saved record is reloaded and the operator is told to review it before saving again.
+
+The editor does not add:
+
+- generic priority;
+- route date/departure/home-by controls;
+- Google optimization request changes;
+- work-code inference;
+- workbook handoff fields;
+- another route-history store;
+- another page or a repeated form under every stop.
+
 ## Focused verification completed
 
-Committed focused coverage now includes:
+Committed focused coverage includes:
 
 - workbook 5-minute default;
 - explicit duration override;
@@ -186,9 +227,18 @@ Committed focused coverage now includes:
 - re-read-before-save rejection of an externally newer stored revision;
 - duplicate create-only attempts rejected;
 - unsupported-only/invalid drafts rejected;
-- absence of a public whole-collection replace mutation API.
+- absence of a public whole-collection replace mutation API;
+- minimal planning UI using the exact runtime API rather than direct storage writes;
+- exact Order-ID/Gig_ID selector derivation from route snapshot metadata;
+- same-address multi-work-item separation;
+- same-text workbook/Gig_ID separation;
+- duplicate exact identity across two route stops failing closed in the editor;
+- stale form revision being retained and reloaded rather than silently retried;
+- assigned-day and locked-day remaining independent approved fields.
 
-For the exact write-seam behavior, a local focused harness using the current planning contract and runtime passed **7/7** mutation checks, including the malformed non-boolean locked-day case. The updated runtime also passed Node syntax checking.
+The exact write-seam focused harness previously passed **7/7** mutation checks and the runtime passed Node syntax checking.
+
+For the minimal operator-control slice, the final local focused harness passed **6/6** checks and `work-item-planning-controls.js` passed Node syntax checking.
 
 The repository currently has no branch-push GitHub Actions run for this branch, so no CI result is claimed for this slice.
 
@@ -196,10 +246,10 @@ The complete repository suite has **not** been run yet. Per the testing contract
 
 ## Current non-effects
 
-Phase 2G still does **not** change:
+Phase 2G now changes the Build Route UI only by adding the compact exact-work-item planning editor described above.
 
-- visible app UI;
-- Build Route controls;
+It still does **not** change:
+
 - Google Route Optimization requests;
 - Basic optimizer behavior;
 - route date/departure/home-by controls;
@@ -219,24 +269,11 @@ Before production planning relies on the selected workbook work pool, Phase 2F s
 
 ## Next Phase 2G slice
 
-The exact planning store, route projection, backup protection, and per-work-item revision-safe write seam now exist.
+The exact planning store, backup protection, route projection, revision-safe write seam, and minimal operator editing surface now exist.
 
-The next safe Phase 2G slice may expose a minimal operator planning surface that calls this exact API rather than editing route/address records directly.
+The next safe step should validate this first visible planning surface against the affected Build Route/manual-gig regression boundary before expanding Phase 2G further. After that validation, a later Phase 2G slice can expose derived route/stop service-time information from `route-work-planning.js` without changing Google Route Optimization requests, which remain Phase 2H.
 
-That UI slice should remain narrow:
-
-- identify the exact Order ID or Gig_ID being edited;
-- show the current resolved duration and whether it is a default or override;
-- allow an explicit duration override or clear;
-- allow assigned local day or clear;
-- allow locked-day true/false;
-- carry the record revision loaded by the form into the save call;
-- surface stale-write failure instead of silently retrying;
-- keep several work items at one address visibly distinct;
-- avoid introducing generic High/Medium/Low priority;
-- avoid Google optimizer request changes until Phase 2H.
-
-The modern planner UX should stay compact and should not turn Build Route into another wall of equal-weight controls.
+Do not add multi-day Route Plans, route date/departure/home-by controls, Google service-duration requests, or unverified interior-code mappings as part of this minimal editor.
 
 ## Final gate still required
 
