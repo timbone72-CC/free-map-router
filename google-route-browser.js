@@ -357,8 +357,7 @@
 
         const snapshot = await prepareSnapshotForGoogle(bridge);
         const stopIds = (snapshot.stops || []).map((stop) => String(stop.id || ""));
-        const validIds = new Set(stopIds);
-        let history = routeHistoryContract.readRouteHistory(storage, validIds);
+        let history = routeHistoryContract.readRouteHistory(storage);
         const googleSnapshot = history.google;
         if (!googleSnapshot || !sameIds(googleSnapshot.routeIds, stopIds)) {
             throw new GoogleRouteBrowserError(
@@ -377,7 +376,6 @@
             history = routeHistoryContract.writeDayContext(
                 storage,
                 dayContext,
-                validIds,
             );
         }
         const validation = routeHistoryContract.validateDayContext(dayContext);
