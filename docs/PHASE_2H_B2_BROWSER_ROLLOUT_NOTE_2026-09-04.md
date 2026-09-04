@@ -34,15 +34,23 @@ No Phase 2H-C Map/List planner work is included.
 
 ## Ownership correction before code
 
-The parent implementation record proposed a separate browser adapter to enrich the app-owned bridge. Inspection of the live runtime showed that whole-app backup is created from `app.js`'s in-memory `routeHistory`. Persisting the accepted schedule only through a side adapter/localStorage would create a second shadow route state and could omit the schedule from backup.
+The parent implementation record proposed a separate browser adapter that would enrich the app-owned bridge. Inspection of the live runtime confirmed two important ownership facts:
 
-Therefore B2 uses the existing app-owned `FMRRouteBridge` as the narrow route-state owner:
+1. `app.js` already exposes the current Google selection through the frozen `FMRRouteBridge` and remains the route-order/render owner.
+2. route-history v6 in `localStorage` is already the governed durable route-history store used by the Phase 2H-A timing controls and backup parser.
 
-- `app.js` exposes only the extra copies/context needed by the Google caller and persists the accepted Google schedule through the governed route-history contract;
-- `route-history.js` owns schedule normalization, basis validation, and invalidation on route/work membership mutations;
-- `google-route-browser.js` owns request construction, result/error messaging, and Preferred Finish evaluation;
-- `workday-context.js` may expose a pure local-date/time-to-instant helper for the saved IANA time zone;
-- no independent B2 route store is created.
+Rewriting the entire large `app.js` solely to add B2 bridge methods would increase the blast radius without changing the approved product behavior. B2 therefore uses a narrow pre-Google browser module that reads the existing bridge snapshot and writes schedule data only through the governed route-history contract.
+
+The ownership is:
+
+- `app.js` remains unchanged and continues to own route order, route rendering, and application of the validated Google order;
+- `route-history.js` owns schedule normalization and the durable Google-snapshot `schedule` field;
+- `phase-2h-b-browser.js` reads the existing bridge snapshot, Phase 2G planning projection, Phase 2H-A day context, computes schedule basis, persists/validates Google schedule through `route-history.js`, and never owns route order;
+- `google-route-browser.js` owns request invocation, error/result messaging, and calls the narrow B2 helper before/after the existing bridge apply;
+- `backup.js` preserves a current persisted Google schedule when its route IDs match the app-owned route snapshot being backed up, so the durable schedule is not lost merely because `app.js` does not render/own schedule state in Phase 2H-B;
+- `workday-context.js` may expose a pure local-date/time-to-instant helper for the saved IANA time zone.
+
+There is no second route-order store. The B2 helper writes only the `schedule` field of the existing governed Google route snapshot. Route order remains owned by `app.js`.
 
 This is an ownership correction inside the already-approved 2H-B acceptance criteria, not new product scope. It is recorded before runtime code changes.
 
