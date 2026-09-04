@@ -137,6 +137,52 @@ test("planning records persist exact identity, assigned local date, lock state, 
     assert.match(storage.raw(PLANNING_STORAGE_KEY), /ORDER-9/);
 });
 
+test("durable locked-day data accepts only real booleans and isolates malformed values", () => {
+    const storage = memoryStorage();
+    const base = {
+        schemaVersion: PLANNING_SCHEMA_VERSION,
+        kind: "workbook",
+        serviceMinutes: 5,
+        assignedDate: null,
+        revision: 1,
+        updatedAt: "2026-09-03T12:00:00.000Z",
+    };
+    const invalidValues = ["false", "true", 0, 1, null];
+    const records = [
+        { ...base, workItemId: "VALID-FALSE", lockedDay: false },
+        { ...base, workItemId: "VALID-TRUE", lockedDay: true },
+        ...invalidValues.map((lockedDay, index) => ({
+            ...base,
+            workItemId: `INVALID-${index}`,
+            lockedDay,
+        })),
+    ];
+
+    storage.setItem(PLANNING_STORAGE_KEY, JSON.stringify(records));
+    const saved = readPlanningRecords(storage);
+
+    assert.deepEqual(saved.map((record) => record.workItemId), [
+        "VALID-FALSE",
+        "VALID-TRUE",
+    ]);
+    assert.deepEqual(saved.map((record) => record.lockedDay), [false, true]);
+    assert.throws(
+        () => createPlanningRecord({
+            kind: "workbook",
+            workItemId: "BAD-CREATE",
+            lockedDay: "false",
+        }, { now: "2026-09-03T12:00:00.000Z" }),
+        /Locked day must be true or false/,
+    );
+    assert.equal(
+        createPlanningRecord({
+            kind: "workbook",
+            workItemId: "OMITTED-LOCK",
+        }, { now: "2026-09-03T12:00:00.000Z" }).lockedDay,
+        false,
+    );
+});
+
 test("assigned dates are calendar strings and do not shift through timezone conversion", () => {
     const previousTimezone = process.env.TZ;
     process.env.TZ = "America/Chicago";
