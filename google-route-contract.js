@@ -13,6 +13,8 @@
 
     const MAX_STOPS = 100;
     const MAX_ADDRESS_LENGTH = 500;
+    const WHOLE_SECOND_RFC3339 =
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})$/;
 
     class RouteContractError extends Error {
         constructor(code, message) {
@@ -106,6 +108,18 @@
         return normalizePoint(stop, fieldName);
     }
 
+    function optionalWholeNonnegativeNumber(value, fieldName) {
+        if (value === null || value === undefined || value === "") return null;
+        const number = Number(value);
+        if (!Number.isInteger(number) || number < 0) {
+            fail(
+                "INVALID_SERVICE_DURATION",
+                `${fieldName} must be a nonnegative whole number of seconds.`,
+            );
+        }
+        return number;
+    }
+
     function normalizeStops(stops, locationNormalizer = normalizeStopLocation) {
         if (!Array.isArray(stops) || stops.length === 0) {
             fail("NO_STOPS", "At least one selected stop is required.");
@@ -125,28 +139,89 @@
             }
             seen.add(id);
 
+            const serviceDurationSeconds = optionalWholeNonnegativeNumber(
+                stop?.serviceDurationSeconds,
+                `stops[${index}].serviceDurationSeconds`,
+            );
             return {
                 id,
                 ...locationNormalizer(stop, `stops[${index}]`),
+                ...(serviceDurationSeconds === null
+                    ? {}
+                    : { serviceDurationSeconds }),
             };
         });
     }
 
-    function buildBackendRequest({ home, stops, requestId }) {
+    function normalizeWholeSecondTimestamp(value, fieldName) {
+        const raw = String(value ?? "").trim();
+        if (!WHOLE_SECOND_RFC3339.test(raw)) {
+            fail(
+                "INVALID_ROUTE_TIME",
+                `${fieldName} must be a whole-second RFC3339 timestamp.`,
+            );
+        }
+        const date = new Date(raw);
+        if (Number.isNaN(date.getTime())) {
+            fail("INVALID_ROUTE_TIME", `${fieldName} is not a valid timestamp.`);
+        }
+        return date.toISOString().replace(".000Z", "Z");
+    }
+
+    function normalizeTiming(value) {
+        if (value === null || value === undefined) return null;
+        if (typeof value !== "object") {
+            fail("INVALID_TIMING", "timing must be an object.");
+        }
+        const departureTime = normalizeWholeSecondTimestamp(
+            value.departureTime,
+            "timing.departureTime",
+        );
+        const homeByTime = normalizeWholeSecondTimestamp(
+            value.homeByTime,
+            "timing.homeByTime",
+        );
+        if (new Date(departureTime).getTime() >= new Date(homeByTime).getTime()) {
+            fail("INVALID_TIMING", "timing.homeByTime must be later than timing.departureTime.");
+        }
+        return { departureTime, homeByTime };
+    }
+
+    function requireTimedStopDurations(stops, timing) {
+        if (!timing) return;
+        for (let index = 0; index < stops.length; index += 1) {
+            if (!Object.hasOwn(stops[index], "serviceDurationSeconds")) {
+                fail(
+                    "MISSING_SERVICE_DURATION",
+                    `stops[${index}].serviceDurationSeconds is required for a time-aware request.`,
+                );
+            }
+        }
+    }
+
+    function buildBackendRequest({ home, stops, requestId, timing }) {
         const normalizedRequestId = normalizeId(requestId, "requestId");
+        const normalizedStops = normalizeStops(stops);
+        const normalizedTiming = normalizeTiming(timing);
+        requireTimedStopDurations(normalizedStops, normalizedTiming);
         return {
             requestId: normalizedRequestId,
             home: normalizePoint(home, "home"),
-            stops: normalizeStops(stops),
+            stops: normalizedStops,
+            ...(normalizedTiming ? { timing: normalizedTiming } : {}),
         };
     }
 
-    function buildCoordinateRequest({ home, stops, requestId }) {
+    function buildCoordinateRequest({ home, stops, requestId, timing }) {
         const normalizedRequestId = normalizeId(requestId, "requestId");
+        const normalizedStops = normalizeStops(stops, normalizePoint);
+        const normalizedTiming = normalizeTiming(timing);
+        requireTimedStopDurations(normalizedStops, normalizedTiming);
         return {
             requestId: normalizedRequestId,
             home: normalizePoint(home, "home"),
-            stops: normalizeStops(stops, normalizePoint),
+            stops: normalizedStops,
+            ...(normalizedTiming ? { timing: normalizedTiming } : {}),
         };
     }
 
@@ -200,6 +275,119 @@
         return number;
     }
 
+    function requiredNonnegativeNumber(value, fieldName) {
+        const number = optionalNonnegativeNumber(value, fieldName);
+        if (number === null) {
+            fail("MISSING_SCHEDULE_METRIC", `${fieldName} is required.`);
+        }
+        return number;
+    }
+
+    function expectedServiceDurationSeconds(request) {
+        return request.stops.reduce(
+            (total, stop) => total + Number(stop.serviceDurationSeconds || 0),
+            0,
+        );
+    }
+
+    function normalizeSchedule(request, orderedStopIds, value) {
+        if (value === null || value === undefined) {
+            if (request.timing) {
+                fail("MISSING_SCHEDULE", "A time-aware optimization response must include schedule data.");
+            }
+            return null;
+        }
+        if (!value || typeof value !== "object") {
+            fail("INVALID_SCHEDULE", "schedule must be an object.");
+        }
+
+        const vehicleStartTime = normalizeWholeSecondTimestamp(
+            value.vehicleStartTime,
+            "schedule.vehicleStartTime",
+        );
+        const vehicleEndTime = normalizeWholeSecondTimestamp(
+            value.vehicleEndTime,
+            "schedule.vehicleEndTime",
+        );
+        const visits = Array.isArray(value.visits) ? value.visits : [];
+        if (visits.length !== orderedStopIds.length) {
+            fail(
+                "SCHEDULE_STOP_COUNT_MISMATCH",
+                `Expected ${orderedStopIds.length} scheduled visits but received ${visits.length}.`,
+            );
+        }
+
+        const normalizedVisits = visits.map((visit, index) => ({
+            stopId: normalizeId(visit?.stopId, `schedule.visits[${index}].stopId`),
+            startTime: normalizeWholeSecondTimestamp(
+                visit?.startTime,
+                `schedule.visits[${index}].startTime`,
+            ),
+        }));
+        const scheduledIds = validateOrderedStopIds(
+            orderedStopIds,
+            normalizedVisits.map((visit) => visit.stopId),
+        );
+        for (let index = 0; index < orderedStopIds.length; index += 1) {
+            if (scheduledIds[index] !== orderedStopIds[index]) {
+                fail(
+                    "SCHEDULE_ORDER_MISMATCH",
+                    "Scheduled visits must follow the accepted route order.",
+                );
+            }
+        }
+
+        const travelDurationSeconds = requiredNonnegativeNumber(
+            value.travelDurationSeconds,
+            "schedule.travelDurationSeconds",
+        );
+        const totalServiceDurationSeconds = requiredNonnegativeNumber(
+            value.totalServiceDurationSeconds,
+            "schedule.totalServiceDurationSeconds",
+        );
+        const waitDurationSeconds = requiredNonnegativeNumber(
+            value.waitDurationSeconds,
+            "schedule.waitDurationSeconds",
+        );
+        const expectedService = expectedServiceDurationSeconds(request);
+        if (totalServiceDurationSeconds !== expectedService) {
+            fail(
+                "SCHEDULE_SERVICE_MISMATCH",
+                `Schedule service duration ${totalServiceDurationSeconds}s does not match requested service duration ${expectedService}s.`,
+            );
+        }
+
+        if (request.timing) {
+            if (vehicleStartTime !== request.timing.departureTime) {
+                fail(
+                    "SCHEDULE_START_MISMATCH",
+                    "The Google schedule did not start at the selected departure time.",
+                );
+            }
+            if (
+                new Date(vehicleEndTime).getTime() >
+                new Date(request.timing.homeByTime).getTime()
+            ) {
+                fail(
+                    "HOME_BY_CONFLICT",
+                    "The Google schedule returns Home after the selected Home By time.",
+                );
+            }
+        }
+        if (new Date(vehicleEndTime).getTime() < new Date(vehicleStartTime).getTime()) {
+            fail("INVALID_SCHEDULE", "The Google schedule ends before it starts.");
+        }
+
+        return {
+            vehicleStartTime,
+            vehicleEndTime,
+            travelDurationSeconds,
+            totalServiceDurationSeconds,
+            waitDurationSeconds,
+            visits: normalizedVisits,
+        };
+    }
+
     function validateBackendResponse(request, response) {
         if (!request || typeof request !== "object") {
             fail("MISSING_REQUEST", "The original optimization request is required.");
@@ -208,8 +396,11 @@
             fail("MISSING_RESPONSE", "The optimization response is required.");
         }
 
+        const normalizedRequest = request.timing
+            ? buildBackendRequest(request)
+            : buildBackendRequest(request);
         const requestId = normalizeId(response.requestId, "response.requestId");
-        if (requestId !== request.requestId) {
+        if (requestId !== normalizedRequest.requestId) {
             fail("REQUEST_ID_MISMATCH", "The optimization response does not match the request.");
         }
 
@@ -219,15 +410,22 @@
             : [];
         if (skippedStopIds.length > 0) {
             fail(
-                "SKIPPED_STOPS",
-                `The provider skipped ${skippedStopIds.length} selected stop(s).`,
+                normalizedRequest.timing ? "HOME_BY_CONFLICT" : "SKIPPED_STOPS",
+                normalizedRequest.timing
+                    ? "The selected work does not fit before the Home By time."
+                    : `The provider skipped ${skippedStopIds.length} selected stop(s).`,
             );
         }
 
-        const expectedIds = request.stops.map((stop) => stop.id);
+        const expectedIds = normalizedRequest.stops.map((stop) => stop.id);
         const orderedStopIds = validateOrderedStopIds(
             expectedIds,
             response.orderedStopIds,
+        );
+        const schedule = normalizeSchedule(
+            normalizedRequest,
+            orderedStopIds,
+            response.schedule,
         );
 
         return {
@@ -242,6 +440,7 @@
                 response.totalDurationSeconds,
                 "totalDurationSeconds",
             ),
+            ...(schedule ? { schedule } : {}),
         };
     }
 
@@ -262,6 +461,8 @@
         applyOrderedStopIds,
         buildBackendRequest,
         buildCoordinateRequest,
+        normalizeTiming,
+        normalizeWholeSecondTimestamp,
         validateBackendResponse,
         validateOrderedStopIds,
     };
