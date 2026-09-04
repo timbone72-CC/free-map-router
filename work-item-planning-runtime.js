@@ -2,21 +2,16 @@
     "use strict";
 
     const planningContract = root?.FMRWorkItemPlanning;
-    const routePlanningContract = root?.FMRRouteWorkPlanning;
     const backupContract = root?.FMRBackup;
 
     if (!planningContract) {
         throw new Error("Free Map Router work-item planning failed to load.");
-    }
-    if (!routePlanningContract) {
-        throw new Error("Free Map Router route work planning failed to load.");
     }
     if (!backupContract) {
         throw new Error("Free Map Router backup contract failed to load.");
     }
 
     const { readPlanningRecords, writePlanningRecords } = planningContract;
-    const { buildRoutePlanningProjection } = routePlanningContract;
     let planningRecords = [];
 
     function persistPlanningRecords(records) {
@@ -51,7 +46,13 @@
             return persistPlanningRecords(records).map((record) => ({ ...record }));
         },
         projectRoute(routeSnapshot, options = {}) {
-            return buildRoutePlanningProjection(
+            const routePlanningContract = root?.FMRRouteWorkPlanning;
+            if (!routePlanningContract) {
+                throw new Error(
+                    "Free Map Router route work planning is not loaded yet.",
+                );
+            }
+            return routePlanningContract.buildRoutePlanningProjection(
                 routeSnapshot,
                 planningRecords,
                 options,
