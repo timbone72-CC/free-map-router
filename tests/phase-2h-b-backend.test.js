@@ -209,6 +209,34 @@ test("timed provider rejects skipped work as a visible Home By conflict", () => 
     );
 });
 
+test("timed provider rejects traffic infeasibility instead of claiming Home By confidence", () => {
+    const request = coordinateRequest();
+    const response = timedGoogleResponse(request);
+    response.routes[0].hasTrafficInfeasibilities = true;
+
+    assert.throws(
+        () => interpretGoogleOptimizeToursResponse(request, response),
+        (error) =>
+            error instanceof GoogleRouteProviderError &&
+            error.code === "TRAFFIC_SCHEDULE_INFEASIBLE" &&
+            error.statusCode === 422,
+    );
+});
+
+test("timed provider rejects a Google visit-service total that differs from requested work", () => {
+    const request = coordinateRequest();
+    const response = timedGoogleResponse(request);
+    response.routes[0].metrics.visitDuration = "1s";
+
+    assert.throws(
+        () => interpretGoogleOptimizeToursResponse(request, response),
+        (error) =>
+            error instanceof GoogleRouteProviderError &&
+            error.code === "INVALID_GOOGLE_SCHEDULE" &&
+            error.statusCode === 502,
+    );
+});
+
 test("schedule validation rejects service totals that do not match the request", () => {
     const request = buildCoordinateRequest(coordinateRequest());
     const provider = interpretGoogleOptimizeToursResponse(
