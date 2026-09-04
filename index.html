@@ -135,7 +135,7 @@
             <input
                 class="addressViewChoice"
                 type="radio"
-                name="addressView"
+                name="addressViewWorkLibrary"
                 id="addressViewWorkLibrary"
             />
             <input
@@ -365,6 +365,34 @@
                     <option value="basic">Basic Route</option>
                 </select>
             </label>
+            <div id="workdayControls" class="panel">
+                <h3>Workday</h3>
+                <div class="row2">
+                    <label>
+                        Route date
+                        <input type="date" id="routeDate" />
+                    </label>
+                    <label>
+                        Departure
+                        <input type="time" id="routeDepartureTime" step="60" />
+                    </label>
+                </div>
+                <div class="row2">
+                    <label>
+                        Preferred field-work finish
+                        <input
+                            type="time"
+                            id="routePreferredFinishTime"
+                            step="60"
+                        />
+                    </label>
+                    <label>
+                        Home by
+                        <input type="time" id="routeHomeByTime" step="60" />
+                    </label>
+                </div>
+                <p id="routeDayContextStatus" class="tiny muted"></p>
+            </div>
             <div id="newRouteAvailable" hidden>
                 <p id="newRouteAvailableStatus" class="tiny"></p>
                 <button id="startNewRoute" type="button" class="btn btnSmall">
@@ -591,9 +619,10 @@
         <script src="manual-work-library.js?v=2.0.0"></script>
         <script src="geocoder.js?v=2.0.0"></script>
         <script src="settings.js?v=1.1.0"></script>
-        <script src="route-history.js?v=5.0.0"></script>
+        <script src="route-history.js?v=6.0.0"></script>
+        <script src="workday-context.js?v=1.0.0"></script>
         <script src="route-work-clear.js?v=1.1.0"></script>
-        <script src="backup.js?v=3.0.0"></script>
+        <script src="backup.js?v=4.0.0"></script>
         <script src="inbox.js?v=1.6.0"></script>
         <script src="address-corrections.js?v=1.0.0"></script>
         <script src="https://accounts.google.com/gsi/client" async></script>
