@@ -5,6 +5,7 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 const planningContract = require("../work-item-planning.js");
+const routePlanningContract = require("../route-work-planning.js");
 const runtimeSource = fs.readFileSync(
     path.join(__dirname, "..", "work-item-planning-runtime.js"),
     "utf8",
@@ -31,6 +32,7 @@ function loadRuntime({ storage, restoredPlanning = null }) {
     let restoreCalls = 0;
     const context = {
         FMRWorkItemPlanning: planningContract,
+        FMRRouteWorkPlanning: routePlanningContract,
         FMRBackup: {
             takeParsedPlanningForRestore() {
                 const value = handoff;
@@ -115,4 +117,31 @@ test("runtime list returns copies instead of mutable internal planning records",
     const copy = context.FMRWorkItemPlanningRuntime.list();
     copy[0].serviceMinutes = 99;
     assert.equal(context.FMRWorkItemPlanningRuntime.list()[0].serviceMinutes, 5);
+});
+
+test("runtime projects a route from its current saved planning records", () => {
+    const record = planningContract.createPlanningRecord({
+        kind: "workbook",
+        workItemId: "ORDER-2",
+        serviceMinutes: 20,
+        assignedDate: "2026-09-04",
+        lockedDay: true,
+    }, { now: "2026-09-03T20:00:00.000Z" });
+    const storage = memoryStorage({
+        [planningContract.PLANNING_STORAGE_KEY]: JSON.stringify([record]),
+    });
+    const { context } = loadRuntime({ storage });
+
+    const projection = context.FMRWorkItemPlanningRuntime.projectRoute({
+        routeIds: ["stop_1"],
+        orderIdsByStopId: {
+            stop_1: ["ORDER-1", "ORDER-2"],
+        },
+    });
+
+    assert.equal(projection.routeStopCount, 1);
+    assert.equal(projection.workItemCount, 2);
+    assert.equal(projection.serviceMinutes, 25);
+    assert.equal(projection.stops[0].items[1].assignedDate, "2026-09-04");
+    assert.equal(projection.stops[0].items[1].lockedDay, true);
 });
