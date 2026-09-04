@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 
 const { BACKUP_VERSION, createBackup, parseBackup } = require("../backup.js");
 
-test("version 2 backup preserves manual gigs beside existing routes", () => {
+test("current backup preserves manual gigs beside existing routes", () => {
     const backup = createBackup({
         home: { id: "home", address: "Home" },
         stops: [
@@ -32,8 +32,8 @@ test("version 2 backup preserves manual gigs beside existing routes", () => {
         },
     });
 
-    assert.equal(BACKUP_VERSION, 2);
-    assert.equal(backup.backupVersion, 2);
+    assert.equal(BACKUP_VERSION, 3);
+    assert.equal(backup.backupVersion, 3);
     assert.equal(backup.gigs.length, 1);
 
     const restored = parseBackup(JSON.stringify(backup));
