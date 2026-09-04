@@ -87,44 +87,6 @@
         );
     }
 
-    function effectivePlanningValue(existing, patch, field, fallback) {
-        return Object.hasOwn(patch, field)
-            ? patch[field]
-            : existing?.[field] ?? fallback;
-    }
-
-    function validatePlanningState(existing, patch) {
-        const assignedDate = effectivePlanningValue(
-            existing,
-            patch,
-            "assignedDate",
-            null,
-        );
-        const lockedDay = effectivePlanningValue(
-            existing,
-            patch,
-            "lockedDay",
-            false,
-        );
-        if (lockedDay && !assignedDate) {
-            throw new Error(
-                "Choose an assigned day before locking this work item to a day.",
-            );
-        }
-
-        if (!existing) {
-            const serviceMinutes = effectivePlanningValue(
-                null,
-                patch,
-                "serviceMinutes",
-                null,
-            );
-            if (serviceMinutes === null && assignedDate === null && !lockedDay) {
-                throw new Error("There are no planning values to save for this work item.");
-            }
-        }
-    }
-
     function saveWorkItem(kind, workItemId, draft, options = {}) {
         const patch = planningPatch(draft);
         const expectedRevision = normalizeExpectedRevision(
@@ -138,7 +100,6 @@
 
         if (!existing) {
             if (expectedRevision !== 0) throw stalePlanningError();
-            validatePlanningState(null, patch);
             const created = createPlanningRecord(
                 {
                     kind,
@@ -156,8 +117,6 @@
         if (expectedRevision !== existing.revision) {
             throw stalePlanningError();
         }
-
-        validatePlanningState(existing, patch);
 
         if (samePlanningPatch(existing, patch)) {
             return copyRecord(existing);
