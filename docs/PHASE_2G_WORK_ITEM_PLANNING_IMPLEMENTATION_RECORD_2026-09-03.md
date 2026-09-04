@@ -1,7 +1,7 @@
 # Phase 2G — Work-Item Planning Foundation Implementation Record
 
 **Date:** 2026-09-03  
-**Status:** IMPLEMENTATION IN PROGRESS / FOUNDATION SLICES BUILT / NOT MERGE-READY  
+**Status:** IMPLEMENTATION IN PROGRESS / FOUNDATION AND EXACT WRITE SEAM BUILT / NOT MERGE-READY  
 **Change class:** Level 3  
 **Repository:** `timbone72-CC/free-map-router`  
 **Branch:** `work/phase-2g-work-item-planning-20260903`  
@@ -10,7 +10,7 @@
 
 ## Purpose
 
-Record the Phase 2G runtime foundation as it is implemented so later work does not have to reconstruct the data model, backup boundary, route-snapshot seam, or deferred scope from commit history.
+Record the Phase 2G runtime foundation as it is implemented so later work does not have to reconstruct the data model, backup boundary, route-snapshot seam, mutation boundary, or deferred scope from commit history.
 
 This record does not authorize merge or deployment.
 
@@ -52,11 +52,51 @@ Current governed behavior:
 
 Defaults are resolved at use time and are not bulk-written into planning storage.
 
-### Stale-write protection
+### Revision and conflict model
 
 Planning edits require the expected current revision. An older edit cannot silently overwrite a newer record.
 
 Same-revision conflicting records fail closed rather than choosing a winner by timestamp alone.
+
+The exact runtime mutation seam now uses compare-and-save semantics:
+
+- `expectedRevision: 0` means create this exact work item only if it does not already exist;
+- an existing record can be edited only when `expectedRevision` equals its exact current saved revision;
+- a stale or duplicate create/edit attempt fails with a reload-before-edit error;
+- runtime mutation re-reads durable local planning storage immediately before every save so a stale in-memory copy does not blindly overwrite a newer stored revision;
+- a same-value save is a no-op and does not manufacture another revision.
+
+This local revision boundary reduces stale-write risk. It is not a substitute for a future transactional cross-device synchronization provider.
+
+### Exact per-work-item write API
+
+`work-item-planning-runtime.js` now exposes targeted runtime operations:
+
+- `list()` — read-only copies of all normalized planning records;
+- `get(kind, workItemId)` — one exact planning record or `null`;
+- `save(kind, workItemId, draft, { expectedRevision, now })` — create or edit one exact work item;
+- `projectRoute(...)` — existing read-only route planning projection seam.
+
+The previous public whole-collection `replace(records)` mutation surface is removed. Whole-collection persistence remains internal for governed initialization, normalization, and backup restore only.
+
+The write API accepts only the Phase 2G planning fields:
+
+- `serviceMinutes`;
+- `assignedDate`;
+- `lockedDay`.
+
+Identity, address, route position, revision, schema version, and timestamps supplied inside a caller draft are not accepted as write fields.
+
+Exact identity comes only from the API arguments `kind` and `workItemId`.
+
+Validation behavior:
+
+- service minutes must remain a positive number when supplied, or may be cleared to `null`/blank;
+- assigned date must remain a valid local `YYYY-MM-DD` value, or may be cleared;
+- `lockedDay` must be an actual boolean `true` or `false` so a string such as `"false"` cannot accidentally become a locked day;
+- at least one supported planning field must be supplied.
+
+Workbook and manual-gig records with the same text ID remain separate because `kind + workItemId` is the identity key.
 
 ### Backup and restore
 
@@ -76,7 +116,7 @@ Planning restore is isolated from stops, gigs, and route identity. Invalid plann
 
 Added `work-item-planning-runtime.js`.
 
-It initializes and normalizes local planning storage, participates in the existing backup restore hook, returns copies of records to consumers, and exposes a route-projection seam.
+It initializes and normalizes local planning storage, participates in the existing backup restore hook, returns copies of records to consumers, exposes exact per-item read/write operations, and exposes a route-projection seam.
 
 The route-projection dependency is intentionally lazy. The current app can load and operate without `route-work-planning.js` being loaded because no current UI consumes route planning yet. Calling the projection API without that module fails explicitly rather than breaking app startup.
 
@@ -102,7 +142,7 @@ The projection:
 9. ignores planning records for work that is not in the supplied route snapshot;
 10. fails closed if the same exact `kind + workItemId` is attached to two different physical route stops.
 
-Example now supported by the foundation:
+Example supported by the foundation:
 
 - one physical stop;
 - workbook Order A = 5 minutes;
@@ -113,7 +153,7 @@ Example now supported by the foundation:
 
 ## Focused verification completed
 
-The implementation has focused automated coverage for:
+Committed focused coverage now includes:
 
 - workbook 5-minute default;
 - explicit duration override;
@@ -136,9 +176,21 @@ The implementation has focused automated coverage for:
 - planning records outside the route being ignored;
 - duplicate exact identity across two stops failing closed;
 - projection input immutability;
-- missing route-projection browser module not breaking existing app startup.
+- missing route-projection browser module not breaking existing app startup;
+- exact per-item creation at revision zero;
+- exact per-item edit with revision increment;
+- unrelated planning records preserved during one-item edits;
+- clearing service minutes, assigned day, and locked-day state;
+- same-value save avoiding revision churn;
+- stale edit rejection after a newer write;
+- re-read-before-save rejection of an externally newer stored revision;
+- duplicate create-only attempts rejected;
+- unsupported-only/invalid drafts rejected;
+- absence of a public whole-collection replace mutation API.
 
-For the latest route-projection/runtime slice, 13 focused tests passed and the touched JavaScript/test files passed syntax checks in the local verification harness.
+For the exact write-seam behavior, a local focused harness using the current planning contract and runtime passed **7/7** mutation checks, including the malformed non-boolean locked-day case. The updated runtime also passed Node syntax checking.
+
+The repository currently has no branch-push GitHub Actions run for this branch, so no CI result is claimed for this slice.
 
 The complete repository suite has **not** been run yet. Per the testing contract, that remains part of the exact-final-head runtime gate rather than a claim made after every intermediate slice.
 
@@ -165,21 +217,26 @@ Workbook Phase 2F selectable sync remains a separate governed dependency. Phase 
 
 Before production planning relies on the selected workbook work pool, Phase 2F still requires its Cross-System Reality Gate evidence.
 
-## Next Phase 2G foundation slice
+## Next Phase 2G slice
 
-The next safe slice should add exact per-item runtime write operations for planning metadata before any UI is attached to them.
+The exact planning store, route projection, backup protection, and per-work-item revision-safe write seam now exist.
 
-That write seam should:
+The next safe Phase 2G slice may expose a minimal operator planning surface that calls this exact API rather than editing route/address records directly.
 
-- create planning state only for an exact workbook Order ID or Gig_ID;
-- edit an existing record only with the expected revision;
-- allow service duration, assigned local day, and locked-day state to be changed or cleared without replacing the whole planning collection;
-- preserve unrelated planning records;
-- reject stale edits;
-- remain independent of addresses and route positions;
-- have focused tests before planner controls call it.
+That UI slice should remain narrow:
 
-Only after that safe write seam exists should Phase 2G expose operator controls for work-item planning.
+- identify the exact Order ID or Gig_ID being edited;
+- show the current resolved duration and whether it is a default or override;
+- allow an explicit duration override or clear;
+- allow assigned local day or clear;
+- allow locked-day true/false;
+- carry the record revision loaded by the form into the save call;
+- surface stale-write failure instead of silently retrying;
+- keep several work items at one address visibly distinct;
+- avoid introducing generic High/Medium/Low priority;
+- avoid Google optimizer request changes until Phase 2H.
+
+The modern planner UX should stay compact and should not turn Build Route into another wall of equal-weight controls.
 
 ## Final gate still required
 
