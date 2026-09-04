@@ -1,7 +1,7 @@
 # Phase 2G — Work-Item Planning Foundation Implementation Record
 
 **Date:** 2026-09-03  
-**Status:** IMPLEMENTATION IN PROGRESS / AUTOMATED + ISOLATED REAL-BROWSER BUILD ROUTE/MANUAL-GIG VALIDATION PASSED / NOT MERGE-READY  
+**Status:** IMPLEMENTATION IN PROGRESS / AUTOMATED + ISOLATED REAL-BROWSER SERVICE-TIME DISPLAY VALIDATION PASSED / NOT MERGE-READY  
 **Change class:** Level 3  
 **Repository:** `timbone72-CC/free-map-router`  
 **Branch:** `work/phase-2g-work-item-planning-20260903`  
@@ -76,7 +76,7 @@ This local revision boundary reduces stale-write risk. It is not a substitute fo
 - `list()` — read-only copies of all normalized planning records;
 - `get(kind, workItemId)` — one exact planning record or `null`;
 - `save(kind, workItemId, draft, { expectedRevision, now })` — create or edit one exact work item;
-- `projectRoute(...)` — existing read-only route planning projection seam.
+- `projectRoute(...)` — read-only route planning projection seam.
 
 The previous public whole-collection `replace(records)` mutation surface is removed. Whole-collection persistence remains internal for governed initialization, normalization, and backup restore only.
 
@@ -121,7 +121,7 @@ Added `work-item-planning-runtime.js`.
 
 It initializes and normalizes local planning storage, participates in the existing backup restore hook, returns copies of records to consumers, exposes exact per-item read/write operations, and exposes a route-projection seam.
 
-The route-projection dependency remains intentionally lazy. `route-work-planning.js` is not loaded merely to support the minimal editor because the editor reads the exact Order IDs and Gig_IDs already present in the active route snapshot and does not need route-level optimization output.
+The route-projection dependency remains lazy rather than becoming a new unconditional startup dependency. `route-work-controls.js` now loads `route-work-planning.js` immediately before the Phase 2G planning-controls consumer when the Build Route planning surface is needed. Existing app startup ownership, route history, and optimizer modules remain unchanged.
 
 ### Exact route-work projection
 
@@ -158,7 +158,7 @@ Example supported by the foundation:
 
 Added `work-item-planning-controls.js` as an isolated Build Route editor rather than expanding every route row into its own form.
 
-The existing `route-work-controls.js` keeps ownership of its proven InspectorADE/manual clear behavior and only loads the planning-control module. The planning module is safe whether it finishes loading before or after `DOMContentLoaded`.
+The existing `route-work-controls.js` keeps ownership of its proven InspectorADE/manual clear behavior and loads the planning projection before the planning-control module. The planning module is safe whether it finishes loading before or after `DOMContentLoaded`.
 
 The Build Route planning surface is intentionally compact:
 
@@ -192,6 +192,30 @@ The editor does not add:
 - workbook handoff fields;
 - another route-history store;
 - another page or a repeated form under every stop.
+
+### Read-only Build Route service-time display
+
+The Build Route planning surface now exposes the service-time results that were already derived by `route-work-planning.js`.
+
+This is a display-only consumer of the governed projection; the UI does not independently recalculate or persist route/stop service totals.
+
+For each physical route stop, the existing route row shows its derived service time. Examples:
+
+- complete physical stop: `Service: 25 min`;
+- incomplete physical stop with known workbook time and one unknown manual gig: `Service: 25 min known + 1 work item missing duration`.
+
+The planning panel also shows the derived total route service time. Examples:
+
+- complete route: `Route service: 45 min.`;
+- incomplete route: `Route service: 30 min known + 1 work item missing duration.`
+
+Unknown manual-gig duration is never treated as zero and never converted into a false complete route total.
+
+A successful exact work-item planning save immediately reruns the read-only projection so the visible stop and route totals refresh without changing route order or running either optimizer.
+
+Google Route and Basic Route may order the same physical stops differently, but the derived service time stays attached to the same physical stop through its exact route work identities.
+
+This display slice does not send service time to Google Route Optimization and does not add departure time, route date, preferred finish, or home-by controls. Those remain Phase 2H.
 
 ## Focused verification completed
 
@@ -235,11 +259,17 @@ Committed focused coverage includes:
 - same-text workbook/Gig_ID separation;
 - duplicate exact identity across two route stops failing closed in the editor;
 - stale form revision being retained and reloaded rather than silently retried;
-- assigned-day and locked-day remaining independent approved fields.
+- assigned-day and locked-day remaining independent approved fields;
+- compact minute/hour formatting for derived service time;
+- complete physical-stop service-time display;
+- incomplete physical-stop known-time + missing-duration display;
+- complete route service-time display;
+- incomplete route known-time + missing-duration display;
+- projection loading before the read-only service-time consumer.
 
 The exact write-seam focused harness previously passed **7/7** mutation checks and the runtime passed Node syntax checking.
 
-For the minimal operator-control slice, the final local focused harness passed **6/6** checks and `work-item-planning-controls.js` passed Node syntax checking.
+For the initial minimal operator-control slice, the local focused harness passed **6/6** checks and `work-item-planning-controls.js` passed Node syntax checking. The committed service-time display coverage expanded the complete repository suite to **373 automated tests**.
 
 ## Build Route + manual-gig regression validation
 
@@ -279,12 +309,12 @@ Affected Build Route/manual-gig evidence inside that green suite includes:
 - manual-gig dates and completion behavior remain intact;
 - current backup v3 preserves gigs while legacy v1/v2 backups remain restorable;
 - route numbering, Google/Basic route slots, route order return, navigation, pay summaries, source identity, and address-correction identity tests remain green;
-- the new planning panel uses only the exact runtime planning API;
+- the planning panel uses only the exact runtime planning API;
 - multiple exact work items at one address remain separate planning choices;
 - stale planning edits fail closed and reload current saved state;
 - no unauthorized observer or polling behavior was introduced.
 
-### Isolated real-browser smoke validation
+### Isolated real-browser planning-editor smoke validation
 
 A controlled browser validation was run against Phase 2G without replacing or publishing the live production app. The test environment used the PR checkout served only on the GitHub Actions runner's localhost, a disposable headless Chrome session, and synthetic localStorage route/gig/planning fixtures. It did not sign in to the production Google account, write Google Drive data, change GitHub Pages, change Cloud Run, merge the PR, or deploy production.
 
@@ -311,13 +341,53 @@ On isolated browser-validation head `30bd951c69e08d726f6f284d670933cbe47eab31`, 
 - no first-party uncaught browser errors were captured;
 - no unexpected first-party severe console entries remained.
 
-The successful browser run stored evidence as one-day CI artifact `phase-2g-browser-smoke-evidence` (artifact ID `9923033432`, workflow run `33835127324`). The artifact contains the exact passing check results and the synthetic planning/route state used for the smoke.
+The successful browser run stored evidence as one-day CI artifact `phase-2g-browser-smoke-evidence` (artifact ID `9923033432`, workflow run `33835127324`).
 
 After evidence capture, the temporary Selenium smoke script was deleted and `.github/workflows/verify.yml` was restored byte-for-byte to its standard verification content. A compare from the pre-smoke documentation head `85bb5996ff2a0b68649400f45d5f0939f433a649` to cleanup head `099170e5e9101b9a16f09df3e5ed66f1cb999822` shows **no file-content differences**; the temporary validation harness survives only in branch history/evidence, not in the resulting tree.
 
+### Isolated real-browser service-time display validation
+
+The read-only service-time slice received a second targeted browser smoke using the same isolated localhost + disposable headless Chrome method. No production account or Drive data was used.
+
+The synthetic route intentionally combined:
+
+- workbook Order 1 using the ordinary 5-minute default;
+- workbook Order 2 using an exact 20-minute override;
+- a manual Gig_ID at the same physical stop with no duration initially;
+- a second workbook-only physical stop using the ordinary 5-minute default.
+
+Before the manual duration was supplied, the real browser showed:
+
+- shared physical stop: `Service: 25 min known + 1 work item missing duration`;
+- second physical stop: `Service: 5 min`;
+- route total: `Route service: 30 min known + 1 work item missing duration.`
+
+The smoke then saved `15` minutes to the exact manual `GIG-1`. Without reoptimizing or changing route order, the browser immediately changed to:
+
+- shared physical stop: `Service: 40 min`;
+- route total: `Route service: 45 min.`
+
+The targeted smoke also confirmed:
+
+- the 15-minute override was saved only to exact `GIG-1` at planning revision 1;
+- switching to Basic Route retained the same 45-minute route service total despite physical-stop reordering;
+- the 5-minute second-stop service time remained attached to that physical stop after reorder;
+- the completed 45-minute route service total survived browser reload;
+- no unexpected severe browser console entries remained after excluding only exact preview-environment favicon and unsigned Google/FedCM noise.
+
+On targeted browser-validation head `076a91d0301926e4ba5e853a158d5141ae16f8d9`, the normal repository verification also passed **373 / 373 automated tests** and all first-party root JavaScript syntax checks before the browser smoke completed successfully.
+
+The successful targeted browser run stored one-day evidence artifact `phase-2g-service-time-browser-smoke-evidence` (artifact ID `9925306772`, workflow run `33842268441`).
+
+After evidence capture, the temporary service-time Selenium script was deleted and `.github/workflows/verify.yml` was again restored exactly to the standard verification workflow. Comparing committed service-time code head `760903139bcf2954a2a56167372f5241beb9c5bb` to cleanup head `33a6fb54499a97dbc4d9ad3dd8fdec272392fd17` shows **zero file-content differences**.
+
 ## Current non-effects
 
-Phase 2G now changes the Build Route UI only by adding the compact exact-work-item planning editor described above.
+Phase 2G now changes the Build Route UI only by adding:
+
+- the compact exact-work-item planning editor;
+- read-only service time beside each physical route stop;
+- one read-only total route service-time summary.
 
 It still does **not** change:
 
@@ -340,20 +410,24 @@ Before production planning relies on the selected workbook work pool, Phase 2F s
 
 ## Next Phase 2G step
 
-The affected automated regression gate and the isolated real-browser Build Route/manual-gig smoke are now green. The next Phase 2G slice may expose **derived route/stop service-time information** from `route-work-planning.js` without changing Google Route Optimization requests, which remain Phase 2H.
+The approved Phase 2G data foundation, exact mutation seam, compact planning editor, derived physical-stop service display, derived route service total, automated regression gate, and isolated browser validations are now implemented and green.
 
-Do not add multi-day Route Plans, route date/departure/home-by controls, Google service-duration requests, generic priority, or unverified interior-code mappings as part of that next Phase 2G slice.
+The next safe Phase 2G action is governance closure work rather than adding Phase 2H behavior: review the exact final Phase 2G diff, confirm the remaining cross-system boundary/evidence requirements, and decide whether the branch is ready for explicit operator merge approval.
+
+Do not add multi-day Route Plans, route date/departure/home-by controls, Google service-duration requests, generic priority, or unverified interior-code mappings as part of Phase 2G closure.
 
 ## Final gate still required
 
 This branch is not merge-ready until the remaining Level-3 evidence is completed on the final governed head:
 
-- automated full repository suite: **PASSED on runtime/test head `374103b97705a583ee63e435abf5fd8f2c4640fd`**;
-- first-party root JavaScript syntax checks: **PASSED on the same runtime/test head**;
-- affected automated saved-data/manual-gig/Build Route regression checks: **PASSED**;
-- isolated real-browser smoke for the new visible planning editor: **PASSED — 22/22 checks on browser-validation head `30bd951c69e08d726f6f284d670933cbe47eab31`**;
-- temporary browser-validation harness/workflow changes: **REMOVED / standard workflow restored; no resulting file-content diff versus pre-smoke head**;
-- exact final diff review after any remaining Phase 2G implementation/documentation change;
+- automated full repository suite: **PASSED — 373/373 on targeted service-time browser-validation head `076a91d0301926e4ba5e853a158d5141ae16f8d9`**;
+- first-party root JavaScript syntax checks: **PASSED on the same service-time browser-validation head**;
+- affected automated saved-data/manual-gig/Build Route/service-time regression checks: **PASSED**;
+- isolated real-browser planning-editor smoke: **PASSED — 22/22 checks on browser-validation head `30bd951c69e08d726f6f284d670933cbe47eab31`**;
+- isolated real-browser service-time display smoke: **PASSED on browser-validation head `076a91d0301926e4ba5e853a158d5141ae16f8d9`**;
+- temporary browser-validation harness/workflow changes: **REMOVED / standard workflow restored; no resulting file-content diff versus committed service-time code head**;
+- exact final diff review after this documentation update;
+- final standard workflow verification on the documentation head;
 - any required cross-system reality evidence remains governed separately;
 - explicit Level-3 operator approval is required before merge.
 
