@@ -36,6 +36,77 @@
         return Number.isNaN(date.getTime()) ? null : date.toISOString();
     }
 
+    function wholeSecondTimestamp(value) {
+        const text = String(value ?? "").trim();
+        if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(text)) return null;
+        const date = new Date(text);
+        return Number.isNaN(date.getTime()) ? null : text;
+    }
+
+    function nonnegativeNumber(value) {
+        if (value === null || value === undefined || value === "") return null;
+        const number = Number(value);
+        return Number.isFinite(number) && number >= 0 ? number : null;
+    }
+
+    function sameIds(left, right) {
+        const a = Array.isArray(left) ? left : [];
+        const b = Array.isArray(right) ? right : [];
+        return a.length === b.length && a.every((id, index) => id === b[index]);
+    }
+
+    function normalizeStoredGoogleSchedule(value, routeIds) {
+        if (!value || typeof value !== "object") return null;
+        const expectedIds = Array.isArray(routeIds) ? routeIds : [];
+        const basisKey = String(value.basisKey ?? "").trim();
+        const vehicleStartTime = wholeSecondTimestamp(value.vehicleStartTime);
+        const vehicleEndTime = wholeSecondTimestamp(value.vehicleEndTime);
+        const travelDurationSeconds = nonnegativeNumber(
+            value.travelDurationSeconds,
+        );
+        const totalServiceDurationSeconds = nonnegativeNumber(
+            value.totalServiceDurationSeconds,
+        );
+        const waitDurationSeconds = nonnegativeNumber(value.waitDurationSeconds);
+        const visits = Array.isArray(value.visits) ? value.visits : [];
+
+        if (
+            !basisKey ||
+            !vehicleStartTime ||
+            !vehicleEndTime ||
+            travelDurationSeconds === null ||
+            totalServiceDurationSeconds === null ||
+            waitDurationSeconds === null ||
+            visits.length !== expectedIds.length
+        ) {
+            return null;
+        }
+
+        const normalizedVisits = visits.map((visit) => ({
+            stopId: String(visit?.stopId ?? "").trim(),
+            startTime: wholeSecondTimestamp(visit?.startTime),
+        }));
+        if (
+            normalizedVisits.some((visit) => !visit.stopId || !visit.startTime) ||
+            !sameIds(
+                normalizedVisits.map((visit) => visit.stopId),
+                expectedIds,
+            )
+        ) {
+            return null;
+        }
+
+        return {
+            basisKey,
+            vehicleStartTime,
+            vehicleEndTime,
+            travelDurationSeconds,
+            totalServiceDurationSeconds,
+            waitDurationSeconds,
+            visits: normalizedVisits,
+        };
+    }
+
     function normalizedLocalDate(value) {
         const text = String(value ?? "").trim();
         const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text);
@@ -298,7 +369,11 @@
         return result;
     }
 
-    function normalizeRouteSnapshot(value, validIds = null) {
+    function normalizeRouteSnapshot(
+        value,
+        validIds = null,
+        allowGoogleSchedule = false,
+    ) {
         if (!value || typeof value !== "object") return null;
         const routeIds = normalizedRouteIds(value.routeIds, validIds);
         const sourceUpdatedAt = normalizedTimestamp(value.sourceUpdatedAt);
@@ -327,7 +402,9 @@
                 value.gigManagedStopIds,
                 routeIds,
             ),
-            schedule: null,
+            schedule: allowGoogleSchedule
+                ? normalizeStoredGoogleSchedule(value.schedule, routeIds)
+                : null,
         };
     }
 
@@ -414,7 +491,7 @@
         return {
             version: ROUTE_HISTORY_VERSION,
             dayContext: normalizeDayContext(value?.dayContext),
-            google: normalizeRouteSnapshot(value?.google, validIds),
+            google: normalizeRouteSnapshot(value?.google, validIds, true),
             basic: normalizeRouteSnapshot(value?.basic, validIds),
             pending: pending?.routeIds.length ? pending : null,
         };
@@ -427,6 +504,40 @@
         } catch {
             return normalizeRouteHistory(null, validIds);
         }
+    }
+
+    function scheduleSnapshotBasis(snapshot) {
+        if (!snapshot) return "";
+        return JSON.stringify({
+            routeIds: snapshot.routeIds,
+            sourceUpdatedAt: snapshot.sourceUpdatedAt,
+            optimizationStatus: snapshot.optimizationStatus,
+            orderIdsByStopId: snapshot.orderIdsByStopId,
+            workbookPayByStopId: snapshot.workbookPayByStopId,
+            gigIdsByStopId: snapshot.gigIdsByStopId,
+            gigManagedStopIds: snapshot.gigManagedStopIds,
+        });
+    }
+
+    function scheduleDayBasis(dayContext) {
+        if (!dayContext) return "";
+        return JSON.stringify({
+            routeDate: dayContext.routeDate,
+            departureTime: dayContext.departureTime,
+            homeByTime: dayContext.homeByTime,
+            timeZone: dayContext.timeZone,
+        });
+    }
+
+    function canPreserveStoredGoogleSchedule(nextHistory, storedHistory) {
+        if (!storedHistory?.google?.schedule || !nextHistory?.google) return false;
+        const nextDayBasis = scheduleDayBasis(nextHistory.dayContext);
+        const storedDayBasis = scheduleDayBasis(storedHistory.dayContext);
+        if (!nextDayBasis || nextDayBasis !== storedDayBasis) return false;
+        return (
+            scheduleSnapshotBasis(nextHistory.google) ===
+            scheduleSnapshotBasis(storedHistory.google)
+        );
     }
 
     function markDayContextReplacement(history) {
@@ -444,6 +555,7 @@
         const normalized = normalizeRouteHistory(history, validIds);
         if (dayContext === null || dayContext === undefined) {
             normalized.dayContext = null;
+            if (normalized.google) normalized.google.schedule = null;
             return markDayContextReplacement(normalized);
         }
 
@@ -451,7 +563,15 @@
         if (!validation.ok) {
             throw new Error(validation.error);
         }
+
+        const previousScheduleBasis = scheduleDayBasis(normalized.dayContext);
         normalized.dayContext = validation.dayContext;
+        if (
+            normalized.google?.schedule &&
+            previousScheduleBasis !== scheduleDayBasis(normalized.dayContext)
+        ) {
+            normalized.google.schedule = null;
+        }
         return markDayContextReplacement(normalized);
     }
 
@@ -473,19 +593,26 @@
     function writeRouteHistory(storage, history, validIds = null) {
         const replaceStoredDayContext = Boolean(history?.[DAY_CONTEXT_REPLACE]);
         const normalized = normalizeRouteHistory(history, validIds);
+        let stored = null;
 
-        if (!replaceStoredDayContext) {
-            try {
-                const raw = storage?.getItem?.(STORAGE_KEY);
-                if (raw) {
-                    const stored = normalizeRouteHistory(JSON.parse(raw), validIds);
-                    if (stored.dayContext) {
-                        normalized.dayContext = stored.dayContext;
-                    }
-                }
-            } catch {
-                // Keep the normalized caller state when prior storage is unreadable.
+        try {
+            const raw = storage?.getItem?.(STORAGE_KEY);
+            if (raw) {
+                stored = normalizeRouteHistory(JSON.parse(raw), validIds);
             }
+        } catch {
+            stored = null;
+        }
+
+        if (!replaceStoredDayContext && stored?.dayContext) {
+            normalized.dayContext = stored.dayContext;
+        }
+
+        if (
+            !normalized.google?.schedule &&
+            canPreserveStoredGoogleSchedule(normalized, stored)
+        ) {
+            normalized.google.schedule = stored.google.schedule;
         }
 
         storage?.setItem?.(STORAGE_KEY, JSON.stringify(normalized));
@@ -543,6 +670,7 @@
                 optimizationStatus,
             },
             validIds,
+            key === "google",
         );
         return normalized;
     }
