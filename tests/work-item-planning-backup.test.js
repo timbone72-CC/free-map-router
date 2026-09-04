@@ -81,7 +81,8 @@ test("damaged planning rows are isolated without damaging the rest of a valid ba
         gigs: [],
         planning: [
             good,
-            { ...good, workItemId: "ORDER-BAD", assignedDate: "09/04/2026" },
+            { ...good, workItemId: "ORDER-BAD-DATE", assignedDate: "09/04/2026" },
+            { ...good, workItemId: "ORDER-BAD-LOCK", lockedDay: "false" },
         ],
         routeIds: ["stop_1"],
         routes: routeSet(),
@@ -90,6 +91,7 @@ test("damaged planning rows are isolated without damaging the rest of a valid ba
     assert.equal(restored.home.address, "Home");
     assert.equal(restored.stops.length, 1);
     assert.deepEqual(restored.planning.map((record) => record.workItemId), ["ORDER-GOOD"]);
+    assert.equal(restored.planning[0].lockedDay, false);
 });
 
 test("parsed planning restore handoff is one-shot", () => {
