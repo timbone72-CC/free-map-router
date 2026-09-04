@@ -1,16 +1,17 @@
 # Phase 2G — Work-Item Planning Foundation Implementation Record
 
 **Date:** 2026-09-03  
-**Status:** IMPLEMENTATION IN PROGRESS / FOUNDATION, EXACT WRITE SEAM, AND MINIMAL OPERATOR CONTROLS BUILT / NOT MERGE-READY  
+**Status:** IMPLEMENTATION IN PROGRESS / AUTOMATED BUILD ROUTE + MANUAL-GIG REGRESSION GATE PASSED / REAL-BROWSER SMOKE STILL PENDING / NOT MERGE-READY  
 **Change class:** Level 3  
 **Repository:** `timbone72-CC/free-map-router`  
 **Branch:** `work/phase-2g-work-item-planning-20260903`  
 **Governed base:** `7fc6d1a26aec36abf39500b4f34e7449ddfe2c4c`  
+**Validation PR:** draft PR `#77` — validation only, not merge authorization  
 **Impact record:** `docs/PHASE_2G_WORK_ITEM_PLANNING_IMPACT_RECORD_2026-09-03.md`
 
 ## Purpose
 
-Record the Phase 2G runtime foundation as it is implemented so later work does not have to reconstruct the data model, backup boundary, route-snapshot seam, mutation boundary, operator-control boundary, or deferred scope from commit history.
+Record the Phase 2G runtime foundation as it is implemented so later work does not have to reconstruct the data model, backup boundary, route-snapshot seam, mutation boundary, operator-control boundary, validation evidence, or deferred scope from commit history.
 
 This record does not authorize merge or deployment.
 
@@ -240,9 +241,61 @@ The exact write-seam focused harness previously passed **7/7** mutation checks a
 
 For the minimal operator-control slice, the final local focused harness passed **6/6** checks and `work-item-planning-controls.js` passed Node syntax checking.
 
-The repository currently has no branch-push GitHub Actions run for this branch, so no CI result is claimed for this slice.
+## Build Route + manual-gig regression validation
 
-The complete repository suite has **not** been run yet. Per the testing contract, that remains part of the exact-final-head runtime gate rather than a claim made after every intermediate slice.
+A draft pull request, **PR #77**, was opened only to run the repository's governed verification workflow without pushing or merging to `main`.
+
+The first exact-head CI run found one stale test expectation in `tests/manual-gig-backup.test.js`:
+
+- 366 of 367 tests passed;
+- the sole failure still asserted that the current whole-app backup version was `2`;
+- Phase 2G had already intentionally advanced the current backup format to version `3` so planning records can be preserved;
+- no runtime defect was identified by that failure.
+
+Only the stale current-version test expectation was updated:
+
+- the current-backup test now expects version `3`;
+- the explicit legacy version-2 restore test remains in place;
+- the legacy version-1 restore test remains in place;
+- no manual-gig runtime or schema file was changed to make the test pass.
+
+On the resulting exact runtime/test head `374103b97705a583ee63e435abf5fd8f2c4640fd`, the governed GitHub verification workflow passed:
+
+- **367 / 367 automated tests passed**;
+- **0 failures**;
+- complete `node --test tests/*.test.js` regression suite passed;
+- first-party root JavaScript syntax checks all passed.
+
+Affected Build Route/manual-gig evidence inside that green suite includes:
+
+- Build Route keeps separate InspectorADE/manual-gig clear controls;
+- existing clear controls retain their previous ownership and behavior;
+- one included manual gig adds its physical stop once to both route variants;
+- two manual gigs at one physical property never create two driving stops;
+- removing a gig does not remove a stop that still has other route work;
+- workbook Order IDs protect shared stops;
+- stop-ID remaps carry Gig_ID route metadata correctly;
+- normal gig edits preserve route selection and new gigs remain unchecked;
+- manual-gig dates and completion behavior remain intact;
+- current backup v3 preserves gigs while legacy v1/v2 backups remain restorable;
+- route numbering, Google/Basic route slots, route order return, navigation, pay summaries, source identity, and address-correction identity tests remain green;
+- the new planning panel uses only the exact runtime planning API;
+- multiple exact work items at one address remain separate planning choices;
+- stale planning edits fail closed and reload current saved state;
+- no unauthorized observer or polling behavior was introduced.
+
+### Manual browser evidence still pending
+
+The automated regression boundary is green, but this branch is not deployed. Therefore the following real-browser/operator checks are **not claimed as passed**:
+
+- the Plan Work Item panel visibly renders on Build Route in the real app;
+- switching Google Route ↔ Basic Route visibly refreshes the exact work-item selector;
+- saving minutes/date/locked-day and refreshing the browser visibly restores the saved values;
+- same-address multiple jobs are visibly separate choices in a real route;
+- the manual-gig route UI remains responsive after the dynamic planning-control module loads;
+- there are no real-browser console errors during those interactions.
+
+Those are the remaining operator smoke items for this first visible Phase 2G surface.
 
 ## Current non-effects
 
@@ -267,24 +320,24 @@ Workbook Phase 2F selectable sync remains a separate governed dependency. Phase 
 
 Before production planning relies on the selected workbook work pool, Phase 2F still requires its Cross-System Reality Gate evidence.
 
-## Next Phase 2G slice
+## Next Phase 2G step
 
-The exact planning store, backup protection, route projection, revision-safe write seam, and minimal operator editing surface now exist.
+The automated Build Route + manual-gig regression validation has passed. Because this is the first visible planning surface, **real-browser operator smoke validation should be completed before Phase 2G expands further**.
 
-The next safe step should validate this first visible planning surface against the affected Build Route/manual-gig regression boundary before expanding Phase 2G further. After that validation, a later Phase 2G slice can expose derived route/stop service-time information from `route-work-planning.js` without changing Google Route Optimization requests, which remain Phase 2H.
+After that browser validation succeeds, a later Phase 2G slice can expose derived route/stop service-time information from `route-work-planning.js` without changing Google Route Optimization requests, which remain Phase 2H.
 
-Do not add multi-day Route Plans, route date/departure/home-by controls, Google service-duration requests, or unverified interior-code mappings as part of this minimal editor.
+Do not add multi-day Route Plans, route date/departure/home-by controls, Google service-duration requests, or unverified interior-code mappings as part of this validation step.
 
 ## Final gate still required
 
-This branch is not merge-ready until the Phase 2G final runtime gate is completed on the exact final head:
+This branch is not merge-ready until the remaining Level-3 evidence is completed on the final governed head:
 
-- all focused Phase 2G tests pass;
-- full repository test suite passes;
-- all first-party root JavaScript files pass syntax checks;
-- affected saved-data/manual-gig/Build Route regression checks pass;
-- exact diff is reviewed for unrelated behavior;
-- any cross-system field change completes the Integration Contract reality gate;
-- explicit Level-3 operator approval is obtained before merge.
+- automated full repository suite: **PASSED on runtime/test head `374103b97705a583ee63e435abf5fd8f2c4640fd`**;
+- first-party root JavaScript syntax checks: **PASSED on the same runtime/test head**;
+- affected automated saved-data/manual-gig/Build Route regression checks: **PASSED**;
+- real-browser/operator smoke for the new visible planning editor: **PENDING**;
+- exact final diff review after any remaining validation-only documentation change;
+- any required cross-system reality evidence remains governed separately;
+- explicit Level-3 operator approval is required before merge.
 
 No merge or deployment is authorized by this implementation record.
