@@ -252,6 +252,31 @@
         });
     }
 
+    function preparedRequestBasisKey(prepared) {
+        const routeIds = (prepared?.snapshot?.stops || []).map((stop) =>
+            String(stop?.id || ""),
+        );
+        return buildScheduleBasisKey({
+            routeIds,
+            home: prepared?.snapshot?.home,
+            serviceByStopId: prepared?.context?.serviceByStopId,
+            timing: prepared?.snapshot?.timing,
+        });
+    }
+
+    function assertPreparedContextCurrent(initialPrepared, currentPrepared) {
+        if (
+            preparedRequestBasisKey(initialPrepared) !==
+            preparedRequestBasisKey(currentPrepared)
+        ) {
+            throw new GoogleRouteBrowserError(
+                "STALE_ROUTE",
+                "The route, Home, service time, Departure, or Home By changed while Google was calculating. No route was changed. Run Google Optimize again.",
+            );
+        }
+        return true;
+    }
+
     function rawRouteHistory(storage, routeHistoryContract) {
         try {
             const key = routeHistoryContract?.STORAGE_KEY;
@@ -893,6 +918,11 @@
                     snapshot: prepared.snapshot,
                     idToken,
                 });
+                const currentPrepared = await prepareTimeAwareSnapshot(bridge, {
+                    root: runtimeRoot,
+                });
+                assertPreparedContextCurrent(prepared, currentPrepared);
+
                 bridge.applyGoogleRouteResult(result.request, result.response);
 
                 const routeIds = result.response.orderedStopIds.slice();
@@ -916,7 +946,7 @@
                     prepared.context,
                 );
                 setStatus(
-                    `Google road route applied to ${routeIds.length} jobs.` +
+                    `Google road route applied to ${routeIds.length} stops.` +
                         (metrics ? ` ${metrics}.` : "") +
                         scheduleOutcome,
                 );
@@ -950,6 +980,7 @@
         BACKEND_URL,
         CLIENT_ID,
         GoogleRouteBrowserError,
+        assertPreparedContextCurrent,
         buildBrowserRequest,
         buildScheduleBasisKey,
         coordinateKey,
@@ -964,6 +995,7 @@
         persistGoogleSchedule,
         prepareSnapshotForGoogle,
         prepareTimeAwareSnapshot,
+        preparedRequestBasisKey,
         readStoredGoogleSchedule,
         requestId,
         resolveLocalRouteInstant,
