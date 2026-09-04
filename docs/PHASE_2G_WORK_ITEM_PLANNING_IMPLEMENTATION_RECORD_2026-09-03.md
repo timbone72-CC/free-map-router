@@ -1,7 +1,7 @@
 # Phase 2G — Work-Item Planning Foundation Implementation Record
 
 **Date:** 2026-09-03  
-**Status:** IMPLEMENTATION IN PROGRESS / AUTOMATED BUILD ROUTE + MANUAL-GIG REGRESSION GATE PASSED / REAL-BROWSER SMOKE STILL PENDING / NOT MERGE-READY  
+**Status:** IMPLEMENTATION IN PROGRESS / AUTOMATED + ISOLATED REAL-BROWSER BUILD ROUTE/MANUAL-GIG VALIDATION PASSED / NOT MERGE-READY  
 **Change class:** Level 3  
 **Repository:** `timbone72-CC/free-map-router`  
 **Branch:** `work/phase-2g-work-item-planning-20260903`  
@@ -284,18 +284,36 @@ Affected Build Route/manual-gig evidence inside that green suite includes:
 - stale planning edits fail closed and reload current saved state;
 - no unauthorized observer or polling behavior was introduced.
 
-### Manual browser evidence still pending
+### Isolated real-browser smoke validation
 
-The automated regression boundary is green, but this branch is not deployed. Therefore the following real-browser/operator checks are **not claimed as passed**:
+A controlled browser validation was run against Phase 2G without replacing or publishing the live production app. The test environment used the PR checkout served only on the GitHub Actions runner's localhost, a disposable headless Chrome session, and synthetic localStorage route/gig/planning fixtures. It did not sign in to the production Google account, write Google Drive data, change GitHub Pages, change Cloud Run, merge the PR, or deploy production.
 
-- the Plan Work Item panel visibly renders on Build Route in the real app;
-- switching Google Route ↔ Basic Route visibly refreshes the exact work-item selector;
-- saving minutes/date/locked-day and refreshing the browser visibly restores the saved values;
-- same-address multiple jobs are visibly separate choices in a real route;
-- the manual-gig route UI remains responsive after the dynamic planning-control module loads;
-- there are no real-browser console errors during those interactions.
+The first browser attempt exposed a harness-counting mistake, not an app defect: Build Route intentionally renders Start + physical stops + Finish as top-level list rows. The smoke selector was corrected to count only the existing `li[data-stop-id]` physical-stop rows. A later console check also initially flagged the expected unsigned-preview message `Not signed in with the identity provider.`; the final harness excluded only that exact expected test-environment message plus the already-irrelevant favicon/Google-sign-in network noise. No first-party uncaught browser errors were present.
 
-Those are the remaining operator smoke items for this first visible Phase 2G surface.
+On isolated browser-validation head `30bd951c69e08d726f6f284d670933cbe47eab31`, the governed workflow passed the normal **367 / 367** automated tests and root JavaScript syntax checks before the browser smoke. The browser smoke then passed **22 / 22** checks, including:
+
+- exactly one Plan Work Item panel is present;
+- the Google route renders each physical stop once;
+- six exact synthetic work items are visible across three physical stops;
+- two workbook Order IDs and two manual Gig_IDs can share one physical stop without duplicating the driving stop;
+- a workbook Order ID and a Gig_ID with the same text remain separate exact identities;
+- the manual-gig planning label retains source, work-order text, Gig_ID, and address context;
+- switching Google Route → Basic Route rerenders the route and retains all exact work identities;
+- exact workbook planning saves service minutes, assigned day, locked-day state, and revision 1;
+- a same-text manual Gig_ID saves independently without writing the workbook identity;
+- saved planning survives browser refresh and reloads into the visible editor;
+- manual-gig records remain intact after planning edits;
+- the shared physical stop remains one stop in both Google and Basic route snapshots;
+- planning edits do not rewrite route Order-ID/Gig_ID metadata;
+- repeated page navigation does not duplicate the planning UI;
+- the planning surface shows no meaningful horizontal overflow at a 390-pixel phone viewport;
+- Build Route remains interactive after a 31-second dwell;
+- no first-party uncaught browser errors were captured;
+- no unexpected first-party severe console entries remained.
+
+The successful browser run stored evidence as one-day CI artifact `phase-2g-browser-smoke-evidence` (artifact ID `9923033432`, workflow run `33835127324`). The artifact contains the exact passing check results and the synthetic planning/route state used for the smoke.
+
+After evidence capture, the temporary Selenium smoke script was deleted and `.github/workflows/verify.yml` was restored byte-for-byte to its standard verification content. A compare from the pre-smoke documentation head `85bb5996ff2a0b68649400f45d5f0939f433a649` to cleanup head `099170e5e9101b9a16f09df3e5ed66f1cb999822` shows **no file-content differences**; the temporary validation harness survives only in branch history/evidence, not in the resulting tree.
 
 ## Current non-effects
 
@@ -322,11 +340,9 @@ Before production planning relies on the selected workbook work pool, Phase 2F s
 
 ## Next Phase 2G step
 
-The automated Build Route + manual-gig regression validation has passed. Because this is the first visible planning surface, **real-browser operator smoke validation should be completed before Phase 2G expands further**.
+The affected automated regression gate and the isolated real-browser Build Route/manual-gig smoke are now green. The next Phase 2G slice may expose **derived route/stop service-time information** from `route-work-planning.js` without changing Google Route Optimization requests, which remain Phase 2H.
 
-After that browser validation succeeds, a later Phase 2G slice can expose derived route/stop service-time information from `route-work-planning.js` without changing Google Route Optimization requests, which remain Phase 2H.
-
-Do not add multi-day Route Plans, route date/departure/home-by controls, Google service-duration requests, or unverified interior-code mappings as part of this validation step.
+Do not add multi-day Route Plans, route date/departure/home-by controls, Google service-duration requests, generic priority, or unverified interior-code mappings as part of that next Phase 2G slice.
 
 ## Final gate still required
 
@@ -335,8 +351,9 @@ This branch is not merge-ready until the remaining Level-3 evidence is completed
 - automated full repository suite: **PASSED on runtime/test head `374103b97705a583ee63e435abf5fd8f2c4640fd`**;
 - first-party root JavaScript syntax checks: **PASSED on the same runtime/test head**;
 - affected automated saved-data/manual-gig/Build Route regression checks: **PASSED**;
-- real-browser/operator smoke for the new visible planning editor: **PENDING**;
-- exact final diff review after any remaining validation-only documentation change;
+- isolated real-browser smoke for the new visible planning editor: **PASSED — 22/22 checks on browser-validation head `30bd951c69e08d726f6f284d670933cbe47eab31`**;
+- temporary browser-validation harness/workflow changes: **REMOVED / standard workflow restored; no resulting file-content diff versus pre-smoke head**;
+- exact final diff review after any remaining Phase 2G implementation/documentation change;
 - any required cross-system reality evidence remains governed separately;
 - explicit Level-3 operator approval is required before merge.
 
