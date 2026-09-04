@@ -374,5 +374,9 @@
         planningRefsForSnapshot,
     });
 
-    document.addEventListener("DOMContentLoaded", initialize, { once: true });
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initialize, { once: true });
+    } else {
+        initialize();
+    }
 })(typeof globalThis !== "undefined" ? globalThis : this);
