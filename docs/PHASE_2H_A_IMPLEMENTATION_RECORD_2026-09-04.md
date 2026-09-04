@@ -4,8 +4,9 @@ Date: 2026-09-04
 Change level: Level 3  
 Governed design: `docs/PHASE_2H_TIME_AWARE_SINGLE_DAY_ROUTING_IMPACT_RECORD_2026-09-04.md`  
 Governed baseline / rollback commit: `a4e819c1c93d529126bc21402ff45c6a5681dfa1`  
-Status: IMPLEMENTED — AUTOMATED VERIFICATION PASSED — AWAITING OPERATOR PRE-MERGE APPROVAL  
-Pre-merge operator approval: required before merge
+Merged runtime commit: `b07e9e14f58d9d7f62f831ac4e48062395a5edb1`  
+Status: COMPLETE — MERGED — LIVE OPERATOR VALIDATED  
+Pre-merge operator approval: received before merge
 
 ## Exact scope implemented
 
@@ -120,13 +121,38 @@ GitHub Actions workflow: **Verify Contract and App**
 Run: **#238** (`33886631437`)  
 Result: **PASS**
 
-No runtime, test, workflow, dependency, or build file changed after that successful run. This implementation-record update is documentation only and does not invalidate the verified runtime result under `TESTING_CONTRACT.md`.
+No runtime, test, workflow, dependency, or build file changed after that successful run before merge.
 
-## Contract-closeout rule
+## Merge and live validation
 
-`CONTRACT.md` remains a record of behavior that is actually live and operator-validated. Phase 2H-A is therefore not described there as current live behavior before merge/publication. After the published slice is checked and the operator confirms **Works**, the Phase 2H-A live guarantees should be added to `CONTRACT.md` and the human regression checklist can be closed against the live result.
+Phase 2H-A was merged through PR #79 at:
 
-The merged Phase 2H design record plus the automated Phase 2H-A tests remain the pre-merge acceptance authority.
+`b07e9e14f58d9d7f62f831ac4e48062395a5edb1`
+
+Live operator validation on 2026-09-04 confirmed:
+
+- the Workday controls appeared on Build Route;
+- the current route remained present and retained its prior Google Optimized state;
+- the existing route/map-section controls remained available;
+- the default local date/time, 3:00 PM preferred finish, 5:00 PM Home by, and `America/Chicago` timezone displayed correctly;
+- changing Home by from 5:00 PM to 4:30 PM saved successfully;
+- after refreshing the app and returning to Build Route, the 4:30 PM Home-by value persisted.
+
+The operator confirmed **Works** after that persistence check. Under `CONTRACT.md` change control, the validated Phase 2H-A behavior is therefore protected live behavior.
+
+## Contract closeout
+
+The validated Phase 2H-A guarantees are now recorded in `CONTRACT.md`, including:
+
+- the four Workday controls and approved defaults;
+- local date/time/timezone persistence without UTC drift;
+- fail-closed invalid timing/DST behavior;
+- timing edits remaining planning-only;
+- route-history v6 ownership/migration;
+- backup v4 preservation and v1/v2/v3 compatibility;
+- stale timing/schedule clearing for a genuinely new workbook route.
+
+The corresponding regression requirements are also named in `CONTRACT.md` so later slices cannot quietly weaken them.
 
 ## Failure / recovery
 
