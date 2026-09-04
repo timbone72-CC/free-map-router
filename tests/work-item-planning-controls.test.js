@@ -95,7 +95,8 @@ test('planning UI carries stale revision and reloads instead of silently retryin
   assert.doesNotMatch(controlsSource, /expectedRevision:\s*planningRuntime\.get/);
 });
 
-test('clearing assigned day automatically clears and disables day lock', () => {
-  assert.match(controlsSource, /if \(!hasAssignedDay\) locked\.checked = false/);
-  assert.match(controlsSource, /locked\.disabled = Boolean\(select\?\.disabled \|\| !hasAssignedDay\)/);
+test('assigned day and locked-day remain independent approved planning fields', () => {
+  assert.match(controlsSource, /assignedDate: date\.value/);
+  assert.match(controlsSource, /lockedDay: locked\.checked/);
+  assert.doesNotMatch(controlsSource, /assigned day before locking/);
 });
