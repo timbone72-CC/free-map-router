@@ -207,6 +207,53 @@ test("time-aware preparation aggregates two exact work items into one physical s
     assert.equal(prepared.context.serviceByStopId.plain, 300);
 });
 
+test("first timed preparation saves defaults without pruning Basic or pending route stops", async () => {
+    const storage = memoryStorage();
+    const history = baseHistory();
+    history.dayContext = null;
+    history.basic = {
+        ...history.basic,
+        routeIds: ["shared", "basic-only"],
+        orderIdsByStopId: {
+            shared: ["order-1"],
+            "basic-only": ["basic-order"],
+        },
+        gigIdsByStopId: {},
+    };
+    history.pending = {
+        routeIds: ["pending-only"],
+        sourceUpdatedAt: "2026-09-04T13:00:00.000Z",
+        optimizationStatus: "not_optimized",
+        orderIdsByStopId: {
+            "pending-only": ["pending-order"],
+        },
+        workbookPayByStopId: {},
+        gigIdsByStopId: {},
+        gigManagedStopIds: [],
+        schedule: null,
+    };
+    routeHistory.writeRouteHistory(
+        storage,
+        history,
+        new Set(["shared", "plain", "basic-only", "pending-only"]),
+    );
+
+    await browser.prepareTimeAwareSnapshot(bridge(), {
+        storage,
+        root: {
+            localStorage: storage,
+            FMRRouteHistory: routeHistory,
+            FMRWorkItemPlanningRuntime: planningRuntime(knownPlanningRecords()),
+            FMRWorkdayContext: workdayContext(),
+        },
+    });
+
+    const saved = routeHistory.readRouteHistory(storage);
+    assert.deepEqual(saved.basic.routeIds, ["shared", "basic-only"]);
+    assert.deepEqual(saved.pending.routeIds, ["pending-only"]);
+    assert.deepEqual(saved.dayContext, workdayContext().displayContext().context);
+});
+
 test("unknown routed manual gig duration blocks before a Google network request can be built", async () => {
     const storage = memoryStorage();
     routeHistory.writeRouteHistory(
