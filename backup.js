@@ -29,6 +29,7 @@
     const LEGACY_BACKUP_VERSION = 1;
     let parsedGigsForRestore = null;
     let parsedPlanningForRestore = null;
+    let parsedGoogleScheduleForRestore = null;
 
     if (!routeHistory) {
         throw new Error("Free Map Router route history failed to load.");
@@ -55,6 +56,92 @@
                 .map((stop) => stop?.id)
                 .filter((id) => typeof id === "string" && id.trim()),
         );
+    }
+
+    function sameIds(left, right) {
+        const a = Array.isArray(left) ? left : [];
+        const b = Array.isArray(right) ? right : [];
+        return a.length === b.length && a.every((id, index) => id === b[index]);
+    }
+
+    function wholeSecondTimestamp(value) {
+        const raw = String(value ?? "").trim();
+        if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(raw)) return null;
+        const parsed = new Date(raw);
+        return Number.isNaN(parsed.getTime()) ? null : raw;
+    }
+
+    function nonnegativeNumber(value) {
+        const number = Number(value);
+        return Number.isFinite(number) && number >= 0 ? number : null;
+    }
+
+    function normalizeStoredGoogleSchedule(value, routeIds) {
+        if (!value || typeof value !== "object") return null;
+        const expectedIds = Array.isArray(routeIds) ? routeIds : [];
+        const basisKey = String(value.basisKey ?? "").trim();
+        const vehicleStartTime = wholeSecondTimestamp(value.vehicleStartTime);
+        const vehicleEndTime = wholeSecondTimestamp(value.vehicleEndTime);
+        const travelDurationSeconds = nonnegativeNumber(
+            value.travelDurationSeconds,
+        );
+        const totalServiceDurationSeconds = nonnegativeNumber(
+            value.totalServiceDurationSeconds,
+        );
+        const waitDurationSeconds = nonnegativeNumber(value.waitDurationSeconds);
+        const visits = Array.isArray(value.visits) ? value.visits : [];
+
+        if (
+            !basisKey ||
+            !vehicleStartTime ||
+            !vehicleEndTime ||
+            travelDurationSeconds === null ||
+            totalServiceDurationSeconds === null ||
+            waitDurationSeconds === null ||
+            visits.length !== expectedIds.length
+        ) {
+            return null;
+        }
+
+        const normalizedVisits = visits.map((visit) => ({
+            stopId: String(visit?.stopId ?? "").trim(),
+            startTime: wholeSecondTimestamp(visit?.startTime),
+        }));
+        if (
+            normalizedVisits.some((visit) => !visit.stopId || !visit.startTime) ||
+            !sameIds(
+                normalizedVisits.map((visit) => visit.stopId),
+                expectedIds,
+            )
+        ) {
+            return null;
+        }
+
+        return {
+            basisKey,
+            vehicleStartTime,
+            vehicleEndTime,
+            travelDurationSeconds,
+            totalServiceDurationSeconds,
+            waitDurationSeconds,
+            visits: normalizedVisits,
+        };
+    }
+
+    function rawBrowserGoogleSchedule(routeIds) {
+        if (!root?.localStorage || !routeHistory.STORAGE_KEY) return null;
+        try {
+            const raw = root.localStorage.getItem(routeHistory.STORAGE_KEY);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            if (!sameIds(parsed?.google?.routeIds, routeIds)) return null;
+            return normalizeStoredGoogleSchedule(
+                parsed?.google?.schedule,
+                routeIds,
+            );
+        } catch {
+            return null;
+        }
     }
 
     function currentBrowserGigs(validIds) {
@@ -91,6 +178,22 @@
                 validIds,
             );
         }
+
+        const googleRouteIds = normalizedRoutes.google?.routeIds || [];
+        const persistedSchedule = rawBrowserGoogleSchedule(googleRouteIds);
+        if (persistedSchedule && normalizedRoutes.google) {
+            normalizedRoutes.google = {
+                ...normalizedRoutes.google,
+                schedule: persistedSchedule,
+            };
+        }
+        if (normalizedRoutes.basic) {
+            normalizedRoutes.basic = {
+                ...normalizedRoutes.basic,
+                schedule: null,
+            };
+        }
+
         const backupGigs =
             gigs === undefined ? currentBrowserGigs(validIds) : gigs;
         const backupPlanning =
@@ -155,6 +258,20 @@
         );
         routes = replaceDayContext(routes, routes.dayContext, validIds);
 
+        const restoredSchedule =
+            parsed.backupVersion === BACKUP_VERSION
+                ? normalizeStoredGoogleSchedule(
+                      parsed.routes?.google?.schedule,
+                      routes.google?.routeIds || [],
+                  )
+                : null;
+        if (restoredSchedule && routes.google) {
+            routes.google = {
+                ...routes.google,
+                schedule: restoredSchedule,
+            };
+        }
+
         const gigs =
             parsed.backupVersion === LEGACY_BACKUP_VERSION
                 ? []
@@ -166,6 +283,17 @@
                 : [];
         parsedGigsForRestore = gigs.map((gig) => ({ ...gig }));
         parsedPlanningForRestore = planning.map((record) => ({ ...record }));
+        parsedGoogleScheduleForRestore = restoredSchedule
+            ? {
+                  routeIds: routes.google?.routeIds.slice() || [],
+                  schedule: {
+                      ...restoredSchedule,
+                      visits: restoredSchedule.visits.map((visit) => ({
+                          ...visit,
+                      })),
+                  },
+              }
+            : null;
 
         return {
             home: parsed.home || null,
@@ -193,6 +321,21 @@
         return result;
     }
 
+    function takeParsedGoogleScheduleForRestore() {
+        if (!parsedGoogleScheduleForRestore) return null;
+        const result = {
+            routeIds: parsedGoogleScheduleForRestore.routeIds.slice(),
+            schedule: {
+                ...parsedGoogleScheduleForRestore.schedule,
+                visits: parsedGoogleScheduleForRestore.schedule.visits.map(
+                    (visit) => ({ ...visit }),
+                ),
+            },
+        };
+        parsedGoogleScheduleForRestore = null;
+        return result;
+    }
+
     function backupFilename(date = new Date()) {
         return `free-map-router-backup-${date.toISOString().slice(0, 10)}.json`;
     }
@@ -201,8 +344,10 @@
         BACKUP_VERSION,
         backupFilename,
         createBackup,
+        normalizeStoredGoogleSchedule,
         parseBackup,
         takeParsedGigsForRestore,
+        takeParsedGoogleScheduleForRestore,
         takeParsedPlanningForRestore,
     };
 });

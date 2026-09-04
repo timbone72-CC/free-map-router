@@ -150,6 +150,26 @@ test("rejected Google sign-in restores the account chooser", async (t) => {
         googleOptimizeRoute: optimizeButton,
         googleRouteAuthStatus: authStatus,
     };
+    const dayContext = {
+        routeDate: "2026-09-10",
+        departureTime: "08:00",
+        preferredFinishTime: "15:00",
+        homeByTime: "17:00",
+        timeZone: "America/Chicago",
+    };
+    const routeState = {
+        version: 6,
+        dayContext,
+        google: {
+            routeIds: ["job-a", "job-b"],
+        },
+    };
+    const testStorage = {
+        getItem() {
+            return JSON.stringify(routeState);
+        },
+        setItem() {},
+    };
     const root = {
         document: {
             readyState: "complete",
@@ -158,6 +178,29 @@ test("rejected Google sign-in restores the account chooser", async (t) => {
                 return elements[id] || null;
             },
         },
+        localStorage: testStorage,
+        FMRRouteHistory: {
+            STORAGE_KEY: "test-route-history",
+            ROUTE_HISTORY_VERSION: 6,
+            readRouteHistory() {
+                return routeState;
+            },
+            validateDayContext(value) {
+                return { ok: true, error: "", dayContext: value };
+            },
+        },
+        FMRWorkItemPlanningRuntime: {
+            projectRoute() {
+                return {
+                    complete: true,
+                    stops: [
+                        { stopId: "job-a", serviceMinutes: 0, items: [] },
+                        { stopId: "job-b", serviceMinutes: 0, items: [] },
+                    ],
+                };
+            },
+        },
+        FMRWorkdayContext: {},
         FMRRouteBridge: {
             setRouteStatus() {},
             prepareSelectedRouteSnapshot: async () => snapshot(),
