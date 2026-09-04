@@ -279,6 +279,35 @@ versions of one job route, and opens the selected version in Google Maps.
     gig records and addresses, and the pending workbook route remain unchanged.
 25. Build Route **Remove** changes only the selected route membership. It never
     archives or deletes a Manual Work Library property.
+26. Work-item planning identity is separate from physical-stop identity. A
+    planning record is owned by exact `kind + workItemId`: workbook work uses
+    its exact Order ID / `Source_ID`, and manual work uses its immutable
+    `Gig_ID`. Address text and route stop ID are never work-item identity.
+27. A work-item planning record may store only the approved planning fields:
+    optional `serviceMinutes`, optional local-calendar `assignedDate`, and
+    `lockedDay`. Planning writes are revision-checked; a stale expected revision
+    fails closed, while saving the same values does not create revision churn.
+28. Without an exact override, ordinary workbook work uses a five-minute
+    planning duration. A twenty-minute interior default may be applied only by
+    an explicitly verified interior-code resolver; unknown or unverified work
+    codes are never guessed. A manual gig with no exact duration remains
+    unknown rather than receiving an invented default.
+29. Route planning derives work identity from each route snapshot's exact
+    workbook Order IDs and manual `Gig_ID`s. Multiple distinct work items may
+    share one physical driving stop, and their known service durations add at
+    that stop without duplicating the stop or merging the work identities.
+30. An unknown work-item duration is never silently treated as zero. The route
+    planning projection reports missing duration explicitly. If the same exact
+    work identity appears on two different physical route stops, projection
+    fails closed instead of choosing one address silently.
+31. Saving work-item planning metadata must not reorder either route, change
+    route membership or optimization status, mutate address/source/pay data,
+    change the workbook inbox, or alter InspectorADE history or prediction data.
+    The Build Route planning editor refreshes only the planning projection after
+    a successful save.
+32. Downloaded and Drive whole-app backups preserve valid Phase 2G work-item
+    planning records in backup version 3. Older valid version-1 and version-2
+    backups remain restorable and begin with an empty planning collection.
 
 ## 6. Manual gig rules
 
@@ -399,5 +428,16 @@ Tests must continue to protect:
   permanent address-correction memory;
 - symmetric ADE/gig route-work clearing without deleting the other source or
   the physical stop;
+- exact Phase 2G work-item identity by `kind + workItemId`, independent of
+  physical-stop identity;
+- five-minute ordinary workbook defaults, verified-only twenty-minute interior
+  defaults, and explicit unknown manual-gig duration when no override exists;
+- same-stop work-item aggregation without duplicate driving stops or lost exact
+  Order IDs / `Gig_ID`s;
+- fail-closed duplicate exact-work identity across different physical stops;
+- stale-safe planning revisions and planning-only saves that do not change route
+  order, route membership, optimizer status, source, pay, or workbook state;
+- version-3 backup preservation of planning plus version-1/version-2 restore
+  compatibility with empty planning;
 - version-1 backup compatibility and version-2 gig preservation; and
 - the five-page dropdown menu with only one selected page visible.
