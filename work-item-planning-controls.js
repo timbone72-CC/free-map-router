@@ -132,9 +132,6 @@
                 loadSelectedPlanning();
             });
         document
-            .getElementById("workItemPlanningDate")
-            ?.addEventListener("change", syncPlanningLockAvailability);
-        document
             .getElementById("workItemPlanningForm")
             ?.addEventListener("submit", saveSelectedPlanning);
 
@@ -196,17 +193,6 @@
         }
     }
 
-    function syncPlanningLockAvailability() {
-        const date = document.getElementById("workItemPlanningDate");
-        const locked = document.getElementById("workItemPlanningLocked");
-        const select = document.getElementById("workItemPlanningSelect");
-        if (!date || !locked) return;
-
-        const hasAssignedDay = Boolean(date.value);
-        if (!hasAssignedDay) locked.checked = false;
-        locked.disabled = Boolean(select?.disabled || !hasAssignedDay);
-    }
-
     function loadSelectedPlanning() {
         const ref = selectedPlanningRef();
         const form = document.getElementById("workItemPlanningForm");
@@ -236,8 +222,6 @@
         date.value = record?.assignedDate || "";
         locked.checked = record?.lockedDay === true;
         setPlanningFieldsDisabled(false);
-        syncPlanningLockAvailability();
-
         if (record) {
             status.textContent =
                 `Saved planning revision ${record.revision}. Change only what this exact work item needs.`;
@@ -314,12 +298,6 @@
         const locked = document.getElementById("workItemPlanningLocked");
         const status = document.getElementById("workItemPlanningStatus");
         if (!ref || !form || !minutes || !date || !locked || !status) return;
-
-        if (locked.checked && !date.value) {
-            status.textContent =
-                "Choose an assigned day before locking this work item to a day.";
-            return;
-        }
 
         const expectedRevision = Number(form.dataset.expectedRevision || 0);
         try {
