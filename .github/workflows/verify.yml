@@ -31,3 +31,10 @@ jobs:
           for file in *.js; do
             node --check "$file"
           done
+
+      - name: Package isolated browser preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase-2g-browser-preview
+          path: .
+          retention-days: 1
