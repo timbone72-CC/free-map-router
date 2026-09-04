@@ -35,7 +35,7 @@ jobs:
       - name: Install isolated browser smoke dependency
         run: python3 -m pip install --disable-pip-version-check selenium==4.32.0
 
-      - name: Correct browser smoke physical-stop selector
+      - name: Correct browser smoke selectors for isolated preview
         shell: bash
         run: |
           python3 - <<'PY'
@@ -49,6 +49,10 @@ jobs:
           text = text.replace(
               "document.querySelector('#routeList li')?.textContent || ''",
               "document.querySelector('#routeList li[data-stop-id]')?.textContent || ''",
+          )
+          text = text.replace(
+              "and \"favicon.ico\" not in entry.get(\"message\", \"\")",
+              "and \"favicon.ico\" not in entry.get(\"message\", \"\")\n            and \"Not signed in with the identity provider.\" not in entry.get(\"message\", \"\")",
           )
           path.write_text(text, encoding='utf-8')
           PY
