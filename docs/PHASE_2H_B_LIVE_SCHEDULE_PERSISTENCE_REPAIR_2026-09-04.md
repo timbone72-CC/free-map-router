@@ -4,7 +4,7 @@ Date: 2026-09-04
 Change level: Level 3  
 Repair branch: `work/phase-2h-b-live-schedule-persistence-repair-20260904`  
 Repair base / rollback commit: `8967e32bff471b4fbe644a4bf5c5719783d793f0`  
-Status: IMPLEMENTED — VERIFICATION PENDING  
+Status: IMPLEMENTED — VERIFIED — AWAITING OPERATOR APPROVAL  
 Pre-merge operator approval: PENDING
 
 ## Exact user-facing problem
@@ -126,15 +126,37 @@ New regression coverage must prove:
 
 No test makes a billed Google Route Optimization request.
 
-## Final verification gate
+## Verification completed
+
+Draft PR #83 ran the repository's required `Verify Contract and App` workflow on the repair head.
+
+Result:
+
+- complete `npm test`: **410 passed, 0 failed**;
+- new live-regression test `ordinary route-history writes preserve an accepted Google schedule and backup keeps it`: **PASS**;
+- new route-order invalidation regression: **PASS**;
+- new Preferred-Finish/Departure schedule-basis regression: **PASS**;
+- existing Phase 2H-A and Phase 2H-B route-history, backup, stale-context, timing, provider, and optimizer tests: **PASS**;
+- all first-party root JavaScript files passed `node --check`;
+- no billed Google Route Optimization request was made by tests.
+
+Workflow: `Verify Contract and App` run #257 (`33913389036`) — **SUCCESS**.
+
+Diff inspection from rollback base `8967e32bff471b4fbe644a4bf5c5719783d793f0` confirms only:
+
+- `route-history.js`;
+- `tests/phase-2h-b-live-persistence-repair.test.js`;
+- this repair record.
+
+No workbook, Drive, optimizer/provider, app UI, or deployment configuration file changed.
+
+## Final approval gate
 
 Before merge:
 
-- focused repair tests pass;
-- affected Phase 2H-A / Phase 2H-B route-history and backup tests pass as needed during development;
-- final exact runtime head passes repository CI / complete `npm test` and root JavaScript syntax checks once;
-- diff inspection confirms no unrelated runtime changes;
-- explicit operator pre-merge approval is received.
+- explicit operator pre-merge approval is still required;
+- the PR remains draft until that approval;
+- no merge or deployment has occurred.
 
 After publication, the required live check is:
 
