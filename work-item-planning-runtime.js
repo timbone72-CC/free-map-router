@@ -61,7 +61,10 @@
             patch.assignedDate = normalizeCalendarDate(draft.assignedDate);
         }
         if (Object.hasOwn(draft, "lockedDay")) {
-            patch.lockedDay = Boolean(draft.lockedDay);
+            if (typeof draft.lockedDay !== "boolean") {
+                throw new Error("Locked day must be true or false.");
+            }
+            patch.lockedDay = draft.lockedDay;
         }
 
         if (Object.keys(patch).length === 0) {
