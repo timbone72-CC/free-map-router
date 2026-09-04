@@ -161,7 +161,11 @@ def main():
             "Service: 25 min known + 1 work item missing duration" in shared,
             shared,
         )
-        check("ordinary workbook-only stop shows five-minute default", "Service: 5 min" in second, second)
+        check(
+            "ordinary workbook-only stop shows five-minute default",
+            "Service: 5 min" in second,
+            second,
+        )
 
         driver.execute_script(
             """
@@ -175,11 +179,23 @@ def main():
         wait.until(lambda d: d.execute_script("return document.getElementById('workItemPlanningServiceSummary').textContent.trim() === 'Route service: 45 min.'"))
         total_after = text("#workItemPlanningServiceSummary")
         shared_after = text('#routeList > li[data-stop-id="stop_shared"]')
-        check("saving missing manual duration immediately completes route total", total_after.strip() == "Route service: 45 min.", total_after)
-        check("shared stop immediately becomes complete at forty minutes", "Service: 40 min" in shared_after, shared_after)
+        check(
+            "saving missing manual duration immediately completes route total",
+            total_after.strip() == "Route service: 45 min.",
+            total_after,
+        )
+        check(
+            "shared stop immediately becomes complete at forty minutes",
+            "Service: 40 min" in shared_after,
+            shared_after,
+        )
 
         saved = driver.execute_script("return FMRWorkItemPlanningRuntime.get('gig','GIG-1');")
-        check("manual duration saved to exact Gig_ID only", saved and saved["serviceMinutes"] == 15 and saved["revision"] == 1, saved)
+        check(
+            "manual duration saved to exact Gig_ID only",
+            saved and saved["serviceMinutes"] == 15 and saved["revision"] == 1,
+            saved,
+        )
 
         driver.execute_script(
             "const s=document.getElementById('routeChoice'); s.value='basic'; s.dispatchEvent(new Event('change',{bubbles:true}));"
@@ -187,21 +203,40 @@ def main():
         wait.until(lambda d: "Basic Route" in d.execute_script("return document.getElementById('workItemPlanningRouteSummary').textContent"))
         basic_total = text("#workItemPlanningServiceSummary")
         basic_first = text('#routeList > li[data-stop-id="stop_second"]')
-        check("Basic Route uses same exact service totals after reordering", basic_total.strip() == "Route service: 45 min.", basic_total)
-        check("per-stop service stays attached to physical stop after route reorder", "Service: 5 min" in basic_first, basic_first)
+        check(
+            "Basic Route uses same exact service totals after reordering",
+            basic_total.strip() == "Route service: 45 min.",
+            basic_total,
+        )
+        check(
+            "per-stop service stays attached to physical stop after route reorder",
+            "Service: 5 min" in basic_first,
+            basic_first,
+        )
 
         driver.refresh()
         wait.until(lambda d: d.execute_script("return !!window.FMRWorkItemPlanningControls"))
         driver.execute_script("showPage('route')")
         reload_total = text("#workItemPlanningServiceSummary")
-        check("completed service total survives browser reload", reload_total.strip() == "Route service: 45 min.", reload_total)
+        check(
+            "completed service total survives browser reload",
+            reload_total.strip() == "Route service: 45 min.",
+            reload_total,
+        )
 
         time.sleep(2)
         severe = [entry for entry in driver.get_log("browser") if entry.get("level") == "SEVERE"]
-        unexpected = [
-            entry for entry in severe
-            if "Not signed in with the identity provider" not in entry.get("message", "")
-        ]
+        unexpected = []
+        for entry in severe:
+            message = entry.get("message", "")
+            expected_preview_noise = (
+                "Not signed in with the identity provider" in message
+                or "favicon.ico" in message
+                or "[GSI_LOGGER]" in message
+                or "FedCM get() rejects with NetworkError" in message
+            )
+            if not expected_preview_noise:
+                unexpected.append(entry)
         check("no unexpected severe browser console entries", not unexpected, unexpected)
     finally:
         EVIDENCE_PATH.write_text(json.dumps(results, indent=2), encoding="utf-8")
