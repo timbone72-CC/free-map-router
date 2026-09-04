@@ -6,6 +6,8 @@ const vm = require('node:vm');
 
 const controlsPath = path.join(__dirname, '..', 'work-item-planning-controls.js');
 const controlsSource = fs.readFileSync(controlsPath, 'utf8');
+const routeWorkControlsPath = path.join(__dirname, '..', 'route-work-controls.js');
+const routeWorkControlsSource = fs.readFileSync(routeWorkControlsPath, 'utf8');
 
 function loadControlsHelper() {
   let domReady = null;
@@ -18,7 +20,11 @@ function loadControlsHelper() {
     FMRRouteHistory: { writeRouteHistory(_storage, history) { return history; } },
     FMRGigContract: { readGigs() { return []; }, writeGigs(_s, gigs) { return gigs; } },
     FMRWorkItemPlanning: { workItemKey },
-    FMRWorkItemPlanningRuntime: { get() { return null; }, save() { throw new Error('not used'); } },
+    FMRWorkItemPlanningRuntime: {
+      get() { return null; },
+      save() { throw new Error('not used'); },
+      projectRoute() { throw new Error('not used'); },
+    },
     document: {
       readyState: 'loading',
       addEventListener(name, callback) {
@@ -36,13 +42,16 @@ test('minimal planning control source uses the exact runtime API, not direct pla
   assert.match(controlsSource, /FMRWorkItemPlanningRuntime/);
   assert.match(controlsSource, /planningRuntime\.get\(/);
   assert.match(controlsSource, /planningRuntime\.save\(/);
+  assert.match(controlsSource, /planningRuntime\.projectRoute\(/);
   assert.match(controlsSource, /expectedRevision/);
   assert.doesNotMatch(controlsSource, /writePlanningRecords\(/);
   assert.doesNotMatch(controlsSource, /PLANNING_STORAGE_KEY/);
 });
 
-test('Build Route planning panel is one compact editor with only Phase 2G fields', () => {
+test('Build Route planning panel keeps one compact editor and adds only read-only service summaries', () => {
   assert.match(controlsSource, />Plan Work Item</);
+  assert.match(controlsSource, /id="workItemPlanningServiceSummary"/);
+  assert.match(controlsSource, /data-fmr-stop-service-time/);
   assert.match(controlsSource, /id="workItemPlanningSelect"/);
   assert.match(controlsSource, /id="workItemPlanningMinutes"/);
   assert.match(controlsSource, /id="workItemPlanningDate"/);
@@ -99,4 +108,93 @@ test('assigned day and locked-day remain independent approved planning fields', 
   assert.match(controlsSource, /assignedDate: date\.value/);
   assert.match(controlsSource, /lockedDay: locked\.checked/);
   assert.doesNotMatch(controlsSource, /assigned day before locking/);
+});
+
+test('service-minute formatting is compact and preserves fractional minutes', () => {
+  const { formatServiceMinutes } = loadControlsHelper();
+  assert.equal(formatServiceMinutes(0), '0 min');
+  assert.equal(formatServiceMinutes(25), '25 min');
+  assert.equal(formatServiceMinutes(60), '1 hr');
+  assert.equal(formatServiceMinutes(75.5), '1 hr 15.5 min');
+});
+
+test('complete physical stop displays its already-derived total service time', () => {
+  const { formatStopServiceText } = loadControlsHelper();
+  assert.equal(
+    formatStopServiceText({
+      workItemCount: 2,
+      serviceMinutes: 25,
+      knownServiceMinutes: 25,
+      complete: true,
+      items: [
+        { kind: 'workbook', workItemId: 'A', serviceMinutes: 5 },
+        { kind: 'workbook', workItemId: 'B', serviceMinutes: 20 },
+      ],
+    }),
+    'Service: 25 min',
+  );
+});
+
+test('physical stop with unknown manual duration shows known time plus missing duration', () => {
+  const { formatStopServiceText } = loadControlsHelper();
+  assert.equal(
+    formatStopServiceText({
+      workItemCount: 2,
+      serviceMinutes: null,
+      knownServiceMinutes: 5,
+      complete: false,
+      items: [
+        { kind: 'workbook', workItemId: 'ORDER-1', serviceMinutes: 5 },
+        { kind: 'gig', workItemId: 'GIG-1', serviceMinutes: null },
+      ],
+    }),
+    'Service: 5 min known + 1 work item missing duration',
+  );
+});
+
+test('route service summary never invents a complete total when a work item duration is unknown', () => {
+  const { formatRouteServiceText } = loadControlsHelper();
+  assert.equal(
+    formatRouteServiceText({
+      workItemCount: 3,
+      serviceMinutes: null,
+      knownServiceMinutes: 25,
+      complete: false,
+      stops: [
+        {
+          items: [
+            { kind: 'workbook', workItemId: 'ORDER-1', serviceMinutes: 5 },
+            { kind: 'gig', workItemId: 'GIG-1', serviceMinutes: null },
+          ],
+        },
+        {
+          items: [
+            { kind: 'workbook', workItemId: 'ORDER-2', serviceMinutes: 20 },
+          ],
+        },
+      ],
+    }),
+    'Route service: 25 min known + 1 work item missing duration.',
+  );
+});
+
+test('complete route service summary formats the true derived total', () => {
+  const { formatRouteServiceText } = loadControlsHelper();
+  assert.equal(
+    formatRouteServiceText({
+      workItemCount: 3,
+      serviceMinutes: 65,
+      knownServiceMinutes: 65,
+      complete: true,
+      stops: [],
+    }),
+    'Route service: 1 hr 5 min.',
+  );
+});
+
+test('route work adapter loads the projection before the planning controls consumer', () => {
+  assert.match(routeWorkControlsSource, /route-work-planning\.js\?v=1\.0\.0/);
+  assert.match(routeWorkControlsSource, /work-item-planning-controls\.js\?v=1\.1\.0/);
+  assert.match(routeWorkControlsSource, /script\.addEventListener\("load", loadPlanningControlsScript/);
+  assert.match(routeWorkControlsSource, /if \(root\.FMRRouteWorkPlanning\)/);
 });
