@@ -7,7 +7,11 @@
         typeof module === "object" && module.exports
             ? require("./gig-contract.js")
             : root?.FMRGigContract;
-    const backup = factory(routeHistory, gigContract, root);
+    const workItemPlanning =
+        typeof module === "object" && module.exports
+            ? require("./work-item-planning.js")
+            : root?.FMRWorkItemPlanning;
+    const backup = factory(routeHistory, gigContract, workItemPlanning, root);
 
     if (typeof module === "object" && module.exports) {
         module.exports = backup;
@@ -16,12 +20,14 @@
     if (root) {
         root.FMRBackup = backup;
     }
-})(typeof globalThis !== "undefined" ? globalThis : this, function buildBackup(routeHistory, gigContract, root) {
+})(typeof globalThis !== "undefined" ? globalThis : this, function buildBackup(routeHistory, gigContract, workItemPlanning, root) {
     "use strict";
 
-    const BACKUP_VERSION = 2;
+    const BACKUP_VERSION = 3;
+    const GIG_BACKUP_VERSION = 2;
     const LEGACY_BACKUP_VERSION = 1;
     let parsedGigsForRestore = null;
+    let parsedPlanningForRestore = null;
 
     if (!routeHistory) {
         throw new Error("Free Map Router route history failed to load.");
@@ -29,9 +35,13 @@
     if (!gigContract) {
         throw new Error("Free Map Router gig contract failed to load.");
     }
+    if (!workItemPlanning) {
+        throw new Error("Free Map Router work-item planning failed to load.");
+    }
 
     const { normalizeRouteHistory } = routeHistory;
     const { normalizeGigList, readGigs } = gigContract;
+    const { normalizePlanningList, readPlanningRecords } = workItemPlanning;
 
     function validStopIds(stops) {
         return new Set(
@@ -46,7 +56,12 @@
         return readGigs(root.localStorage, validIds);
     }
 
-    function createBackup({ home, stops, gigs, routeIds, routes }) {
+    function currentBrowserPlanning() {
+        if (!root?.localStorage) return [];
+        return readPlanningRecords(root.localStorage);
+    }
+
+    function createBackup({ home, stops, gigs, planning, routeIds, routes }) {
         const validIds = validStopIds(stops);
         const normalizedRoutes = normalizeRouteHistory(
             routes || {
@@ -57,6 +72,8 @@
         );
         const backupGigs =
             gigs === undefined ? currentBrowserGigs(validIds) : gigs;
+        const backupPlanning =
+            planning === undefined ? currentBrowserPlanning() : planning;
         return {
             app: "free-map-router",
             backupVersion: BACKUP_VERSION,
@@ -64,6 +81,7 @@
             home: home || null,
             stops: Array.isArray(stops) ? stops : [],
             gigs: normalizeGigList(backupGigs, { validStopIds: validIds }),
+            planning: normalizePlanningList(backupPlanning),
             routeIds: normalizedRoutes.google?.routeIds.length
                 ? normalizedRoutes.google.routeIds
                 : normalizedRoutes.basic?.routeIds || [],
@@ -81,6 +99,7 @@
 
         const supportedVersion =
             parsed?.backupVersion === BACKUP_VERSION ||
+            parsed?.backupVersion === GIG_BACKUP_VERSION ||
             parsed?.backupVersion === LEGACY_BACKUP_VERSION;
         if (
             parsed?.app !== "free-map-router" ||
@@ -103,12 +122,18 @@
             parsed.backupVersion === LEGACY_BACKUP_VERSION
                 ? []
                 : normalizeGigList(parsed.gigs, { validStopIds: validIds });
+        const planning =
+            parsed.backupVersion === BACKUP_VERSION
+                ? normalizePlanningList(parsed.planning)
+                : [];
         parsedGigsForRestore = gigs.map((gig) => ({ ...gig }));
+        parsedPlanningForRestore = planning.map((record) => ({ ...record }));
 
         return {
             home: parsed.home || null,
             stops: parsed.stops,
             gigs,
+            planning,
             routeIds: routes.google?.routeIds.length
                 ? routes.google.routeIds
                 : routes.basic?.routeIds || [],
@@ -123,6 +148,13 @@
         return result;
     }
 
+    function takeParsedPlanningForRestore() {
+        if (!Array.isArray(parsedPlanningForRestore)) return null;
+        const result = parsedPlanningForRestore.map((record) => ({ ...record }));
+        parsedPlanningForRestore = null;
+        return result;
+    }
+
     function backupFilename(date = new Date()) {
         return `free-map-router-backup-${date.toISOString().slice(0, 10)}.json`;
     }
@@ -133,5 +165,6 @@
         createBackup,
         parseBackup,
         takeParsedGigsForRestore,
+        takeParsedPlanningForRestore,
     };
 });

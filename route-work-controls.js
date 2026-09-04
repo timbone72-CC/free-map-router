@@ -25,6 +25,42 @@
     const RETURN_PAGE_KEY = "fmr_route_work_clear_return_page";
     const STATUS_KEY = "fmr_route_work_clear_status";
 
+    function loadPlanningControlsScript() {
+        if (root.FMRWorkItemPlanningControls) return;
+        if (document.querySelector?.("script[data-fmr-work-item-planning-controls]")) {
+            return;
+        }
+        const script = document.createElement("script");
+        script.src = "work-item-planning-controls.js?v=1.1.0";
+        script.dataset.fmrWorkItemPlanningControls = "true";
+        document.head?.appendChild(script);
+    }
+
+    function loadPlanningControls() {
+        if (root.FMRRouteWorkPlanning) {
+            loadPlanningControlsScript();
+            return;
+        }
+
+        const existing = document.querySelector?.(
+            "script[data-fmr-route-work-planning]",
+        );
+        if (existing) {
+            existing.addEventListener("load", loadPlanningControlsScript, {
+                once: true,
+            });
+            return;
+        }
+
+        const script = document.createElement("script");
+        script.src = "route-work-planning.js?v=1.0.0";
+        script.dataset.fmrRouteWorkPlanning = "true";
+        script.addEventListener("load", loadPlanningControlsScript, {
+            once: true,
+        });
+        document.head?.appendChild(script);
+    }
+
     function currentStopIds() {
         return new Set(jobs.map((job) => job.id));
     }
@@ -148,5 +184,6 @@
         }
     }
 
+    loadPlanningControls();
     document.addEventListener("DOMContentLoaded", initialize, { once: true });
 })(typeof globalThis !== "undefined" ? globalThis : this);
