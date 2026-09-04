@@ -23,7 +23,8 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function buildBackup(routeHistory, gigContract, workItemPlanning, root) {
     "use strict";
 
-    const BACKUP_VERSION = 3;
+    const BACKUP_VERSION = 4;
+    const PLANNING_BACKUP_VERSION = 3;
     const GIG_BACKUP_VERSION = 2;
     const LEGACY_BACKUP_VERSION = 1;
     let parsedGigsForRestore = null;
@@ -39,7 +40,12 @@
         throw new Error("Free Map Router work-item planning failed to load.");
     }
 
-    const { normalizeRouteHistory } = routeHistory;
+    const {
+        normalizeRouteHistory,
+        readRouteHistory,
+        replaceDayContext,
+        validateDayContext,
+    } = routeHistory;
     const { normalizeGigList, readGigs } = gigContract;
     const { normalizePlanningList, readPlanningRecords } = workItemPlanning;
 
@@ -61,15 +67,30 @@
         return readPlanningRecords(root.localStorage);
     }
 
+    function currentBrowserRoutes(validIds) {
+        if (!root?.localStorage) return null;
+        return readRouteHistory(root.localStorage, validIds);
+    }
+
     function createBackup({ home, stops, gigs, planning, routeIds, routes }) {
         const validIds = validStopIds(stops);
-        const normalizedRoutes = normalizeRouteHistory(
+        let normalizedRoutes = normalizeRouteHistory(
             routes || {
                 current: { routeIds },
                 previous: null,
             },
             validIds,
         );
+        const persistedRoutes = currentBrowserRoutes(validIds);
+        if (persistedRoutes?.dayContext) {
+            normalizedRoutes = normalizeRouteHistory(
+                {
+                    ...normalizedRoutes,
+                    dayContext: persistedRoutes.dayContext,
+                },
+                validIds,
+            );
+        }
         const backupGigs =
             gigs === undefined ? currentBrowserGigs(validIds) : gigs;
         const backupPlanning =
@@ -99,6 +120,7 @@
 
         const supportedVersion =
             parsed?.backupVersion === BACKUP_VERSION ||
+            parsed?.backupVersion === PLANNING_BACKUP_VERSION ||
             parsed?.backupVersion === GIG_BACKUP_VERSION ||
             parsed?.backupVersion === LEGACY_BACKUP_VERSION;
         if (
@@ -110,20 +132,36 @@
             throw new Error("That file is not a valid Free Map Router backup.");
         }
 
+        if (
+            parsed.backupVersion === BACKUP_VERSION &&
+            parsed.routes?.dayContext !== null &&
+            parsed.routes?.dayContext !== undefined
+        ) {
+            const timingValidation = validateDayContext(parsed.routes.dayContext);
+            if (!timingValidation.ok) {
+                throw new Error(
+                    `That Free Map Router backup has invalid route timing: ${timingValidation.error}`,
+                );
+            }
+        }
+
         const validIds = validStopIds(parsed.stops);
-        const routes = normalizeRouteHistory(
+        let routes = normalizeRouteHistory(
             parsed.routes || {
                 current: { routeIds: parsed.routeIds },
                 previous: null,
             },
             validIds,
         );
+        routes = replaceDayContext(routes, routes.dayContext, validIds);
+
         const gigs =
             parsed.backupVersion === LEGACY_BACKUP_VERSION
                 ? []
                 : normalizeGigList(parsed.gigs, { validStopIds: validIds });
         const planning =
-            parsed.backupVersion === BACKUP_VERSION
+            parsed.backupVersion === BACKUP_VERSION ||
+            parsed.backupVersion === PLANNING_BACKUP_VERSION
                 ? normalizePlanningList(parsed.planning)
                 : [];
         parsedGigsForRestore = gigs.map((gig) => ({ ...gig }));
