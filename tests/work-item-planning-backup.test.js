@@ -17,7 +17,7 @@ function routeSet() {
     };
 }
 
-test("version 3 backup preserves exact work-item planning records", () => {
+test("current backup preserves exact work-item planning records", () => {
     const workbookPlan = createPlanningRecord({
         kind: "workbook",
         workItemId: "ORDER-1",
@@ -39,7 +39,7 @@ test("version 3 backup preserves exact work-item planning records", () => {
     });
 
     assert.equal(backup.backupVersion, BACKUP_VERSION);
-    assert.equal(BACKUP_VERSION, 3);
+    assert.equal(BACKUP_VERSION, 4);
     assert.deepEqual(
         backup.planning.map((record) => `${record.kind}:${record.workItemId}`),
         ["workbook:ORDER-1", "gig:gig_1"],

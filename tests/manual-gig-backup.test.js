@@ -32,8 +32,8 @@ test("current backup preserves manual gigs beside existing routes", () => {
         },
     });
 
-    assert.equal(BACKUP_VERSION, 3);
-    assert.equal(backup.backupVersion, 3);
+    assert.equal(BACKUP_VERSION, 4);
+    assert.equal(backup.backupVersion, 4);
     assert.equal(backup.gigs.length, 1);
 
     const restored = parseBackup(JSON.stringify(backup));

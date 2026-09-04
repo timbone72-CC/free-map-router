@@ -1,5 +1,5 @@
 (function attachFreeMapRouterRouteHistory(root, factory) {
-    const routeHistory = factory();
+    const routeHistory = factory(root);
 
     if (typeof module === "object" && module.exports) {
         module.exports = routeHistory;
@@ -8,11 +8,13 @@
     if (root) {
         root.FMRRouteHistory = routeHistory;
     }
-})(typeof globalThis !== "undefined" ? globalThis : this, function buildRouteHistory() {
+})(typeof globalThis !== "undefined" ? globalThis : this, function buildRouteHistory(root) {
     "use strict";
 
     const STORAGE_KEY = "fmr_route_history_v1";
-    const ROUTE_HISTORY_VERSION = 5;
+    const ROUTE_HISTORY_VERSION = 6;
+    const ROUTE_HISTORY_CHANGED_EVENT = "fmr:route-history-changed";
+    const DAY_CONTEXT_REPLACE = Symbol("fmr-day-context-replace");
     const OPTIMIZATION_STATUSES = new Set([
         "not_optimized",
         "basic_optimized",
@@ -32,6 +34,186 @@
         if (!value) return null;
         const date = new Date(value);
         return Number.isNaN(date.getTime()) ? null : date.toISOString();
+    }
+
+    function normalizedLocalDate(value) {
+        const text = String(value ?? "").trim();
+        const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text);
+        if (!match) return null;
+        const year = Number(match[1]);
+        const month = Number(match[2]);
+        const day = Number(match[3]);
+        const date = new Date(Date.UTC(year, month - 1, day));
+        if (
+            date.getUTCFullYear() !== year ||
+            date.getUTCMonth() !== month - 1 ||
+            date.getUTCDate() !== day
+        ) {
+            return null;
+        }
+        return text;
+    }
+
+    function normalizedLocalTime(value) {
+        const text = String(value ?? "").trim();
+        const match = /^(\d{2}):(\d{2})$/.exec(text);
+        if (!match) return null;
+        const hour = Number(match[1]);
+        const minute = Number(match[2]);
+        if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+        return text;
+    }
+
+    function timeMinutes(value) {
+        const normalized = normalizedLocalTime(value);
+        if (!normalized) return null;
+        const [hour, minute] = normalized.split(":").map(Number);
+        return hour * 60 + minute;
+    }
+
+    function validTimeZone(value) {
+        const timeZone = String(value ?? "").trim();
+        if (!timeZone) return null;
+        try {
+            new Intl.DateTimeFormat("en-US", { timeZone }).format(new Date(0));
+            return timeZone;
+        } catch {
+            return null;
+        }
+    }
+
+    function localPartsAt(epochMs, timeZone) {
+        const formatter = new Intl.DateTimeFormat("en-US", {
+            timeZone,
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hourCycle: "h23",
+        });
+        const parts = {};
+        for (const part of formatter.formatToParts(new Date(epochMs))) {
+            if (part.type !== "literal") parts[part.type] = Number(part.value);
+        }
+        return {
+            year: parts.year,
+            month: parts.month,
+            day: parts.day,
+            hour: parts.hour,
+            minute: parts.minute,
+            second: parts.second,
+        };
+    }
+
+    function offsetMinutesAt(epochMs, timeZone) {
+        const wholeSecondEpoch = Math.floor(epochMs / 1000) * 1000;
+        const parts = localPartsAt(wholeSecondEpoch, timeZone);
+        const representedUtc = Date.UTC(
+            parts.year,
+            parts.month - 1,
+            parts.day,
+            parts.hour,
+            parts.minute,
+            parts.second,
+        );
+        return Math.round((representedUtc - wholeSecondEpoch) / 60000);
+    }
+
+    function localDateTimeExists(routeDate, localTime, timeZone) {
+        const date = normalizedLocalDate(routeDate);
+        const time = normalizedLocalTime(localTime);
+        const zone = validTimeZone(timeZone);
+        if (!date || !time || !zone) return false;
+
+        const [year, month, day] = date.split("-").map(Number);
+        const [hour, minute] = time.split(":").map(Number);
+        const nominalUtc = Date.UTC(year, month - 1, day, hour, minute, 0);
+        const offsets = new Set();
+
+        for (const delta of [-172800000, -86400000, 0, 86400000, 172800000]) {
+            offsets.add(offsetMinutesAt(nominalUtc + delta, zone));
+        }
+
+        for (const offsetMinutes of offsets) {
+            const candidate = nominalUtc - offsetMinutes * 60000;
+            const parts = localPartsAt(candidate, zone);
+            if (
+                parts.year === year &&
+                parts.month === month &&
+                parts.day === day &&
+                parts.hour === hour &&
+                parts.minute === minute
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    function validateDayContext(value) {
+        if (!value || typeof value !== "object") {
+            return { ok: false, error: "Route timing is incomplete.", dayContext: null };
+        }
+
+        const routeDate = normalizedLocalDate(value.routeDate);
+        const departureTime = normalizedLocalTime(value.departureTime);
+        const preferredFinishTime = normalizedLocalTime(value.preferredFinishTime);
+        const homeByTime = normalizedLocalTime(value.homeByTime);
+        const timeZone = validTimeZone(value.timeZone);
+
+        if (!routeDate) {
+            return { ok: false, error: "Route date must be a valid calendar date.", dayContext: null };
+        }
+        if (!departureTime) {
+            return { ok: false, error: "Departure must be a valid local time.", dayContext: null };
+        }
+        if (!preferredFinishTime) {
+            return { ok: false, error: "Preferred finish must be a valid local time.", dayContext: null };
+        }
+        if (!homeByTime) {
+            return { ok: false, error: "Home by must be a valid local time.", dayContext: null };
+        }
+        if (!timeZone) {
+            return { ok: false, error: "The route time zone is invalid.", dayContext: null };
+        }
+        if (timeMinutes(homeByTime) <= timeMinutes(departureTime)) {
+            return { ok: false, error: "Home by must be later than Departure on the route date.", dayContext: null };
+        }
+
+        for (const [label, localTime] of [
+            ["Departure", departureTime],
+            ["Preferred finish", preferredFinishTime],
+            ["Home by", homeByTime],
+        ]) {
+            if (!localDateTimeExists(routeDate, localTime, timeZone)) {
+                return {
+                    ok: false,
+                    error: `${label} does not exist on ${routeDate} in ${timeZone}.`,
+                    dayContext: null,
+                };
+            }
+        }
+
+        return {
+            ok: true,
+            error: "",
+            dayContext: {
+                routeDate,
+                departureTime,
+                preferredFinishTime,
+                homeByTime,
+                timeZone,
+            },
+        };
+    }
+
+    function normalizeDayContext(value) {
+        if (value === null || value === undefined) return null;
+        const validation = validateDayContext(value);
+        return validation.ok ? validation.dayContext : null;
     }
 
     function normalizedRouteIds(values, validIds = null) {
@@ -145,6 +327,7 @@
                 value.gigManagedStopIds,
                 routeIds,
             ),
+            schedule: null,
         };
     }
 
@@ -171,6 +354,7 @@
                 snapshot.gigManagedStopIds,
                 snapshot.routeIds,
             ),
+            schedule: null,
         };
     }
 
@@ -208,6 +392,7 @@
 
         return {
             version: ROUTE_HISTORY_VERSION,
+            dayContext: null,
             google,
             basic,
             pending: null,
@@ -228,6 +413,7 @@
         const pending = normalizeRouteSnapshot(value?.pending, validIds);
         return {
             version: ROUTE_HISTORY_VERSION,
+            dayContext: normalizeDayContext(value?.dayContext),
             google: normalizeRouteSnapshot(value?.google, validIds),
             basic: normalizeRouteSnapshot(value?.basic, validIds),
             pending: pending?.routeIds.length ? pending : null,
@@ -243,10 +429,77 @@
         }
     }
 
-    function writeRouteHistory(storage, history, validIds = null) {
+    function markDayContextReplacement(history) {
+        if (history && typeof history === "object") {
+            Object.defineProperty(history, DAY_CONTEXT_REPLACE, {
+                value: true,
+                configurable: true,
+                enumerable: false,
+            });
+        }
+        return history;
+    }
+
+    function replaceDayContext(history, dayContext, validIds = null) {
         const normalized = normalizeRouteHistory(history, validIds);
+        if (dayContext === null || dayContext === undefined) {
+            normalized.dayContext = null;
+            return markDayContextReplacement(normalized);
+        }
+
+        const validation = validateDayContext(dayContext);
+        if (!validation.ok) {
+            throw new Error(validation.error);
+        }
+        normalized.dayContext = validation.dayContext;
+        return markDayContextReplacement(normalized);
+    }
+
+    function emitRouteHistoryChanged(history) {
+        if (
+            !root ||
+            typeof root.dispatchEvent !== "function" ||
+            typeof root.CustomEvent !== "function"
+        ) {
+            return;
+        }
+        root.dispatchEvent(
+            new root.CustomEvent(ROUTE_HISTORY_CHANGED_EVENT, {
+                detail: { history },
+            }),
+        );
+    }
+
+    function writeRouteHistory(storage, history, validIds = null) {
+        const replaceStoredDayContext = Boolean(history?.[DAY_CONTEXT_REPLACE]);
+        const normalized = normalizeRouteHistory(history, validIds);
+
+        if (!replaceStoredDayContext) {
+            try {
+                const raw = storage?.getItem?.(STORAGE_KEY);
+                if (raw) {
+                    const stored = normalizeRouteHistory(JSON.parse(raw), validIds);
+                    if (stored.dayContext) {
+                        normalized.dayContext = stored.dayContext;
+                    }
+                }
+            } catch {
+                // Keep the normalized caller state when prior storage is unreadable.
+            }
+        }
+
         storage?.setItem?.(STORAGE_KEY, JSON.stringify(normalized));
+        emitRouteHistoryChanged(normalized);
         return normalized;
+    }
+
+    function writeDayContext(storage, dayContext, validIds = null) {
+        const current = readRouteHistory(storage, validIds);
+        return writeRouteHistory(
+            storage,
+            replaceDayContext(current, dayContext, validIds),
+            validIds,
+        );
     }
 
     function normalizedSlot(slot) {
@@ -399,6 +652,7 @@
         return normalizeRouteHistory(
             {
                 version: ROUTE_HISTORY_VERSION,
+                dayContext: normalized.dayContext,
                 google: remapSnapshot(normalized.google),
                 basic: remapSnapshot(normalized.basic),
                 pending: remapSnapshot(normalized.pending),
@@ -573,13 +827,15 @@
             normalized.pending,
             "not_optimized",
         );
+        const freshHistory = {
+            version: ROUTE_HISTORY_VERSION,
+            dayContext: null,
+            google: copiedSnapshot(freshRoute),
+            basic: copiedSnapshot(freshRoute),
+            pending: null,
+        };
         return {
-            history: {
-                version: ROUTE_HISTORY_VERSION,
-                google: copiedSnapshot(freshRoute),
-                basic: copiedSnapshot(freshRoute),
-                pending: null,
-            },
+            history: markDayContextReplacement(freshHistory),
             result: "started",
         };
     }
@@ -666,19 +922,25 @@
     }
 
     return {
+        ROUTE_HISTORY_CHANGED_EVENT,
         ROUTE_HISTORY_VERSION,
         STORAGE_KEY,
+        localDateTimeExists,
+        normalizeDayContext,
         normalizeRouteHistory,
         normalizeRouteSnapshot,
         readRouteHistory,
         remapRouteStopIds,
+        replaceDayContext,
         replaceRoute,
         setGigRouteMembership,
         setRouteOptimizationStatus,
         stageWorkbookRoute,
         startPendingRoute,
         summarizeRouteExpectedPay,
+        validateDayContext,
         workbookRouteRelation,
+        writeDayContext,
         writeRouteHistory,
     };
 });
