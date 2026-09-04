@@ -204,6 +204,47 @@ changes.
       only when visible route membership changes; metadata-only clearing leaves
       the optimizer status stable.
 
+## Work-item planning checks — Phase 2G protected baseline
+
+Required after work-item planning, route-work projection, planning backup, or
+planner-facing route changes.
+
+- [ ] Planning identity is exact `kind + workItemId`: workbook work uses its
+      exact Order ID / `Source_ID`, manual work uses its immutable `Gig_ID`, and
+      neither address text nor physical stop ID substitutes for work identity.
+- [ ] Two distinct work items attached to one physical address remain two exact
+      work items but one driving stop in both Google Route and Basic Route.
+- [ ] A shared stop containing workbook and manual-gig work preserves every
+      exact Order ID and `Gig_ID` while service time is calculated at the one
+      physical stop.
+- [ ] Ordinary workbook work with no exact override resolves to five minutes.
+- [ ] The twenty-minute interior default is used only through an explicitly
+      verified interior-code resolver; unknown or unverified work codes are not
+      guessed and stay on the ordinary default unless manually overridden.
+- [ ] A manual gig with no exact service-duration override remains explicitly
+      unknown; route planning never silently converts that missing duration to
+      zero.
+- [ ] Known work-item durations at one physical stop add to one stop service
+      duration, and route total service time equals the sum of the physical-stop
+      totals without double counting shared work.
+- [ ] If the same exact `kind + workItemId` appears on two different physical
+      stops, route-work projection fails closed instead of choosing one.
+- [ ] Saving planning accepts only `serviceMinutes`, `assignedDate`, and
+      `lockedDay`; identity, revision, and timestamps cannot be overwritten by
+      the planning draft.
+- [ ] A stale `expectedRevision` fails closed, while saving the same planning
+      values does not create a new revision.
+- [ ] `assignedDate` remains a local `YYYY-MM-DD` planning date and does not
+      shift through UTC conversion; `lockedDay` remains an explicit boolean.
+- [ ] A successful planning save refreshes planning projection only. It does not
+      reorder Google or Basic Route, change membership/optimization status, or
+      mutate address, source, pay, workbook inbox, gig identity, or prediction
+      state.
+- [ ] A version-3 backup preserves valid planning records. Valid version-1 and
+      version-2 backups restore with empty planning rather than inventing data.
+- [ ] Invalid or orphan planning data is isolated and cannot damage valid Home,
+      saved stops, route snapshots, workbook Order IDs, or manual `Gig_ID`s.
+
 ## Garmin export checks
 
 - [ ] GPX contains Home, every selected stop once, and Home again.
