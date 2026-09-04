@@ -1,6 +1,7 @@
 "use strict";
 
 const {
+    RouteContractError,
     buildBackendRequest,
     buildCoordinateRequest,
     validateBackendResponse,
@@ -165,6 +166,19 @@ function expectedServiceDurationSeconds(request) {
 function timedSchedule(request, route, visits) {
     if (!request.timing) return null;
 
+    const expectedService = expectedServiceDurationSeconds(request);
+    const providerVisitDuration = durationSeconds(route?.metrics?.visitDuration);
+    if (
+        providerVisitDuration !== null &&
+        providerVisitDuration !== expectedService
+    ) {
+        throw new GoogleRouteProviderError(
+            "INVALID_GOOGLE_SCHEDULE",
+            `Google returned ${providerVisitDuration}s of visit service for ${expectedService}s of requested work. No route was changed.`,
+            502,
+        );
+    }
+
     const vehicleStartTime = String(route?.vehicleStartTime ?? "").trim();
     const vehicleEndTime = String(route?.vehicleEndTime ?? "").trim();
     const travelDurationSeconds =
@@ -176,7 +190,7 @@ function timedSchedule(request, route, visits) {
         vehicleStartTime,
         vehicleEndTime,
         travelDurationSeconds,
-        totalServiceDurationSeconds: expectedServiceDurationSeconds(request),
+        totalServiceDurationSeconds: expectedService,
         waitDurationSeconds,
         visits: visits.map((visit) => ({
             stopId: visitStopId(request, visit),
@@ -216,6 +230,14 @@ function interpretGoogleOptimizeToursResponse(backendRequest, googleResponse) {
     }
 
     const route = routes[0];
+    if (request.timing && route?.hasTrafficInfeasibilities === true) {
+        throw new GoogleRouteProviderError(
+            "TRAFFIC_SCHEDULE_INFEASIBLE",
+            "Google reported traffic infeasibility for this workday. The route was not changed and is not being presented as Home-By-safe.",
+            422,
+        );
+    }
+
     const visits = Array.isArray(route?.visits) ? route.visits : [];
     const schedule = timedSchedule(request, route, visits);
 
@@ -245,6 +267,13 @@ function interpretGoogleOptimizeToursResponse(backendRequest, googleResponse) {
                 "HOME_BY_CONFLICT",
                 `Home By conflict: ${error.message} No route was changed.`,
                 422,
+            );
+        }
+        if (request.timing && error instanceof RouteContractError) {
+            throw new GoogleRouteProviderError(
+                "INVALID_GOOGLE_SCHEDULE",
+                `Google returned an incomplete or inconsistent workday schedule: ${error.message} No route was changed.`,
+                502,
             );
         }
         throw error;
