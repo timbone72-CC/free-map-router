@@ -1,7 +1,7 @@
 # Phase 2G — Work-Item Planning Foundation Implementation Record
 
 **Date:** 2026-09-03  
-**Status:** IMPLEMENTATION IN PROGRESS / AUTOMATED + ISOLATED REAL-BROWSER SERVICE-TIME DISPLAY VALIDATION PASSED / NOT MERGE-READY  
+**Status:** IMPLEMENTATION VALIDATION COMPLETE / GOVERNANCE CLOSURE PENDING / NOT MERGED OR DEPLOYED  
 **Change class:** Level 3  
 **Repository:** `timbone72-CC/free-map-router`  
 **Branch:** `work/phase-2g-work-item-planning-20260903`  
@@ -412,23 +412,27 @@ Before production planning relies on the selected workbook work pool, Phase 2F s
 
 The approved Phase 2G data foundation, exact mutation seam, compact planning editor, derived physical-stop service display, derived route service total, automated regression gate, and isolated browser validations are now implemented and green.
 
-The next safe Phase 2G action is governance closure work rather than adding Phase 2H behavior: review the exact final Phase 2G diff, confirm the remaining cross-system boundary/evidence requirements, and decide whether the branch is ready for explicit operator merge approval.
+The next safe Phase 2G action is governance closure work rather than adding Phase 2H behavior: confirm the remaining cross-system boundary/evidence requirements and decide whether the branch is ready for explicit operator merge approval.
 
 Do not add multi-day Route Plans, route date/departure/home-by controls, Google service-duration requests, generic priority, or unverified interior-code mappings as part of Phase 2G closure.
 
-## Final gate still required
+## Validation and remaining governance gate
 
-This branch is not merge-ready until the remaining Level-3 evidence is completed on the final governed head:
+Phase 2G implementation validation is complete on the governed branch:
 
 - automated full repository suite: **PASSED — 373/373 on targeted service-time browser-validation head `076a91d0301926e4ba5e853a158d5141ae16f8d9`**;
-- first-party root JavaScript syntax checks: **PASSED on the same service-time browser-validation head**;
+- first-party root JavaScript syntax checks: **PASSED**;
 - affected automated saved-data/manual-gig/Build Route/service-time regression checks: **PASSED**;
 - isolated real-browser planning-editor smoke: **PASSED — 22/22 checks on browser-validation head `30bd951c69e08d726f6f284d670933cbe47eab31`**;
 - isolated real-browser service-time display smoke: **PASSED on browser-validation head `076a91d0301926e4ba5e853a158d5141ae16f8d9`**;
 - temporary browser-validation harness/workflow changes: **REMOVED / standard workflow restored; no resulting file-content diff versus committed service-time code head**;
-- exact final diff review after this documentation update;
-- final standard workflow verification on the documentation head;
-- any required cross-system reality evidence remains governed separately;
+- exact service-time-slice diff review from prior validated head `1c9b75cf00caac301e62c97db41987bddb94c485`: **PASSED — only `route-work-controls.js`, `work-item-planning-controls.js`, `tests/work-item-planning-controls.test.js`, and this implementation record differ**;
+- final standard workflow on documentation head `1ec64e26adec1ca355a631c3e4448905358ec6cc`: **PASSED — complete regression suite and first-party JavaScript syntax checks**;
+- PR #77 resulting file list after cleanup: **15 intended Phase 2G files; no temporary Selenium smoke script or preview-workflow content remains**.
+
+Remaining governance boundaries before merge:
+
+- any required cross-system reality evidence remains governed separately, including the Phase 2F producer boundary;
 - explicit Level-3 operator approval is required before merge.
 
 No merge or deployment is authorized by this implementation record.
