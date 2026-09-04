@@ -28,8 +28,8 @@ test("route history migrates version 4 safely without inventing workbook pay", (
         new Set(["a"]),
     );
 
-    assert.equal(ROUTE_HISTORY_VERSION, 5);
-    assert.equal(migrated.version, 5);
+    assert.equal(ROUTE_HISTORY_VERSION, 6);
+    assert.equal(migrated.version, 6);
     assert.deepEqual(migrated.google.routeIds, ["a"]);
     assert.deepEqual(migrated.google.orderIdsByStopId, { a: ["ADE-1"] });
     assert.deepEqual(migrated.google.gigIdsByStopId, { a: ["gig-1"] });
