@@ -306,8 +306,40 @@ versions of one job route, and opens the selected version in Google Maps.
     The Build Route planning editor refreshes only the planning projection after
     a successful save.
 32. Downloaded and Drive whole-app backups preserve valid Phase 2G work-item
-    planning records in backup version 3. Older valid version-1 and version-2
+    planning records in current backup version 4. Valid version-3 backups retain
+    their planning records when restored; older valid version-1 and version-2
     backups remain restorable and begin with an empty planning collection.
+33. Build Route contains one compact **Workday** area for the current one-day
+    route with **Route date**, **Departure**, **Preferred field-work finish**,
+    and **Home by** controls.
+34. When no saved workday context exists, the controls show the operator's
+    current local calendar date and local clock time, plus the approved default
+    Preferred finish of 3:00 PM and Home by of 5:00 PM. These defaults are not
+    saved as fabricated historical route timing until the operator changes the
+    timing or a later governed action explicitly persists it.
+35. Saved workday context uses local `YYYY-MM-DD`, local `HH:MM` values, and an
+    IANA timezone. Reloading the app must preserve the saved local values without
+    UTC date/time drift or reinterpretation into the device's later timezone.
+36. Home by must be later than Departure on the route date. Invalid calendar
+    dates, invalid local times, invalid timezones, and local times that do not
+    exist because of timezone/DST rules fail visibly and must not overwrite the
+    prior valid workday context.
+37. Editing workday timing alone must not reorder Google Route or Basic Route,
+    change route membership or optimizer status, mutate exact workbook Order IDs
+    / `Source_ID`s or manual `Gig_ID`s, or change address/source/pay/workbook
+    data.
+38. Starting a genuinely new workbook route clears stale prior-day timing and
+    reserved schedule state rather than attaching an old route's timing/ETA
+    context to the new work.
+39. Route-history version 6 owns the shared one-day `dayContext` for the Google
+    and Basic route slots and reserves nullable per-route `schedule` state for a
+    later governed slice. Older valid route history migrates without losing
+    route order, route identity, source metadata, pay metadata, or exact work
+    identities.
+40. Whole-app backup version 4 preserves the route-history v6 workday context
+    and existing planning data. Valid backup versions 1, 2, and 3 remain
+    restorable without inventing workday context that did not exist in those
+    backups.
 
 ## 6. Manual gig rules
 
@@ -437,7 +469,13 @@ Tests must continue to protect:
 - fail-closed duplicate exact-work identity across different physical stops;
 - stale-safe planning revisions and planning-only saves that do not change route
   order, route membership, optimizer status, source, pay, or workbook state;
-- version-3 backup preservation of planning plus version-1/version-2 restore
-  compatibility with empty planning;
+- version-4 backup preservation of planning and workday context plus
+  version-1/version-2/version-3 restore compatibility without invented timing;
+- route-history v5-to-v6 migration without route/order/work-identity loss;
+- exact local date/time/timezone workday round trip without UTC drift;
+- invalid Home-by/Departure and nonexistent DST local times failing closed;
+- timing edits preserving route order, membership, optimizer status, exact work
+  identity, source, pay, and workbook state;
+- new workbook routes clearing stale workday/schedule state;
 - version-1 backup compatibility and version-2 gig preservation; and
 - the five-page dropdown menu with only one selected page visible.
