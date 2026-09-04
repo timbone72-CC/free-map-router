@@ -61,6 +61,69 @@
         return refs;
     }
 
+    function roundedMinutes(value) {
+        const minutes = Number(value);
+        if (!Number.isFinite(minutes) || minutes < 0) return null;
+        return Math.round(minutes * 10) / 10;
+    }
+
+    function formatServiceMinutes(value) {
+        const minutes = roundedMinutes(value);
+        if (minutes === null) return "unknown";
+        if (minutes < 60) return `${minutes} min`;
+
+        const hours = Math.floor(minutes / 60);
+        const remainder = Math.round((minutes - hours * 60) * 10) / 10;
+        return remainder > 0
+            ? `${hours} hr ${remainder} min`
+            : `${hours} hr`;
+    }
+
+    function missingDurationCount(items) {
+        return (Array.isArray(items) ? items : []).filter(
+            (item) => item?.serviceMinutes === null,
+        ).length;
+    }
+
+    function formatStopServiceText(stopProjection) {
+        const workItemCount = Number(stopProjection?.workItemCount || 0);
+        if (workItemCount === 0) {
+            return "Service: 0 min • no exact work items";
+        }
+
+        if (stopProjection?.complete === true) {
+            return `Service: ${formatServiceMinutes(stopProjection.serviceMinutes)}`;
+        }
+
+        const missing = missingDurationCount(stopProjection?.items);
+        const known = roundedMinutes(stopProjection?.knownServiceMinutes) || 0;
+        const missingText = `${missing} work item${missing === 1 ? "" : "s"} missing duration`;
+        return known > 0
+            ? `Service: ${formatServiceMinutes(known)} known + ${missingText}`
+            : `Service: ${missingText}`;
+    }
+
+    function formatRouteServiceText(routeProjection) {
+        const workItemCount = Number(routeProjection?.workItemCount || 0);
+        if (workItemCount === 0) {
+            return "Route service: 0 min • no exact work items attached.";
+        }
+
+        if (routeProjection?.complete === true) {
+            return `Route service: ${formatServiceMinutes(routeProjection.serviceMinutes)}.`;
+        }
+
+        const missing = (routeProjection?.stops || []).reduce(
+            (count, stop) => count + missingDurationCount(stop?.items),
+            0,
+        );
+        const known = roundedMinutes(routeProjection?.knownServiceMinutes) || 0;
+        const missingText = `${missing} work item${missing === 1 ? "" : "s"} missing duration`;
+        return known > 0
+            ? `Route service: ${formatServiceMinutes(known)} known + ${missingText}.`
+            : `Route service: ${missingText}.`;
+    }
+
     function ensurePlanningPanel() {
         let panel = document.getElementById("workItemPlanningPanel");
         if (panel) return panel;
@@ -76,6 +139,7 @@
                 <strong>Plan Work Item</strong>
                 <span id="workItemPlanningRouteSummary" class="tiny muted"></span>
             </div>
+            <p id="workItemPlanningServiceSummary" class="tiny"></p>
             <p class="tiny muted">
                 Planning belongs to the exact Order ID or Gig_ID, not the address.
                 Blank InspectorADE minutes use the current default. Manual gigs need
@@ -234,6 +298,30 @@
         }
     }
 
+    function renderServiceTimes(routeProjection) {
+        const total = document.getElementById("workItemPlanningServiceSummary");
+        if (total) {
+            total.textContent = formatRouteServiceText(routeProjection);
+        }
+
+        for (const stopProjection of routeProjection?.stops || []) {
+            const row = document.querySelector(
+                `#routeList > li[data-stop-id="${CSS.escape(stopProjection.stopId)}"]`,
+            );
+            const label = row?.querySelector("span");
+            if (!label) continue;
+
+            let service = label.querySelector("[data-fmr-stop-service-time]");
+            if (!service) {
+                service = document.createElement("span");
+                service.dataset.fmrStopServiceTime = "true";
+                service.className = "tiny muted";
+                label.appendChild(service);
+            }
+            service.textContent = ` • ${formatStopServiceText(stopProjection)}`;
+        }
+    }
+
     function renderPlanningControls() {
         const panel = ensurePlanningPanel();
         if (!panel) return;
@@ -241,21 +329,30 @@
         const select = document.getElementById("workItemPlanningSelect");
         const summary = document.getElementById("workItemPlanningRouteSummary");
         const status = document.getElementById("workItemPlanningStatus");
-        if (!select || !summary || !status) return;
+        const serviceSummary = document.getElementById(
+            "workItemPlanningServiceSummary",
+        );
+        if (!select || !summary || !status || !serviceSummary) return;
 
         const previousKey = selectedPlanningKey || select.value || null;
+        const snapshot = activeRouteSnapshot();
         let refs;
+        let routeProjection;
         try {
-            refs = planningRefsForSnapshot(activeRouteSnapshot());
+            refs = planningRefsForSnapshot(snapshot);
+            routeProjection = planningRuntime.projectRoute(snapshot);
         } catch (error) {
             select.innerHTML = "";
             select.disabled = true;
             setPlanningFieldsDisabled(true);
             summary.textContent = "Planning unavailable";
+            serviceSummary.textContent = "Route service unavailable.";
             status.textContent =
                 error?.message || "Route work identities could not be planned safely.";
             return;
         }
+
+        renderServiceTimes(routeProjection);
 
         const gigs = manualGigMap();
         select.innerHTML = "";
@@ -313,7 +410,7 @@
             );
             form.dataset.expectedRevision = String(saved.revision);
             selectedPlanningKey = ref.key;
-            loadSelectedPlanning();
+            renderPlanningControls();
             status.textContent =
                 `Planning saved for ${ref.label}. Revision ${saved.revision}.`;
         } catch (error) {
@@ -350,6 +447,9 @@
 
     root.FMRWorkItemPlanningControls = Object.freeze({
         planningRefsForSnapshot,
+        formatServiceMinutes,
+        formatStopServiceText,
+        formatRouteServiceText,
     });
 
     if (document.readyState === "loading") {
