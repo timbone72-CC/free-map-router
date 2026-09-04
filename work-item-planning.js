@@ -77,6 +77,14 @@
         return raw;
     }
 
+    function normalizeLockedDay(value) {
+        if (value === undefined) return false;
+        if (typeof value !== "boolean") {
+            throw new Error("Locked day must be true or false.");
+        }
+        return value;
+    }
+
     function normalizeRevision(value) {
         const revision = Number(value);
         if (!Number.isInteger(revision) || revision < 1) {
@@ -122,7 +130,7 @@
                 workItemId: normalizeWorkItemId(raw.workItemId),
                 serviceMinutes: normalizeServiceMinutes(raw.serviceMinutes),
                 assignedDate: normalizeCalendarDate(raw.assignedDate),
-                lockedDay: Boolean(raw.lockedDay),
+                lockedDay: normalizeLockedDay(raw.lockedDay),
                 revision: normalizeRevision(raw.revision),
                 updatedAt: normalizeTimestamp(raw.updatedAt),
             };
