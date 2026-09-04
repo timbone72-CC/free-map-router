@@ -35,6 +35,24 @@ jobs:
       - name: Install isolated browser smoke dependency
         run: python3 -m pip install --disable-pip-version-check selenium==4.32.0
 
+      - name: Correct browser smoke physical-stop selector
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('tests/phase2g_browser_smoke.py')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace(
+              "document.querySelectorAll('#routeList > li').length",
+              "document.querySelectorAll('#routeList > li[data-stop-id]').length",
+          )
+          text = text.replace(
+              "document.querySelector('#routeList li')?.textContent || ''",
+              "document.querySelector('#routeList li[data-stop-id]')?.textContent || ''",
+          )
+          path.write_text(text, encoding='utf-8')
+          PY
+
       - name: Run isolated Phase 2G browser smoke
         shell: bash
         run: |
