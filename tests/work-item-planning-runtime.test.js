@@ -26,13 +26,17 @@ function memoryStorage(initial = {}) {
     };
 }
 
-function loadRuntime({ storage, restoredPlanning = null }) {
+function loadRuntime({
+    storage,
+    restoredPlanning = null,
+    routePlanning = routePlanningContract,
+}) {
     let domReady = null;
     let handoff = restoredPlanning;
     let restoreCalls = 0;
     const context = {
         FMRWorkItemPlanning: planningContract,
-        FMRRouteWorkPlanning: routePlanningContract,
+        FMRRouteWorkPlanning: routePlanning,
         FMRBackup: {
             takeParsedPlanningForRestore() {
                 const value = handoff;
@@ -144,4 +148,15 @@ test("runtime projects a route from its current saved planning records", () => {
     assert.equal(projection.serviceMinutes, 25);
     assert.equal(projection.stops[0].items[1].assignedDate, "2026-09-04");
     assert.equal(projection.stops[0].items[1].lockedDay, true);
+});
+
+test("missing route projection module does not break existing planning startup", () => {
+    const storage = memoryStorage();
+    const { context } = loadRuntime({ storage, routePlanning: null });
+
+    assert.deepEqual(context.FMRWorkItemPlanningRuntime.list(), []);
+    assert.throws(
+        () => context.FMRWorkItemPlanningRuntime.projectRoute({ routeIds: [] }),
+        /route work planning is not loaded yet/,
+    );
 });
