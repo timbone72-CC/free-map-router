@@ -383,7 +383,7 @@ test("Build Route contains exactly the four Phase 2H-A controls before app.js", 
     assert.match(html, /id="routeDayContextStatus"/);
     assert.match(html, /route-history\.js\?v=6\.0\.0/);
     assert.match(html, /workday-context\.js\?v=1\.0\.0/);
-    assert.match(html, /backup\.js\?v=4\.0\.0/);
+    assert.match(html, /backup\.js\?v=4\.1\.0/);
     assert.ok(
         html.indexOf("workday-context.js?v=1.0.0") <
             html.indexOf("app.js?v=3.32.0"),
