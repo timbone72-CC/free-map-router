@@ -20,7 +20,6 @@
     }
 
     const {
-        findPlanningRecord,
         normalizePlanningList,
         resolveWorkItemServiceMinutes,
         workItemKey,
@@ -83,12 +82,9 @@
         return refs;
     }
 
-    function projectedWorkItem(ref, planningRecords, options) {
-        const planningRecord = findPlanningRecord(
-            planningRecords,
-            ref.kind,
-            ref.workItemId,
-        );
+    function projectedWorkItem(ref, planningByKey, options) {
+        const key = workItemKey(ref.kind, ref.workItemId);
+        const planningRecord = planningByKey.get(key) || null;
         const serviceMinutes = resolveWorkItemServiceMinutes(
             ref.kind,
             ref.workItemId,
@@ -111,6 +107,12 @@
     function buildRoutePlanningProjection(routeSnapshot, planningRecords, options = {}) {
         const routeIds = uniqueIds(routeSnapshot?.routeIds);
         const normalizedPlanning = normalizePlanningList(planningRecords);
+        const planningByKey = new Map(
+            normalizedPlanning.map((record) => [
+                workItemKey(record.kind, record.workItemId),
+                record,
+            ]),
+        );
         const refs = routeWorkItemRefs(routeSnapshot);
         const refsByStopId = new Map(routeIds.map((stopId) => [stopId, []]));
 
@@ -124,7 +126,7 @@
 
         const stops = routeIds.map((stopId) => {
             const items = (refsByStopId.get(stopId) || []).map((ref) =>
-                projectedWorkItem(ref, normalizedPlanning, options),
+                projectedWorkItem(ref, planningByKey, options),
             );
             let knownServiceMinutes = 0;
             let complete = true;
