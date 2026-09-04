@@ -7,6 +7,7 @@ const {
     buildCoordinateRequest,
 } = require("./google-route-contract.js");
 const {
+    GoogleRouteProviderError,
     buildGoogleOptimizeToursRequest,
     interpretGoogleOptimizeToursResponse,
 } = require("./google-route-provider.js");
@@ -221,7 +222,7 @@ async function resolveGoogleRouteRequest(
     const request = buildBackendRequest(backendRequest);
     const resolvedStops = await Promise.all(
         request.stops.map(async (stop) => {
-            if (!stop.address) return stop;
+            if (!stop.address) return { ...stop };
             const location = await geocode(stop.address, {
                 fetchImpl,
                 accessToken,
@@ -230,6 +231,9 @@ async function resolveGoogleRouteRequest(
                 id: stop.id,
                 latitude: location.latitude,
                 longitude: location.longitude,
+                ...(Object.hasOwn(stop, "serviceDurationSeconds")
+                    ? { serviceDurationSeconds: stop.serviceDurationSeconds }
+                    : {}),
             };
         }),
     );
@@ -238,6 +242,7 @@ async function resolveGoogleRouteRequest(
         requestId: request.requestId,
         home: request.home,
         stops: resolvedStops,
+        ...(request.timing ? { timing: request.timing } : {}),
     });
 }
 
@@ -379,7 +384,7 @@ function createRequestHandler({
             if (error instanceof RouteContractError) {
                 writeJson(
                     response,
-                    400,
+                    error.code === "HOME_BY_CONFLICT" ? 422 : 400,
                     {
                         ok: false,
                         code: error.code,
@@ -393,7 +398,8 @@ function createRequestHandler({
             if (
                 error instanceof HttpError ||
                 error instanceof WorkbookInboxError ||
-                error instanceof RouteAuthenticationError
+                error instanceof RouteAuthenticationError ||
+                error instanceof GoogleRouteProviderError
             ) {
                 writeJson(
                     response,
