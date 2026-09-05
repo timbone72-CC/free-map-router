@@ -21,6 +21,7 @@
 
     const DEFAULT_PREFERRED_FINISH = "15:00";
     const DEFAULT_HOME_BY = "17:00";
+    const LATE_DAY_HOME_BY = "23:59";
 
     if (!routeHistory) {
         throw new Error("Free Map Router route history failed to load.");
@@ -58,13 +59,34 @@
         };
     }
 
+    function timeMinutes(localTime) {
+        const [hour, minute] = String(localTime || "")
+            .split(":")
+            .map(Number);
+        if (!Number.isInteger(hour) || !Number.isInteger(minute)) return null;
+        return hour * 60 + minute;
+    }
+
+    function defaultHomeByTime(departureTime) {
+        const departureMinutes = timeMinutes(departureTime);
+        const normalHomeByMinutes = timeMinutes(DEFAULT_HOME_BY);
+        if (
+            departureMinutes !== null &&
+            normalHomeByMinutes !== null &&
+            departureMinutes < normalHomeByMinutes
+        ) {
+            return DEFAULT_HOME_BY;
+        }
+        return LATE_DAY_HOME_BY;
+    }
+
     function defaultDayContext(date = new Date(), timeZone = resolvedTimeZone()) {
         const parts = localDateTimeParts(date, timeZone);
         return {
             routeDate: parts.routeDate,
             departureTime: parts.departureTime,
             preferredFinishTime: DEFAULT_PREFERRED_FINISH,
-            homeByTime: DEFAULT_HOME_BY,
+            homeByTime: defaultHomeByTime(parts.departureTime),
             timeZone,
         };
     }
@@ -185,8 +207,10 @@
     return {
         DEFAULT_HOME_BY,
         DEFAULT_PREFERRED_FINISH,
+        LATE_DAY_HOME_BY,
         bindWorkdayControls,
         defaultDayContext,
+        defaultHomeByTime,
         displayContext,
         resolvedTimeZone,
     };
