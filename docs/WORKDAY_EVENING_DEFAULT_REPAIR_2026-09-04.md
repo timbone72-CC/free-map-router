@@ -1,6 +1,6 @@
 # Workday Evening Default Repair — 2026-09-04
 
-Status: IMPLEMENTED — AWAITING VERIFICATION
+Status: IMPLEMENTED — VERIFIED — AWAITING PUBLICATION
 
 ## Change level
 
@@ -60,7 +60,7 @@ Writes:
 
 1. At 9:22 PM America/Chicago with no saved Workday context, defaults are same-day `21:22` departure and `23:59` Home By and pass `validateDayContext`.
 2. Explicit `13:00` Departure plus `23:30` Home By is accepted on the same route date.
-3. The bound Workday controls can start from the evening unsaved default and save `13:00` / `23:30` successfully.
+3. Bound Workday controls preserve an explicit America/Chicago context and successfully save `13:00` / `23:30` without a route-time conflict.
 
 No billed Google call is required.
 
@@ -90,7 +90,9 @@ Rollback is to revert the repair PR or restore `workday-context.js` to that comm
 
 ## Verification status
 
-- Focused regression: pending CI.
-- Complete suite and root JavaScript syntax checks: pending CI.
-- Diff inspection: pending.
+- Focused regressions: PASS.
+- Complete repository suite: PASS — 413/413 tests, 0 failures.
+- Root first-party JavaScript syntax checks: PASS.
+- Diff inspection: PASS — only this record, the focused regression file, and `workday-context.js` changed from the governed base.
+- No billed Google call was used.
 - Publication/live smoke check: pending.
