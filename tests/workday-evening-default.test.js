@@ -85,8 +85,15 @@ test("1 PM departure with 11:30 PM Home By is accepted on the same route date", 
     assert.equal(validation.dayContext.homeByTime, "23:30");
 });
 
-test("evening unsaved controls can save a 1 PM departure and later Home By", () => {
+test("workday controls save a 1 PM departure and later Home By without a route-time conflict", () => {
     const storage = memoryStorage();
+    routeHistory.writeDayContext(storage, {
+        routeDate: "2026-09-04",
+        departureTime: "21:22",
+        preferredFinishTime: "15:00",
+        homeByTime: "23:59",
+        timeZone: "America/Chicago",
+    });
     const document = fakeDocument();
 
     assert.equal(
