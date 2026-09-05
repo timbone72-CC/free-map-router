@@ -1,6 +1,6 @@
 # Optional Home By Repair — 2026-09-05
 
-Status: IMPLEMENTED — AWAITING VERIFICATION / PUBLICATION
+Status: VERIFIED — AWAITING PUBLICATION / LIVE SMOKE
 
 ## Change level
 
@@ -96,8 +96,13 @@ Rollback is to revert this repair PR or restore `workday-context.js` and `google
 
 ## Verification status
 
-- Focused regression: pending.
-- Complete repository suite: pending.
-- Root JavaScript syntax checks: pending.
-- Diff inspection: pending.
+Verified on PR #85 at head `95be8da3d3f4dbe0c48ac20fe607c7f7e6ee0fd2` before this record-only update:
+
+- Focused optional-Home-By regression: passed.
+- Complete repository suite: **416 passed, 0 failed**.
+- Root JavaScript syntax checks: passed.
+- Diff inspection: passed; exactly the two runtime owners, focused test, and this record are changed.
+- CI workflow `Verify Contract and App` run 33974538600: passed.
 - Publication/live smoke check: pending.
+
+This record-only verification update requires the normal exact-final-head CI check before merge.
