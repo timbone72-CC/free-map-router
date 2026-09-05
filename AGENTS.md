@@ -52,13 +52,22 @@ verification, and explicit pre-merge operator approval.
 When uncertain between two levels, use the higher level. Do not classify a
 change as high risk merely because it is important.
 
-## Authorization without repeated permission loops
+## One-approval release authorization
 
 - The user's request and approval authorize the documented scope.
-- Do not ask for the same approval again after implementation when the scope has
-  not changed.
-- Ask again only when scope expands, assumptions prove false, or Level 3
-  pre-merge approval is required.
+- For Level 1 and Level 2 work, that authorization covers the complete release
+  transaction unless the user asks to stop before publication.
+- For Level 3 work, one explicit **PUBLISH** or equally clear release instruction
+  given after the material scope is described authorizes the complete release
+  transaction: final testing, branch, commit, push, pull request, in-scope review
+  corrections, merge, publication, live verification, and rollback if needed.
+- A valid release approval remains valid across tool changes, session handoffs,
+  delayed checks, and in-scope review corrections. Do not ask for it again.
+- Ask again only if the repository destination changes, the material scope
+  expands, a new destructive consequence is discovered, or the user stopped or
+  withdrew approval.
+- An established repository destination must not be reconfirmed merely because a
+  different publishing tool is used.
 - Contract findings and adjacent defects are not automatic authorization.
 
 ## Connected-workflow check
