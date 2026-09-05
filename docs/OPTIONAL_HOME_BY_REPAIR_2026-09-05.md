@@ -1,6 +1,6 @@
 # Optional Home By Repair — 2026-09-05
 
-Status: VERIFIED — AWAITING PUBLICATION / LIVE SMOKE
+Status: VERIFIED — PUBLISHED — LIVE SMOKE PASSED — PROTECTED
 
 ## Change level
 
@@ -56,6 +56,8 @@ Writes:
 - Workbook inbox and route-order handoff are unchanged.
 - No manual gig, address, pin, pay, source, Order ID, Gig ID, or prediction data is changed by toggling the deadline.
 
+The operator confirmed this published behavior with **Works** on 2026-09-05. Under `CONTRACT.md` §7.1, this live-tested behavior is now protected.
+
 ## Focused tests
 
 1. Clearing Home By marks the Google deadline off while leaving the last valid saved Home By untouched.
@@ -83,26 +85,30 @@ Known-good base before this change:
 
 Rollback is to revert this repair PR or restore `workday-context.js` and `google-route-browser.js` to that commit. No data migration or cleanup is required.
 
-## Affected smoke check after publication
+## Live smoke check
 
-1. Open Build Route with the current route intact.
-2. Confirm the saved Home By time still appears normally.
-3. Clear the **Home by** field.
-4. Confirm the Workday status says the Home By limit is off for Google Optimize.
-5. Run Google Optimize and confirm it proceeds without a Home By conflict.
-6. Confirm all selected stops remain present and the route is marked Google Optimized.
-7. Confirm the result message explicitly says `Home By limit off.`
-8. Re-enter a valid Home By time and confirm the normal timed behavior is restored.
+Completed on the published app on 2026-09-05:
+
+1. Build Route loaded with the current route intact.
+2. The operator cleared **Home by**.
+3. The app allowed Google Optimize to run without the hard Home By restriction.
+4. The operator confirmed the behavior with **Works**.
 
 ## Verification status
 
-Verified on PR #85 at head `95be8da3d3f4dbe0c48ac20fe607c7f7e6ee0fd2` before this record-only update:
+PR #85 merged to `main` as:
+
+`f0acf178de968b9eb3d18441e139aeab06415d79`
+
+Verification:
 
 - Focused optional-Home-By regression: passed.
 - Complete repository suite: **416 passed, 0 failed**.
 - Root JavaScript syntax checks: passed.
-- Diff inspection: passed; exactly the two runtime owners, focused test, and this record are changed.
-- CI workflow `Verify Contract and App` run 33974538600: passed.
-- Publication/live smoke check: pending.
+- Diff inspection: passed.
+- PR CI `Verify Contract and App`: passed.
+- Post-merge `main` verification run 33974649763: passed.
+- GitHub Pages publication run 33974649377: passed.
+- Published live smoke check: **Works**.
 
-This record-only verification update requires the normal exact-final-head CI check before merge.
+Final state: implemented, merged, published, live-validated, and protected.
