@@ -372,6 +372,7 @@
         const routeHistoryContract = runtimeRoot?.FMRRouteHistory;
         const planningRuntime = runtimeRoot?.FMRWorkItemPlanningRuntime;
         const workdayContext = runtimeRoot?.FMRWorkdayContext;
+        const enforceHomeBy = options.enforceHomeBy !== false;
 
         if (!storage || !routeHistoryContract || !planningRuntime || !workdayContext) {
             throw new GoogleRouteBrowserError(
@@ -433,28 +434,32 @@
             }
         }
 
-        const timing = {
-            departureTime: resolveLocalRouteInstant(
-                dayContext.routeDate,
-                dayContext.departureTime,
-                dayContext.timeZone,
-            ),
-            homeByTime: resolveLocalRouteInstant(
-                dayContext.routeDate,
-                dayContext.homeByTime,
-                dayContext.timeZone,
-            ),
-        };
-        const preferredFinishTime = resolveLocalRouteInstant(
-            dayContext.routeDate,
-            dayContext.preferredFinishTime,
-            dayContext.timeZone,
-        );
+        const timing = enforceHomeBy
+            ? {
+                  departureTime: resolveLocalRouteInstant(
+                      dayContext.routeDate,
+                      dayContext.departureTime,
+                      dayContext.timeZone,
+                  ),
+                  homeByTime: resolveLocalRouteInstant(
+                      dayContext.routeDate,
+                      dayContext.homeByTime,
+                      dayContext.timeZone,
+                  ),
+              }
+            : null;
+        const preferredFinishTime = enforceHomeBy
+            ? resolveLocalRouteInstant(
+                  dayContext.routeDate,
+                  dayContext.preferredFinishTime,
+                  dayContext.timeZone,
+              )
+            : null;
 
         return {
             snapshot: {
                 home: snapshot.home,
-                timing,
+                ...(timing ? { timing } : {}),
                 stops: snapshot.stops.map((stop) => ({
                     ...stop,
                     serviceDurationSeconds: serviceByStopId[stop.id] ?? 0,
@@ -462,6 +467,7 @@
             },
             context: {
                 dayContext,
+                enforceHomeBy,
                 preferredFinishTime,
                 serviceByStopId,
             },
@@ -910,45 +916,66 @@
             setStatus("Preparing work times and selected addresses for Google…");
 
             try {
+                const workdayContext = runtimeRoot?.FMRWorkdayContext;
+                const enforceHomeBy =
+                    typeof workdayContext?.homeByRestrictionEnabled === "function"
+                        ? workdayContext.homeByRestrictionEnabled(document)
+                        : true;
                 const prepared = await prepareTimeAwareSnapshot(bridge, {
                     root: runtimeRoot,
+                    enforceHomeBy,
                 });
-                setStatus("Google is calculating the traffic-aware workday…");
+                setStatus(
+                    enforceHomeBy
+                        ? "Google is calculating the traffic-aware workday…"
+                        : "Google is calculating the traffic-aware route with the Home By limit off…",
+                );
                 const result = await optimizeWithGoogle({
                     snapshot: prepared.snapshot,
                     idToken,
                 });
+                const currentEnforceHomeBy =
+                    typeof workdayContext?.homeByRestrictionEnabled === "function"
+                        ? workdayContext.homeByRestrictionEnabled(document)
+                        : true;
                 const currentPrepared = await prepareTimeAwareSnapshot(bridge, {
                     root: runtimeRoot,
+                    enforceHomeBy: currentEnforceHomeBy,
                 });
                 assertPreparedContextCurrent(prepared, currentPrepared);
 
                 bridge.applyGoogleRouteResult(result.request, result.response);
 
                 const routeIds = result.response.orderedStopIds.slice();
-                const basisKey = buildScheduleBasisKey({
-                    routeIds,
-                    home: prepared.snapshot.home,
-                    serviceByStopId: prepared.context.serviceByStopId,
-                    timing: prepared.snapshot.timing,
-                });
-                persistGoogleSchedule(
-                    runtimeRoot.localStorage,
-                    runtimeRoot.FMRRouteHistory,
-                    result.response.schedule,
-                    basisKey,
-                    routeIds,
-                );
+                let scheduleOutcome = "";
+                if (prepared.snapshot.timing && result.response.schedule) {
+                    const basisKey = buildScheduleBasisKey({
+                        routeIds,
+                        home: prepared.snapshot.home,
+                        serviceByStopId: prepared.context.serviceByStopId,
+                        timing: prepared.snapshot.timing,
+                    });
+                    persistGoogleSchedule(
+                        runtimeRoot.localStorage,
+                        runtimeRoot.FMRRouteHistory,
+                        result.response.schedule,
+                        basisKey,
+                        routeIds,
+                    );
+                    scheduleOutcome = formatScheduleOutcome(
+                        result.response,
+                        prepared.context,
+                    );
+                }
 
                 const metrics = formatMetrics(result.response);
-                const scheduleOutcome = formatScheduleOutcome(
-                    result.response,
-                    prepared.context,
-                );
                 setStatus(
                     `Google road route applied to ${routeIds.length} stops.` +
                         (metrics ? ` ${metrics}.` : "") +
-                        scheduleOutcome,
+                        scheduleOutcome +
+                        (prepared.context.enforceHomeBy
+                            ? ""
+                            : " Home By limit off."),
                 );
             } catch (error) {
                 setStatus(error?.message || "Google road optimization failed.");
