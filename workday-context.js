@@ -105,6 +105,12 @@
         };
     }
 
+    function homeByRestrictionEnabled(document = root?.document) {
+        const input = document?.getElementById?.("routeHomeByTime");
+        if (!input) return true;
+        return String(input.value ?? "").trim() !== "";
+    }
+
     function bindWorkdayControls({
         document = root?.document,
         storage = root?.localStorage,
@@ -159,6 +165,14 @@
         }
 
         function save() {
+            if (!homeByRestrictionEnabled(document)) {
+                setStatus(
+                    "Home By limit off for Google Optimize. Enter a Home By time to turn the limit back on.",
+                    "default",
+                );
+                return true;
+            }
+
             const draft = {
                 routeDate: routeDate.value,
                 departureTime: departureTime.value,
@@ -212,6 +226,7 @@
         defaultDayContext,
         defaultHomeByTime,
         displayContext,
+        homeByRestrictionEnabled,
         resolvedTimeZone,
     };
 });
