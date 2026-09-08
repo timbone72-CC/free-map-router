@@ -374,8 +374,15 @@ test("schedule persistence writes only Google schedule and basis changes make co
     );
 
     const raw = JSON.parse(storage.getItem(routeHistory.STORAGE_KEY));
-    assert.equal(raw.google.schedule.basisKey, basisKey);
-    assert.equal(raw.basic.schedule, null);
+    const activeDay = raw.activePlan.days.find(
+        (day) => day.dayId === raw.activePlan.activeDayId,
+    );
+    assert.equal(raw.version, 7);
+    assert.equal(Object.hasOwn(raw, "google"), false);
+    assert.equal(Object.hasOwn(raw, "basic"), false);
+    assert.equal(Object.hasOwn(raw, "dayContext"), false);
+    assert.equal(activeDay.google.schedule.basisKey, basisKey);
+    assert.equal(activeDay.basic.schedule, null);
     assert.equal(
         browser.storedScheduleIsCurrent(storage, routeHistory, basisKey),
         true,
@@ -397,7 +404,7 @@ test("schedule persistence writes only Google schedule and basis changes make co
     );
 });
 
-test("backup v4 preserves and restores the validated Google schedule field", () => {
+test("backup v5 preserves and restores the validated Google schedule field", () => {
     const storage = memoryStorage();
     const stops = routeStops();
     const history = baseHistory();
@@ -451,7 +458,7 @@ test("backup v4 preserves and restores the validated Google schedule field", () 
             planning: knownPlanningRecords(),
             routes: history,
         });
-        assert.equal(created.backupVersion, 4);
+        assert.equal(created.backupVersion, 5);
         assert.equal(created.routes.google.schedule.basisKey, basisKey);
         assert.equal(created.routes.basic.schedule, null);
 
