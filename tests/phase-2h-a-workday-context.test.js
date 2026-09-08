@@ -112,14 +112,14 @@ function fakeWorkdayDocument() {
     };
 }
 
-test("route-history v5 migrates to v6 without losing route or exact work identity", () => {
+test("route-history v5 migrates to current v7 without losing route or exact work identity", () => {
     const storage = memoryStorage();
     storage.setItem(STORAGE_KEY, JSON.stringify(namedRoutes()));
 
     const restored = readRouteHistory(storage, new Set(["a", "b"]));
 
-    assert.equal(ROUTE_HISTORY_VERSION, 6);
-    assert.equal(restored.version, 6);
+    assert.equal(ROUTE_HISTORY_VERSION, 7);
+    assert.equal(restored.version, 7);
     assert.equal(restored.dayContext, null);
     assert.deepEqual(restored.google.routeIds, ["a", "b"]);
     assert.deepEqual(restored.basic.routeIds, ["b", "a"]);
@@ -215,7 +215,7 @@ test("starting a genuinely new workbook route clears old day context and reserve
     assert.equal(saved.basic.schedule, null);
 });
 
-test("backup v4 preserves day context and Phase 2G planning", () => {
+test("backup v5 preserves day context and Phase 2G planning", () => {
     const planning = [
         createPlanningRecord(
             {
@@ -243,8 +243,8 @@ test("backup v4 preserves day context and Phase 2G planning", () => {
     });
     const restored = parseBackup(JSON.stringify(backup));
 
-    assert.equal(BACKUP_VERSION, 4);
-    assert.equal(backup.backupVersion, 4);
+    assert.equal(BACKUP_VERSION, 5);
+    assert.equal(backup.backupVersion, 5);
     assert.deepEqual(backup.routes.dayContext, dayContext());
     assert.deepEqual(restored.routes.dayContext, dayContext());
     assert.equal(restored.planning.length, 1);
@@ -298,7 +298,7 @@ test("backup v1, v2, and v3 restore with no invented day context", () => {
     }
 });
 
-test("backup v4 with invalid route timing is rejected", () => {
+test("backup v5 with invalid route timing is rejected", () => {
     const backup = createBackup({
         home: { address: "Home" },
         stops: [{ id: "a", address: "A" }],
@@ -369,7 +369,7 @@ test("editing workday controls saves timing without changing route order or opti
     );
 });
 
-test("Build Route keeps exactly the four Phase 2H-A controls and loads Workday before app.js", () => {
+test("Build Route keeps exactly the four Phase 2H-A controls and loads Route Plan before route history and Workday before app.js", () => {
     const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
 
     for (const id of [
@@ -382,13 +382,20 @@ test("Build Route keeps exactly the four Phase 2H-A controls and loads Workday b
         assert.equal(matches.length, 1, `${id} must exist exactly once`);
     }
     assert.match(html, /id="routeDayContextStatus"/);
-    assert.match(html, /route-history\.js\?v=6\.0\.0/);
+    assert.match(html, /route-plan\.js\?v=1\.0\.0/);
+    assert.match(html, /route-history\.js\?v=7\.0\.0/);
     assert.match(html, /workday-context\.js\?v=1\.0\.0/);
-    assert.match(html, /backup\.js\?v=4\.1\.0/);
+    assert.match(html, /backup\.js\?v=5\.0\.0/);
 
+    const routePlanIndex = html.indexOf("route-plan.js?v=1.0.0");
+    const routeHistoryIndex = html.indexOf("route-history.js?v=7.0.0");
     const workdayIndex = html.indexOf("workday-context.js?v=1.0.0");
     const appMatch = html.match(/app\.js\?v=\d+\.\d+\.\d+/);
+    assert.ok(routePlanIndex >= 0, "Route Plan script must be loaded");
+    assert.ok(routeHistoryIndex >= 0, "Route history script must be loaded");
     assert.ok(workdayIndex >= 0, "Workday context script must be loaded");
     assert.ok(appMatch, "Cache-versioned app.js must be loaded");
+    assert.ok(routePlanIndex < routeHistoryIndex);
+    assert.ok(routeHistoryIndex < workdayIndex);
     assert.ok(workdayIndex < html.indexOf(appMatch[0]));
 });

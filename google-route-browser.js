@@ -277,16 +277,6 @@
         return true;
     }
 
-    function rawRouteHistory(storage, routeHistoryContract) {
-        try {
-            const key = routeHistoryContract?.STORAGE_KEY;
-            const raw = key ? storage?.getItem?.(key) : null;
-            return raw ? JSON.parse(raw) : null;
-        } catch {
-            return null;
-        }
-    }
-
     function normalizeScheduleForStorage(schedule, basisKey, routeIds) {
         if (!schedule || typeof schedule !== "object") {
             throw new GoogleRouteBrowserError(
@@ -328,33 +318,40 @@
         basisKey,
         routeIds,
     ) {
-        const current = rawRouteHistory(storage, routeHistoryContract);
-        if (
-            !current ||
-            current.version !== routeHistoryContract?.ROUTE_HISTORY_VERSION ||
-            !current.google ||
-            !sameIds(current.google.routeIds, routeIds)
-        ) {
+        if (typeof routeHistoryContract?.writeGoogleSchedule !== "function") {
             throw new GoogleRouteBrowserError(
-                "STALE_ROUTE",
-                "The Google route changed while optimization was finishing. The new schedule was not saved.",
+                "PLANNING_NOT_READY",
+                "Route schedule storage is unavailable. Refresh the app and try again.",
             );
         }
-
-        current.google.schedule = normalizeScheduleForStorage(
+        const normalizedSchedule = normalizeScheduleForStorage(
             schedule,
             basisKey,
             routeIds,
         );
-        if (current.basic) current.basic.schedule = null;
-        storage.setItem(routeHistoryContract.STORAGE_KEY, JSON.stringify(current));
-        return current.google.schedule;
+        try {
+            return routeHistoryContract.writeGoogleSchedule(
+                storage,
+                normalizedSchedule,
+                basisKey,
+                routeIds,
+            );
+        } catch (error) {
+            if (/changed while optimization/i.test(String(error?.message || ""))) {
+                throw new GoogleRouteBrowserError(
+                    "STALE_ROUTE",
+                    error.message,
+                );
+            }
+            throw error;
+        }
     }
 
     function readStoredGoogleSchedule(storage, routeHistoryContract) {
-        const current = rawRouteHistory(storage, routeHistoryContract);
-        const schedule = current?.google?.schedule;
-        return schedule && typeof schedule === "object" ? schedule : null;
+        if (typeof routeHistoryContract?.readGoogleSchedule !== "function") {
+            return null;
+        }
+        return routeHistoryContract.readGoogleSchedule(storage);
     }
 
     function storedScheduleIsCurrent(
