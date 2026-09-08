@@ -306,7 +306,12 @@ test("backup v5 round-trip preserves canonical Route Plan identity and Google sc
     assert.equal(backup.backupVersion, 5);
     assert.equal(backup.routes.version, 7);
     assert.ok(backup.routes.activePlan);
-    assert.equal(Object.hasOwn(backup.routes, "google"), false);
+    const serialized = JSON.parse(JSON.stringify(backup));
+    assert.deepEqual(
+        Object.keys(serialized.routes).sort(),
+        ["activePlan", "pending", "version"],
+    );
+    assert.equal(Object.hasOwn(serialized.routes, "google"), false);
 
     const restored = Backup.parseBackup(JSON.stringify(backup));
     assert.deepEqual(restored.routes.google.routeIds, ["a"]);
