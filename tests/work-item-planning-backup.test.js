@@ -39,7 +39,7 @@ test("current backup preserves exact work-item planning records", () => {
     });
 
     assert.equal(backup.backupVersion, BACKUP_VERSION);
-    assert.equal(BACKUP_VERSION, 4);
+    assert.equal(BACKUP_VERSION, 5);
     assert.deepEqual(
         backup.planning.map((record) => `${record.kind}:${record.workItemId}`),
         ["workbook:ORDER-1", "gig:gig_1"],
