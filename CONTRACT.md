@@ -329,17 +329,38 @@ versions of one job route, and opens the selected version in Google Maps.
     / `Source_ID`s or manual `Gig_ID`s, or change address/source/pay/workbook
     data.
 38. Starting a genuinely new workbook route clears stale prior-day timing and
-    reserved schedule state rather than attaching an old route's timing/ETA
-    context to the new work.
-39. Route-history version 6 owns the shared one-day `dayContext` for the Google
-    and Basic route slots and reserves nullable per-route `schedule` state for a
-    later governed slice. Older valid route history migrates without losing
-    route order, route identity, source metadata, pay metadata, or exact work
-    identities.
-40. Whole-app backup version 4 preserves the route-history v6 workday context
-    and existing planning data. Valid backup versions 1, 2, and 3 remain
-    restorable without inventing workday context that did not exist in those
-    backups.
+    schedule state rather than attaching an old route's timing/ETA context to the
+    new work.
+39. Route-history version 6 owns the shared one-day `dayContext` and the
+    nullable per-route `schedule` field. A complete accepted timed Google
+    schedule may be retained only on Google Route; Basic Route and pending
+    routes do not gain Google schedule confidence. Older valid route history
+    migrates without losing route order, route identity, source metadata, pay
+    metadata, or exact work identities.
+40. A time-aware **Google Optimize** request uses the saved Route date,
+    Departure, Home By, and IANA timezone to resolve whole-second timing. Each
+    physical stop is sent once, and known Phase 2G work-item durations are
+    summed once at that stop as Google service duration. Routed manual work with
+    unknown duration blocks the timed request before the Google network call
+    instead of being treated as zero.
+41. Preferred field-work finish is a soft post-result comparison and is not a
+    Google hard time window. When Home By is enabled, Home By remains the hard
+    return bound. A skipped, incomplete, duplicate, unknown, stale, or infeasible
+    Google result must not partially replace the accepted route.
+42. A stored Google schedule is current only while its deterministic route,
+    Home, service-duration, Departure, and Home By basis remains current. Basis
+    changes remove schedule confidence without deleting route order. Valid
+    schedule state survives ordinary route-history writes and is preserved by
+    backup version 4 when its route identity remains valid.
+43. Clearing the visible **Home by** field is a temporary operator-controlled
+    Google Optimize mode. It does not erase the last valid saved Home By. The
+    untimed request preserves exact stops and service durations but does not
+    fabricate or persist a Home-By-safe schedule. Re-entering a valid Home By
+    restores the timed behavior.
+44. Whole-app backup version 4 preserves route-history v6 workday context,
+    existing planning data, and a valid Google schedule. Valid backup versions
+    1, 2, and 3 remain restorable without inventing workday or schedule data
+    that did not exist in those backups.
 
 ## 6. Manual gig rules
 
@@ -477,5 +498,17 @@ Tests must continue to protect:
 - timing edits preserving route order, membership, optimizer status, exact work
   identity, source, pay, and workbook state;
 - new workbook routes clearing stale workday/schedule state;
+- time-aware Google requests using one physical visit per stop, summed known
+  service duration, selected Departure/Home By timing, and fail-closed unknown
+  routed manual duration;
+- complete Google schedule validation with one-to-one visit identity,
+  Google-only schedule persistence, stale-basis invalidation, and Basic Route
+  remaining schedule-null;
+- Home By hard-conflict behavior applying no partial route while Preferred
+  finish remains a soft post-result warning;
+- backup version 4 preserving a valid Google schedule through ordinary
+  route-history writes and restore;
+- temporary visible Home By opt-out preserving the last saved Home By, exact
+  stops and service durations, and not fabricating timed schedule confidence;
 - version-1 backup compatibility and version-2 gig preservation; and
 - the five-page dropdown menu with only one selected page visible.
