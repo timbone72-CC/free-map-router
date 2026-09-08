@@ -1,0 +1,79 @@
+name: Stage Phase 2I-C exact package
+
+on:
+  push:
+    branches:
+      - feat/phase-2i-c-stage-runner-final
+    paths:
+      - .github/workflows/phase-2i-c-stage.yml
+
+permissions:
+  contents: write
+  issues: read
+
+jobs:
+  stage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout staging branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/phase-2i-c-stage-runner-final
+
+      - name: Reconstruct exact Phase 2I-C package
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/issues/95" > /tmp/phase2ic-issue.json
+          gh api "repos/${GITHUB_REPOSITORY}/issues/95/comments?per_page=100" > /tmp/phase2ic-comments.json
+          python - <<'PY'
+          import json
+          issue = json.load(open('/tmp/phase2ic-issue.json'))
+          comments = json.load(open('/tmp/phase2ic-comments.json'))
+          parts = []
+          for body in [issue.get('body', '')] + [c.get('body', '') for c in comments]:
+              if not body.startswith('PHASE2IC-PKG-'):
+                  continue
+              marker, data = body.split('\n', 1)
+              parts.append((marker, data.strip()))
+          parts.sort()
+          expected = [f'PHASE2IC-PKG-{i:02d}' for i in range(5)]
+          actual = [marker for marker, _ in parts]
+          if actual != expected:
+              raise SystemExit(f'Package markers mismatch: {actual!r}')
+          open('/tmp/phase2ic.b64', 'w').write(''.join(data for _, data in parts))
+          PY
+          base64 -d /tmp/phase2ic.b64 > /tmp/phase2ic.tar.gz
+          echo "19d9ef74eaf35d3b8facf298b4101f43d033e8c1848c19cc919dbe593b6a9007  /tmp/phase2ic.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/phase2ic.tar.gz -C .
+          test -f route-plan-days.js
+          test -f route-plan-controls.js
+          test -f index.html
+          test -f tests/phase-2i-c-day-management.test.js
+          test -f docs/PHASE_2I_C_DAY_MANAGEMENT_CHANGE_RECORD_2026-09-08.md
+          test -f CONTRACT.md
+          test -f REGRESSION_CHECKLIST.md
+
+      - name: Focused Phase 2I-C tests
+        run: node --test tests/phase-2i-c-day-management.test.js
+
+      - name: Complete regression suite
+        run: npm test
+
+      - name: First-party JavaScript syntax
+        run: |
+          set -euo pipefail
+          for file in *.js; do node --check "$file"; done
+
+      - name: Commit exact tested Phase 2I-C tree
+        run: |
+          set -euo pipefail
+          rm .github/workflows/phase-2i-c-stage.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CONTRACT.md REGRESSION_CHECKLIST.md index.html route-plan-days.js route-plan-controls.js tests/phase-2i-c-day-management.test.js docs/PHASE_2I_C_DAY_MANAGEMENT_CHANGE_RECORD_2026-09-08.md
+          git add -u .github/workflows/phase-2i-c-stage.yml
+          git diff --cached --check
+          git commit -m "Phase 2I-C: add multi-day day management"
+          git push origin HEAD:feat/phase-2i-c-stage-runner-final
