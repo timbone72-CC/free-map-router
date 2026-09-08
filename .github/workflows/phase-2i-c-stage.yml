@@ -28,19 +28,32 @@ jobs:
           gh api "repos/${GITHUB_REPOSITORY}/issues/95" > /tmp/phase2ic-issue.json
           gh api "repos/${GITHUB_REPOSITORY}/issues/95/comments?per_page=100" > /tmp/phase2ic-comments.json
           python - <<'PY'
-          import json
+          import hashlib, json
           issue = json.load(open('/tmp/phase2ic-issue.json'))
           comments = json.load(open('/tmp/phase2ic-comments.json'))
+          expected_hashes = {
+              'PHASE2IC-PKG-00': '1aa2ab7dc0fcb1915ea671c556a5a39f1d615db74462e7d725d7f439d0e24e02',
+              'PHASE2IC-PKG-01': '286d5b28f0c9ca43603db8306d4d9d81fdb0661a17c151836d97b1562ae3411a',
+              'PHASE2IC-PKG-02': '89f0af8c65e310b5589534bc15dbd4b740580c7d00afa3c9da8be7603a619d45',
+              'PHASE2IC-PKG-03': '066592eb3b1767f1e7035b183993d5dc417711a96253ab8c2f8c904d39db4080',
+              'PHASE2IC-PKG-04': 'ecbd2f31e595128d2b8c0076fa49b564a78de362c563bb23ec7073fbd133f706',
+          }
           parts = []
           for body in [issue.get('body', '')] + [c.get('body', '') for c in comments]:
               if not body.startswith('PHASE2IC-PKG-'):
                   continue
               marker, data = body.split('\n', 1)
-              parts.append((marker, data.strip()))
+              data = data.strip()
+              digest = hashlib.sha256(data.encode()).hexdigest()
+              print(f'{marker}: bytes={len(data)} sha256={digest}')
+              expected = expected_hashes.get(marker)
+              if expected != digest:
+                  raise SystemExit(f'{marker} staging hash mismatch: expected {expected}, got {digest}')
+              parts.append((marker, data))
           parts.sort()
-          expected = [f'PHASE2IC-PKG-{i:02d}' for i in range(5)]
+          expected_markers = [f'PHASE2IC-PKG-{i:02d}' for i in range(5)]
           actual = [marker for marker, _ in parts]
-          if actual != expected:
+          if actual != expected_markers:
               raise SystemExit(f'Package markers mismatch: {actual!r}')
           open('/tmp/phase2ic.b64', 'w').write(''.join(data for _, data in parts))
           PY
