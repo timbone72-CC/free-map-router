@@ -119,7 +119,7 @@ versions of one job route, and opens the selected version in Google Maps.
     true are then reapplied to both usable route versions by physical stop, so
     starting a workbook route does not silently discard planned manual work.
 14. Downloaded and Google Drive backups preserve Google Route, Basic Route, any
-    pending workbook route, and manual gigs. Older valid version-1 backups
+    pending new workbook route, and manual gigs. Older valid version-1 backups
     without gigs remain restorable and yield an empty gig collection.
 15. Repeated manual backup requests are serialized so the latest requested
     state is written last.
@@ -172,10 +172,10 @@ versions of one job route, and opens the selected version in Google Maps.
     active state, and `updatedAt`. It never stores GIS/DCFS source, workbook
     Order IDs, route membership, Home, or API keys.
 26. Repeat-template synchronization is stale-safe by immutable `templateId` and
-    per-template `updatedAt`; a newer archive/update must not be silently
-    replaced by an older device copy. Schedule saves and schedule advancement
-    reuse the existing limited `drive.file` permission and the existing Manual
-    Work Library file; no broader Drive access is requested.
+    per-template `updatedAt`. An older device copy must not silently replace a
+    newer saved cadence or next due date. Schedule saves and schedule
+    advancement reuse the existing limited `drive.file` permission and the
+    existing Manual Work Library file; no broader Drive access is requested.
 27. A schedule write failure leaves the local schedule or locally advanced next
     due date intact and reports that permanent Drive storage did not complete.
     **Sync Library** remains the manual retry path.
