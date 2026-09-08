@@ -4,7 +4,7 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Free Map Router</title>
-        <link rel="stylesheet" href="styles.css?v=1.1.0" />
+        <link rel="stylesheet" href="styles.css?v=1.2.0" />
         <link
             rel="stylesheet"
             href="vendor/leaflet.css?v=1.9.4"
@@ -356,144 +356,198 @@
         </section>
 
         <!-- Route Builder -->
-        <section class="section appPage" data-page="route" hidden>
+        <section id="routePage" class="section appPage" data-page="route" hidden>
             <h2>Route Builder</h2>
-            <label>
-                Route to use
-                <select id="routeChoice">
-                    <option value="google">Google Route</option>
-                    <option value="basic">Basic Route</option>
-                </select>
-            </label>
-            <div id="workdayControls" class="panel">
-                <h3>Workday</h3>
-                <div class="row2">
-                    <label>
-                        Route date
-                        <input type="date" id="routeDate" />
+
+            <div class="plannerContext panel">
+                <div class="inlineHeader plannerRouteHeader">
+                    <label class="plannerRouteChoiceLabel">
+                        Route to use
+                        <select id="routeChoice">
+                            <option value="google">Google Route</option>
+                            <option value="basic">Basic Route</option>
+                        </select>
                     </label>
-                    <label>
-                        Departure
-                        <input type="time" id="routeDepartureTime" step="60" />
-                    </label>
+                    <p id="routeOptimizationStatus" class="tiny">
+                        Google Route: Not Optimized
+                    </p>
                 </div>
-                <div class="row2">
-                    <label>
-                        Preferred field-work finish
-                        <input
-                            type="time"
-                            id="routePreferredFinishTime"
-                            step="60"
-                        />
-                    </label>
-                    <label>
-                        Home by
-                        <input type="time" id="routeHomeByTime" step="60" />
-                    </label>
+
+                <div id="workdayControls" class="panel plannerWorkday">
+                    <h3>Workday</h3>
+                    <div class="row2">
+                        <label>
+                            Route date
+                            <input type="date" id="routeDate" />
+                        </label>
+                        <label>
+                            Departure
+                            <input type="time" id="routeDepartureTime" step="60" />
+                        </label>
+                    </div>
+                    <div class="row2">
+                        <label>
+                            Preferred field-work finish
+                            <input
+                                type="time"
+                                id="routePreferredFinishTime"
+                                step="60"
+                            />
+                        </label>
+                        <label>
+                            Home by
+                            <input type="time" id="routeHomeByTime" step="60" />
+                        </label>
+                    </div>
+                    <p id="routeDayContextStatus" class="tiny muted"></p>
                 </div>
-                <p id="routeDayContextStatus" class="tiny muted"></p>
+
+                <div id="plannerDaySummary" class="plannerDaySummary" aria-live="polite"></div>
+                <p id="routePaySummary" class="tiny">
+                    Google Route expected pay: no InspectorADE or manual gig pay attached.
+                </p>
             </div>
-            <div id="newRouteAvailable" hidden>
+
+            <div id="newRouteAvailable" class="plannerNotice" hidden>
                 <p id="newRouteAvailableStatus" class="tiny"></p>
                 <button id="startNewRoute" type="button" class="btn btnSmall">
                     Start New Route
                 </button>
             </div>
-            <div class="btnRow">
-                <button
-                    id="checkWorkbookRoute"
-                    type="button"
-                    class="btn btnSmall"
-                >
-                    Check Workbook Route
-                </button>
-                <button id="optimizeRoute" type="button" class="btn btnSmall">
-                    Optimize Route
-                </button>
-                <button
-                    id="googleOptimizeRoute"
-                    type="button"
-                    class="btn btnSmall"
-                    disabled
-                >
-                    Google Optimize
-                </button>
-                <button id="clearRoute" type="button" class="btn btnSmall">
-                    Clear Route
-                </button>
-                <button id="exportRoute" type="button" class="btn btnSmall">
-                    Open in Google Maps
-                </button>
-                <button
-                    id="sendRouteOrder"
-                    type="button"
-                    class="btn btnSmall"
-                    disabled
-                >
-                    Send Route Order to Workbook
-                </button>
-                <button
-                    id="downloadGarminGpx"
-                    type="button"
-                    class="btn btnSmall"
-                >
-                    Download Garmin GPX
-                </button>
-            </div>
-            <div class="btnRow">
-                <button
-                    id="clearInspectorAdeJobs"
-                    type="button"
-                    class="btn btnSmall"
-                >
-                    Clear InspectorADE Jobs
-                </button>
-                <button
-                    id="clearManualGigWork"
-                    type="button"
-                    class="btn btnSmall"
-                >
-                    Clear Manual Gig Work
-                </button>
-            </div>
-            <p class="tiny muted">
-                These clear one kind of route work from both saved route versions
-                without deleting the other kind of work or the saved addresses.
-            </p>
-            <div id="googleRouteSignIn" class="googleRouteSignIn"></div>
-            <p id="googleRouteAuthStatus" class="tiny muted">
-                Google road optimization requires the approved company Google
-                account.
-            </p>
-            <div id="routeMapLinks" class="btnRow" hidden></div>
-            <p id="routeOptimizationStatus" class="tiny">
-                Google Route: Not Optimized
-            </p>
-            <p id="routePaySummary" class="tiny">
-                Google Route expected pay: no InspectorADE or manual gig pay attached.
-            </p>
-            <p id="routeStatus" class="tiny muted">
-                Select addresses, then optimize the route.
-            </p>
-            <p id="workbookRouteOrderStatus" class="tiny muted"></p>
-            <button
-                id="startRouteNavigation"
-                type="button"
-                class="btn"
-                disabled
-            >
-                Start Navigation
-            </button>
-            <button id="completeAndNavigateNext" type="button" class="btn" disabled>
-                Done &amp; Navigate Next
-            </button>
-            <p class="tiny muted">
-                Tap Start Navigation to drive to the first stop without removing
-                it. After finishing that stop, tap Done &amp; Navigate Next to
-                remove it from this route and drive to the next stop. After the
-                last stop, it navigates Home.
-            </p>
-            <ul id="routeList"></ul>
+
+            <section class="plannerSurface" aria-labelledby="plannerHeading">
+                <div class="inlineHeader plannerSurfaceHeader">
+                    <h3 id="plannerHeading">Today's Route</h3>
+                    <div id="plannerViewToggle" class="plannerViewToggle" aria-label="Planner view">
+                        <button
+                            type="button"
+                            class="btn btnSmall"
+                            data-planner-view="list"
+                            aria-pressed="true"
+                        >List</button>
+                        <button
+                            type="button"
+                            class="btn btnSmall"
+                            data-planner-view="map"
+                            aria-pressed="false"
+                        >Map</button>
+                    </div>
+                </div>
+                <p id="plannerMapStatus" class="tiny muted"></p>
+                <div id="plannerWorkspace" class="plannerWorkspace" data-planner-view="list">
+                    <div class="plannerMapPane">
+                        <div
+                            id="plannerMap"
+                            class="plannerMap"
+                            aria-label="Current route map"
+                        ></div>
+                        <p id="plannerMapEmpty" class="tiny muted" hidden></p>
+                    </div>
+                    <div class="plannerListPane">
+                        <ul id="routeList" class="plannerRouteList"></ul>
+                    </div>
+                </div>
+            </section>
+
+            <section class="plannerActionSection" aria-labelledby="routeActionsHeading">
+                <h3 id="routeActionsHeading">Route Actions</h3>
+                <div class="btnRow">
+                    <button id="optimizeRoute" type="button" class="btn btnSmall">
+                        Optimize Route
+                    </button>
+                    <button
+                        id="googleOptimizeRoute"
+                        type="button"
+                        class="btn btnSmall"
+                        disabled
+                    >
+                        Google Optimize
+                    </button>
+                </div>
+                <div id="googleRouteSignIn" class="googleRouteSignIn"></div>
+                <p id="googleRouteAuthStatus" class="tiny muted">
+                    Google road optimization requires the approved company Google
+                    account.
+                </p>
+                <div class="btnRow plannerExecutionActions">
+                    <button
+                        id="startRouteNavigation"
+                        type="button"
+                        class="btn"
+                        disabled
+                    >
+                        Start Navigation
+                    </button>
+                    <button id="completeAndNavigateNext" type="button" class="btn" disabled>
+                        Done &amp; Navigate Next
+                    </button>
+                </div>
+                <p class="tiny muted">
+                    Tap Start Navigation to drive to the first stop without removing
+                    it. After finishing that stop, tap Done &amp; Navigate Next to
+                    remove it from this route and drive to the next stop. After the
+                    last stop, it navigates Home.
+                </p>
+                <p id="routeStatus" class="tiny muted">
+                    Select addresses, then optimize the route.
+                </p>
+            </section>
+
+            <details class="plannerUtilities">
+                <summary>Route tools &amp; maintenance</summary>
+                <div class="btnRow">
+                    <button
+                        id="checkWorkbookRoute"
+                        type="button"
+                        class="btn btnSmall"
+                    >
+                        Check Workbook Route
+                    </button>
+                    <button id="clearRoute" type="button" class="btn btnSmall">
+                        Clear Route
+                    </button>
+                    <button id="exportRoute" type="button" class="btn btnSmall">
+                        Open in Google Maps
+                    </button>
+                    <button
+                        id="sendRouteOrder"
+                        type="button"
+                        class="btn btnSmall"
+                        disabled
+                    >
+                        Send Route Order to Workbook
+                    </button>
+                    <button
+                        id="downloadGarminGpx"
+                        type="button"
+                        class="btn btnSmall"
+                    >
+                        Download Garmin GPX
+                    </button>
+                </div>
+                <div id="routeMapLinks" class="btnRow" hidden></div>
+                <p id="workbookRouteOrderStatus" class="tiny muted"></p>
+                <div class="btnRow">
+                    <button
+                        id="clearInspectorAdeJobs"
+                        type="button"
+                        class="btn btnSmall"
+                    >
+                        Clear InspectorADE Jobs
+                    </button>
+                    <button
+                        id="clearManualGigWork"
+                        type="button"
+                        class="btn btnSmall"
+                    >
+                        Clear Manual Gig Work
+                    </button>
+                </div>
+                <p class="tiny muted">
+                    These clear one kind of route work from both saved route versions
+                    without deleting the other kind of work or the saved addresses.
+                </p>
+            </details>
         </section>
 
         <section class="section appPage" data-page="settings" hidden>
@@ -616,6 +670,7 @@
         <script src="contract.js?v=3.0.0"></script>
         <script src="gig-contract.js?v=2.0.0"></script>
         <script src="work-item-planning.js?v=1.0.0"></script>
+        <script src="route-work-planning.js?v=1.0.0"></script>
         <script src="manual-work-library.js?v=2.0.0"></script>
         <script src="geocoder.js?v=2.0.0"></script>
         <script src="settings.js?v=1.1.0"></script>
@@ -638,7 +693,8 @@
         <script src="work-item-planning-runtime.js?v=1.0.0"></script>
         <script src="gig-handoff-ui.js?v=1.0.0"></script>
         <script src="route-work-controls.js?v=1.0.0"></script>
-        <script src="app.js?v=3.32.0"></script>
+        <script src="planner-model.js?v=1.0.0"></script>
+        <script src="app.js?v=3.33.0"></script>
         <script src="google-route-browser.js?v=1.8.0"></script>
         <script src="garmin-export-ui.js?v=1.1.0"></script>
     </body>

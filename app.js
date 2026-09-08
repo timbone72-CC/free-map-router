@@ -2379,3 +2379,667 @@ globalThis.FMRRouteBridge = Object.freeze({
 showPage("home");
 renderAll();
 refreshAddressSuggestions();
+
+// ============================================================================
+// PHASE 2H-C2 — Planner Map/List and Responsive Presentation
+// ============================================================================
+if (!globalThis.FMRPlannerModel) {
+    throw new Error("Free Map Router planner model failed to load.");
+}
+
+const { buildPlannerModel, workItemKey: plannerWorkItemKey } =
+    globalThis.FMRPlannerModel;
+
+const plannerEls = {
+    routePage: document.getElementById("routePage"),
+    daySummary: document.getElementById("plannerDaySummary"),
+    map: document.getElementById("plannerMap"),
+    mapStatus: document.getElementById("plannerMapStatus"),
+    mapEmpty: document.getElementById("plannerMapEmpty"),
+    workspace: document.getElementById("plannerWorkspace"),
+    viewToggle: document.getElementById("plannerViewToggle"),
+};
+
+let plannerMap = null;
+let plannerMarkersByStopId = new Map();
+let plannerFocusedStopId = null;
+let plannerViewMode = "list";
+
+function refreshPlannerRouteHistory() {
+    routeHistory = readRouteHistory(localStorage, savedJobIds());
+    routeIds = routeHistory[activeRouteSlot]?.routeIds.slice() || [];
+}
+
+function plannerDayContext() {
+    const workday = globalThis.FMRWorkdayContext;
+    try {
+        return (
+            workday?.displayContext?.(localStorage)?.context ||
+            routeHistory.dayContext ||
+            null
+        );
+    } catch {
+        return routeHistory.dayContext || null;
+    }
+}
+
+function plannerWorkItemDetails(manualGigs) {
+    const details = {};
+    for (const gig of Array.isArray(manualGigs) ? manualGigs : []) {
+        const gigId = String(gig?.id || "").trim();
+        if (!gigId) continue;
+        details[plannerWorkItemKey("gig", gigId)] = {
+            source: String(gig?.source || "").trim(),
+            workOrderId: String(gig?.workOrderId || "").trim() || null,
+            expectedPay:
+                gig?.expectedPay === null || gig?.expectedPay === undefined
+                    ? null
+                    : Number(gig.expectedPay),
+            dueDate: String(gig?.dueDate || "").trim() || null,
+            completedDate: String(gig?.completedDate || "").trim() || null,
+            notes: String(gig?.notes || "").trim(),
+        };
+    }
+    return details;
+}
+
+function plannerServiceByStopId(snapshot, projection) {
+    if (!projection?.complete) return null;
+    const serviceByStopId = {};
+    for (const stop of projection.stops || []) {
+        const minutes = Number(stop?.serviceMinutes);
+        if (!Number.isFinite(minutes) || minutes < 0) return null;
+        const seconds = minutes * 60;
+        const rounded = Math.round(seconds);
+        if (Math.abs(seconds - rounded) > 1e-9) return null;
+        serviceByStopId[stop.stopId] = rounded;
+    }
+    for (const stopId of snapshot?.routeIds || []) {
+        if (!Object.hasOwn(serviceByStopId, stopId)) {
+            serviceByStopId[stopId] = 0;
+        }
+    }
+    return serviceByStopId;
+}
+
+function currentPlannerScheduleBasis(snapshot, projection, dayContext) {
+    if (
+        activeRouteSlot !== "google" ||
+        !snapshot?.schedule ||
+        !home
+    ) {
+        return "";
+    }
+    if (
+        globalThis.FMRWorkdayContext?.homeByRestrictionEnabled?.(document) ===
+        false
+    ) {
+        return "";
+    }
+    const googleBrowser = globalThis.FMRGoogleRouteBrowser;
+    if (
+        typeof googleBrowser?.resolveLocalRouteInstant !== "function" ||
+        typeof googleBrowser?.buildScheduleBasisKey !== "function"
+    ) {
+        return "";
+    }
+    const serviceByStopId = plannerServiceByStopId(snapshot, projection);
+    if (!serviceByStopId || !dayContext) return "";
+    try {
+        const timing = {
+            departureTime: googleBrowser.resolveLocalRouteInstant(
+                dayContext.routeDate,
+                dayContext.departureTime,
+                dayContext.timeZone,
+            ),
+            homeByTime: googleBrowser.resolveLocalRouteInstant(
+                dayContext.routeDate,
+                dayContext.homeByTime,
+                dayContext.timeZone,
+            ),
+        };
+        return googleBrowser.buildScheduleBasisKey({
+            routeIds: snapshot.routeIds || [],
+            home,
+            serviceByStopId,
+            timing,
+        });
+    } catch {
+        return "";
+    }
+}
+
+function activePlannerModel() {
+    refreshPlannerRouteHistory();
+    const snapshot = routeHistory[activeRouteSlot] || {
+        routeIds: [],
+        orderIdsByStopId: {},
+        gigIdsByStopId: {},
+        optimizationStatus: "not_optimized",
+        schedule: null,
+    };
+    const manualGigs = readGigs(localStorage, savedJobIds());
+    const paySummary = summarizeRouteExpectedPay(snapshot, manualGigs);
+    const dayContext = plannerDayContext();
+    let projection = null;
+    let plannerError = "";
+    try {
+        projection =
+            globalThis.FMRWorkItemPlanningRuntime?.projectRoute?.(snapshot) ||
+            null;
+    } catch (error) {
+        plannerError =
+            error?.message || "Route work could not be summarized safely.";
+    }
+    const currentScheduleBasisKey = currentPlannerScheduleBasis(
+        snapshot,
+        projection,
+        dayContext,
+    );
+    const model = buildPlannerModel({
+        routeSlot: activeRouteSlot,
+        routeSnapshot: snapshot,
+        savedStops: jobs,
+        routePlanningProjection: projection,
+        workItemDetails: plannerWorkItemDetails(manualGigs),
+        currentScheduleBasisKey,
+        paySummary,
+        dayContext,
+    });
+    return { model, plannerError };
+}
+
+function plannerDurationText(seconds) {
+    const value = Number(seconds);
+    if (!Number.isFinite(value) || value < 0) return "Unavailable";
+    const minutes = Math.round(value / 60);
+    if (minutes < 60) return `${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    const remainder = minutes % 60;
+    return remainder ? `${hours} hr ${remainder} min` : `${hours} hr`;
+}
+
+function plannerMinutesText(value) {
+    const minutes = Number(value);
+    if (!Number.isFinite(minutes) || minutes < 0) return "unknown";
+    if (minutes < 60) return `${Math.round(minutes * 10) / 10} min`;
+    const hours = Math.floor(minutes / 60);
+    const remainder = Math.round((minutes - hours * 60) * 10) / 10;
+    return remainder ? `${hours} hr ${remainder} min` : `${hours} hr`;
+}
+
+function plannerClockText(instant, timeZone) {
+    if (!instant) return "Unavailable";
+    const date = new Date(instant);
+    if (Number.isNaN(date.getTime())) return "Unavailable";
+    try {
+        return new Intl.DateTimeFormat("en-US", {
+            timeZone: timeZone || "UTC",
+            hour: "numeric",
+            minute: "2-digit",
+        }).format(date);
+    } catch {
+        return "Unavailable";
+    }
+}
+
+function plannerOptimizationText(status) {
+    return (
+        {
+            basic_optimized: "Basic Optimized",
+            google_optimized: "Google Optimized",
+            manually_changed: "Manually Changed",
+            not_optimized: "Not Optimized",
+        }[status] || "Not Optimized"
+    );
+}
+
+function plannerSummaryItem(label, value) {
+    const item = document.createElement("div");
+    item.className = "plannerSummaryItem";
+    const name = document.createElement("span");
+    name.className = "plannerSummaryLabel";
+    name.textContent = label;
+    const content = document.createElement("span");
+    content.className = "plannerSummaryValue";
+    content.textContent = value;
+    item.append(name, content);
+    return item;
+}
+
+function renderPlannerDaySummary(model, plannerError = "") {
+    if (!plannerEls.daySummary) return;
+    const summary = model?.daySummary || {};
+    const timeZone = plannerDayContext()?.timeZone || "UTC";
+    const routeName =
+        activeRouteSlot === "basic" ? "Basic Route" : "Google Route";
+    const service = summary.serviceComplete
+        ? plannerMinutesText(summary.serviceMinutes || 0)
+        : `${plannerMinutesText(summary.knownServiceMinutes || 0)} known + incomplete`;
+    const pay = summary.hasRepresentedWork
+        ? `${moneyText(summary.expectedPayKnown)}${summary.payComplete ? "" : " + incomplete"}`
+        : "No attached pay";
+    const preferred =
+        summary.preferredFinishStatus === "met"
+            ? "Met"
+            : summary.preferredFinishStatus === "overrun"
+              ? `Over by ${summary.preferredFinishOverrunMinutes} min`
+              : "Unavailable";
+    const homeBy =
+        summary.homeByStatus === "met"
+            ? "Met"
+            : summary.homeByStatus === "conflict"
+              ? `Late by ${summary.homeByConflictMinutes} min`
+              : "Unavailable";
+
+    plannerEls.daySummary.innerHTML = "";
+    const routeDateText =
+        [summary.routeDate, summary.departureTime]
+            .filter(Boolean)
+            .join(" • ") || "Not set";
+    const items = [
+        [
+            "Route",
+            `${routeName} • ${plannerOptimizationText(summary.optimizationStatus)}`,
+        ],
+        ["Workday", routeDateText],
+        [
+            "Stops / work",
+            `${summary.physicalStopCount || 0} stops • ${summary.workItemCount || 0} work items`,
+        ],
+        ["Expected pay", pay],
+        ["Service", service],
+        [
+            "Traffic travel",
+            summary.travelDurationSeconds === null
+                ? "Unavailable"
+                : plannerDurationText(summary.travelDurationSeconds),
+        ],
+        ["Field finish", plannerClockText(summary.fieldWorkFinishTime, timeZone)],
+        ["Home", plannerClockText(summary.homeTime, timeZone)],
+        ["Preferred finish", preferred],
+        ["Home By", homeBy],
+        [
+            "Map",
+            `${Math.max(
+                0,
+                (summary.physicalStopCount || 0) -
+                    (summary.unplottableStopCount || 0),
+            )} plotted • ${summary.unplottableStopCount || 0} unplottable`,
+        ],
+    ];
+    for (const [label, value] of items) {
+        plannerEls.daySummary.appendChild(plannerSummaryItem(label, value));
+    }
+    const message = document.createElement("p");
+    message.className = "plannerSummaryMessage tiny muted";
+    message.textContent =
+        plannerError ||
+        model?.timingConfidence?.reason ||
+        "Planner facts are current for the displayed route.";
+    plannerEls.daySummary.appendChild(message);
+}
+
+function plannerWorkIdentity(item, card) {
+    if (item.kind === "workbook") {
+        return `${card.source || item.source || "InspectorADE"} Order ${item.workItemId}`;
+    }
+    const source = item.source || "Manual";
+    const workOrder = item.workOrderId ? ` • WO ${item.workOrderId}` : "";
+    return `${source} Gig ${item.workItemId}${workOrder}`;
+}
+
+function plannerWorkFacts(item) {
+    const facts = [
+        item.serviceMinutes === null
+            ? "Service unknown"
+            : `Service ${plannerMinutesText(item.serviceMinutes)}`,
+    ];
+    if (item.assignedDate) facts.push(`Assigned ${item.assignedDate}`);
+    if (item.lockedDay) facts.push("Locked day");
+    if (item.dueDate) facts.push(`Due ${item.dueDate}`);
+    if (item.expectedPay !== null) facts.push(`Pay ${moneyText(item.expectedPay)}`);
+    return facts.join(" • ");
+}
+
+function plannerStopHeader(card, timeZone) {
+    const header = document.createElement("span");
+    header.className = "plannerStopHeader";
+    const number = document.createElement("span");
+    number.className = "plannerStopNumber";
+    number.textContent = String(card.routeNumber).padStart(2, "0");
+    const address = document.createElement("span");
+    address.className = "plannerStopAddress";
+    address.textContent = card.address || card.stopId;
+    const meta = document.createElement("span");
+    meta.className = "plannerStopMeta";
+    if (card.source) {
+        const source = document.createElement("span");
+        source.className = "plannerSourceTag";
+        source.textContent = card.source;
+        meta.appendChild(source);
+    }
+    if (card.etaTime) {
+        const eta = document.createElement("span");
+        eta.className = "plannerEtaTag";
+        eta.textContent = `ETA ${plannerClockText(card.etaTime, timeZone)}`;
+        meta.appendChild(eta);
+    }
+    const mapState = document.createElement("span");
+    mapState.className = "plannerMapTag";
+    mapState.textContent = card.mapPlottable ? "Mapped" : "No saved pin";
+    meta.appendChild(mapState);
+    const service = document.createElement("span");
+    service.dataset.fmrStopServiceTime = "true";
+    service.className = "tiny muted";
+    service.textContent = card.serviceComplete
+        ? `Service: ${plannerMinutesText(card.serviceMinutes || 0)}`
+        : `Service: ${plannerMinutesText(card.knownServiceMinutes || 0)} known + incomplete`;
+    meta.appendChild(service);
+    header.append(number, address, meta);
+    return header;
+}
+
+function plannerWorkRows(card) {
+    const list = document.createElement("div");
+    list.className = "plannerWorkList";
+    for (const item of card.workItems || []) {
+        const row = document.createElement("div");
+        row.className = "plannerWorkRow";
+        row.dataset.workKind = item.kind;
+        row.dataset.workItemId = item.workItemId;
+        const identity = document.createElement("div");
+        identity.className = "plannerWorkIdentity";
+        identity.textContent = plannerWorkIdentity(item, card);
+        const facts = document.createElement("div");
+        facts.className = "plannerWorkFacts";
+        facts.textContent = plannerWorkFacts(item);
+        row.append(identity, facts);
+        list.appendChild(row);
+    }
+    return list;
+}
+
+function focusPlannerStop(stopId) {
+    const id = String(stopId || "").trim();
+    if (!id || !routeIds.includes(id)) return false;
+    plannerFocusedStopId = id;
+    for (const card of document.querySelectorAll("#routeList > li[data-stop-id]")) {
+        card.classList.toggle("isFocused", card.dataset.stopId === id);
+    }
+    const marker = plannerMarkersByStopId.get(id);
+    if (marker) {
+        marker.openTooltip?.();
+        plannerMap?.panTo?.(marker.getLatLng());
+    }
+    return true;
+}
+
+function plannerCard(card, index, timeZone) {
+    const li = document.createElement("li");
+    li.className = "plannerStopCard";
+    li.dataset.stopId = card.stopId;
+    li.tabIndex = 0;
+    if (plannerFocusedStopId === card.stopId) li.classList.add("isFocused");
+    li.appendChild(plannerStopHeader(card, timeZone));
+    li.appendChild(plannerWorkRows(card));
+    const stopId = document.createElement("div");
+    stopId.className = "plannerStopId";
+    stopId.textContent = `Stop ID: ${card.stopId}`;
+    li.appendChild(stopId);
+    const actions = document.createElement("div");
+    actions.className = "plannerCardActions";
+    const upBtn = document.createElement("button");
+    upBtn.type = "button";
+    upBtn.textContent = "Up";
+    upBtn.disabled = index === 0;
+    upBtn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        if (index === 0) return;
+        const tmp = routeIds[index - 1];
+        routeIds[index - 1] = routeIds[index];
+        routeIds[index] = tmp;
+        persistActiveRoute("manually_changed");
+        renderRouteList();
+    });
+    const downBtn = document.createElement("button");
+    downBtn.type = "button";
+    downBtn.textContent = "Down";
+    downBtn.disabled = index === routeIds.length - 1;
+    downBtn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        if (index === routeIds.length - 1) return;
+        const tmp = routeIds[index + 1];
+        routeIds[index + 1] = routeIds[index];
+        routeIds[index] = tmp;
+        persistActiveRoute("manually_changed");
+        renderRouteList();
+    });
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.textContent = "Remove";
+    removeBtn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        routeIds = routeIds.filter((id) => id !== card.stopId);
+        persistActiveRoute(markRouteManuallyChanged());
+        if (plannerFocusedStopId === card.stopId) plannerFocusedStopId = null;
+        renderRouteList();
+        renderJobsList();
+    });
+    actions.append(upBtn, downBtn, removeBtn);
+    li.appendChild(actions);
+    li.addEventListener("click", (event) => {
+        if (event.target?.closest?.("button")) return;
+        focusPlannerStop(card.stopId);
+    });
+    li.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        if (event.target?.closest?.("button")) return;
+        event.preventDefault();
+        focusPlannerStop(card.stopId);
+    });
+    return li;
+}
+
+function clearPlannerMarkers() {
+    for (const marker of plannerMarkersByStopId.values()) marker.remove?.();
+    plannerMarkersByStopId = new Map();
+}
+
+function plannerMapCanRender() {
+    const mobile =
+        globalThis.matchMedia?.("(max-width: 760px)")?.matches === true;
+    return !mobile || plannerViewMode === "map";
+}
+
+function renderPlannerMap(model) {
+    if (!plannerEls.mapStatus || !plannerEls.map || !plannerEls.mapEmpty) return;
+    const plotted = model?.mapPlottableStopIds?.length || 0;
+    const total = model?.stopCards?.length || 0;
+    const unplottable = model?.unplottableStopIds?.length || 0;
+    plannerEls.mapStatus.textContent =
+        `${plotted} of ${total} route stop${total === 1 ? "" : "s"} plotted` +
+        (unplottable
+            ? ` • ${unplottable} without a saved display pin`
+            : "");
+    if (!plannerMapCanRender() || plannerEls.routePage?.hidden) return;
+    clearPlannerMarkers();
+    if (!globalThis.L || plotted === 0) {
+        plannerEls.mapEmpty.hidden = false;
+        plannerEls.mapEmpty.textContent = total
+            ? "No route stops with saved display coordinates are available for this map. The full route remains in the list."
+            : "Add route stops to see them on the map.";
+        if (plannerMap) plannerMap.invalidateSize?.();
+        return;
+    }
+    plannerEls.mapEmpty.hidden = true;
+    if (!plannerMap) {
+        plannerMap = globalThis.L.map(plannerEls.map, {
+            zoomControl: true,
+            attributionControl: true,
+        });
+        addFreeMapLayers(plannerMap);
+    }
+    const bounds = [];
+    for (const card of model.stopCards || []) {
+        if (!card.mapPlottable || !card.coordinates) continue;
+        const point = [card.coordinates.latitude, card.coordinates.longitude];
+        const marker = globalThis.L.marker(point, {
+            draggable: false,
+            title: `${card.routeNumber}. ${card.address}`,
+            icon: globalThis.L.divIcon({
+                className: "plannerMarkerHost",
+                html: `<span class="plannerMarkerIcon">${String(card.routeNumber).padStart(2, "0")}</span>`,
+                iconSize: [30, 30],
+                iconAnchor: [15, 15],
+            }),
+        }).addTo(plannerMap);
+        const tooltip = document.createElement("span");
+        tooltip.textContent = `${card.routeNumber}. ${card.address}`;
+        marker.bindTooltip(tooltip, { direction: "top" });
+        marker.on("click", () => focusPlannerStop(card.stopId));
+        plannerMarkersByStopId.set(card.stopId, marker);
+        bounds.push(point);
+    }
+    plannerMap.invalidateSize?.();
+    if (bounds.length === 1) plannerMap.setView(bounds[0], 15);
+    else if (bounds.length > 1)
+        plannerMap.fitBounds(bounds, { padding: [24, 24] });
+    if (plannerFocusedStopId) focusPlannerStop(plannerFocusedStopId);
+}
+
+function renderPlannerRouteCards(model) {
+    const list = els.routeList;
+    if (!list) return;
+    list.innerHTML = "";
+    if (!home) {
+        const li = document.createElement("li");
+        li.className = "plannerEndpoint";
+        li.textContent = "Save your Home / Route Base first.";
+        list.appendChild(li);
+        return;
+    }
+    const start = document.createElement("li");
+    start.className = "plannerEndpoint";
+    start.textContent = `Start — ${home.address}`;
+    list.appendChild(start);
+    if (!model.stopCards.length) {
+        const li = document.createElement("li");
+        li.className = "plannerEndpoint";
+        li.textContent = "No addresses selected for route.";
+        list.appendChild(li);
+    } else {
+        if (
+            plannerFocusedStopId &&
+            !model.stopCards.some((card) => card.stopId === plannerFocusedStopId)
+        ) {
+            plannerFocusedStopId = null;
+        }
+        const timeZone = plannerDayContext()?.timeZone || "UTC";
+        model.stopCards.forEach((card, index) =>
+            list.appendChild(plannerCard(card, index, timeZone)),
+        );
+    }
+    const finish = document.createElement("li");
+    finish.className = "plannerEndpoint";
+    finish.textContent = `Finish — ${home.address}`;
+    list.appendChild(finish);
+}
+
+function renderPlannerPresentation() {
+    const { model, plannerError } = activePlannerModel();
+    renderPlannerDaySummary(model, plannerError);
+    renderPlannerRouteCards(model);
+    renderPlannerMap(model);
+    return model;
+}
+
+function setPlannerView(mode) {
+    plannerViewMode = mode === "map" ? "map" : "list";
+    if (plannerEls.workspace) {
+        plannerEls.workspace.dataset.plannerView = plannerViewMode;
+    }
+    for (const button of
+        plannerEls.viewToggle?.querySelectorAll?.("[data-planner-view]") || []) {
+        button.setAttribute(
+            "aria-pressed",
+            button.dataset.plannerView === plannerViewMode ? "true" : "false",
+        );
+    }
+    if (plannerViewMode === "map") {
+        const { model } = activePlannerModel();
+        renderPlannerMap(model);
+    }
+}
+
+renderRouteList = function plannerAwareRenderRouteList() {
+    refreshPlannerRouteHistory();
+    renderRouteChoice();
+    renderRouteOptimizationStatus();
+    renderRoutePaySummary();
+    renderGoogleMapsActions();
+    if (els.completeAndNavigateNext) {
+        els.completeAndNavigateNext.disabled = !home || routeIds.length === 0;
+    }
+    if (els.startRouteNavigation) {
+        els.startRouteNavigation.disabled = !home || routeIds.length === 0;
+    }
+    if (els.sendRouteOrder) {
+        els.sendRouteOrder.disabled =
+            routeIds.length === 0 || Boolean(routeOrderSendPromise);
+    }
+    return renderPlannerPresentation();
+};
+
+const originalShowPageForC2 = showPage;
+showPage = function plannerAwareShowPage(pageName) {
+    const result = originalShowPageForC2(pageName);
+    const resolved = ["home", "addresses", "import", "route", "settings"].includes(
+        pageName,
+    )
+        ? pageName
+        : "home";
+    if (resolved === "route") {
+        renderRouteList();
+        plannerMap?.invalidateSize?.();
+    }
+    return result;
+};
+
+plannerEls.viewToggle?.addEventListener("click", (event) => {
+    const button = event.target?.closest?.("[data-planner-view]");
+    if (!button) return;
+    setPlannerView(button.dataset.plannerView);
+});
+
+for (const inputId of [
+    "routeDate",
+    "routeDepartureTime",
+    "routePreferredFinishTime",
+    "routeHomeByTime",
+]) {
+    document.getElementById(inputId)?.addEventListener("change", () => {
+        refreshPlannerRouteHistory();
+        renderRouteList();
+    });
+}
+
+document.addEventListener("submit", (event) => {
+    if (event.target?.id !== "workItemPlanningForm") return;
+    queueMicrotask(() => renderRouteList());
+});
+
+const routeBridgeBeforePlanner = globalThis.FMRRouteBridge;
+globalThis.FMRRouteBridge = Object.freeze({
+    ...routeBridgeBeforePlanner,
+    setRouteStatus(message) {
+        refreshPlannerRouteHistory();
+        renderRouteList();
+        if (els.routeStatus) {
+            els.routeStatus.textContent = String(message || "");
+        }
+    },
+});
+
+setPlannerView("list");
+renderRouteList();
