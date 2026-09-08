@@ -32,15 +32,26 @@ jobs:
           issue = json.load(open('/tmp/phase2ic-issue.json'))
           comments = json.load(open('/tmp/phase2ic-comments.json'))
           expected_hashes = {
-              'PHASE2IC-PKG-00': '1aa2ab7dc0fcb1915ea671c556a5a39f1d615db74462e7d725d7f439d0e24e02',
-              'PHASE2IC-PKG-01': '286d5b28f0c9ca43603db8306d4d9d81fdb0661a17c151836d97b1562ae3411a',
-              'PHASE2IC-PKG-02': '89f0af8c65e310b5589534bc15dbd4b740580c7d00afa3c9da8be7603a619d45',
-              'PHASE2IC-PKG-03': '066592eb3b1767f1e7035b183993d5dc417711a96253ab8c2f8c904d39db4080',
-              'PHASE2IC-PKG-04': 'ecbd2f31e595128d2b8c0076fa49b564a78de362c563bb23ec7073fbd133f706',
+              'PHASE2IC-SMALL-00': '1a74ddba15a323ab7e4db0ab2a51a430e77960012635612eb706f7ebddad96e4',
+              'PHASE2IC-SMALL-01': 'fa362abbe071e72d683fed25ac848388fc35c482edbd959157b997d536c4f51a',
+              'PHASE2IC-SMALL-02': 'cb6f4e14b1998059af5a1ca42915b22c7bf50e9b2a611762ee09e8b534c90f48',
+              'PHASE2IC-SMALL-03': '8b58dfd48b58594ab3adaaa10de6ab7ee975d7e2c545d8bba954b3f4b4d1b19d',
+              'PHASE2IC-SMALL-04': 'c854304da7c7c2a1dd3e923d0553300b39ce63cb26758c25c034f158dcaded96',
+              'PHASE2IC-SMALL-05': '2dbf418e940a9fb817d640e4ff4366c5082701ec0bf97d6f0a42bf5af9c02547',
+              'PHASE2IC-SMALL-06': 'ee2a3d3d40da961ae793b00492ed76977990e6aa658c08f8634e3b307786f2b3',
+              'PHASE2IC-SMALL-07': '2a55957e5f7bdfbb8d76d37e453e11ba424fb12f29c3133bf2e9ec8d8e2f511e',
+              'PHASE2IC-SMALL-08': '23378b6949fdebf715b62f6a8f5b7f00040570302574d2f88736e02b98abe337',
+              'PHASE2IC-SMALL-09': '595c9f28ebb198c9321f0e439857944c1abcb71476dddcdf48d9df95df5199aa',
+              'PHASE2IC-SMALL-10': 'a0239d6fd7e59222c38fe1a8cb49fa370f99c2d7bb766617becce91a0290ec3d',
+              'PHASE2IC-SMALL-11': 'd5571a0239cb88a2e84cd074ac28f5a1f7c3bc9f301f5ab1f2ef005b5bae9685',
+              'PHASE2IC-SMALL-12': 'e9c08a08056e5d8f05d924958b54c4c3326543bb7fcf4fe585196c98cf089733',
+              'PHASE2IC-SMALL-13': '336b18df9cecb70f0d2b345fa3dfec83e8e1c082ff7b5bc0b73c4e300e79a295',
+              'PHASE2IC-SMALL-14': '2cce2ceb78d8043d538baaf5489317476ac4c27d3dca614c220bea50b41cd11f',
+              'PHASE2IC-SMALL-15': 'daf0137fdf04fef87465072f6707857006a213efd32cf865c65b16c7b501bc10',
           }
           parts = []
           for body in [issue.get('body', '')] + [c.get('body', '') for c in comments]:
-              if not body.startswith('PHASE2IC-PKG-'):
+              if not body.startswith('PHASE2IC-SMALL-'):
                   continue
               marker, data = body.split('\n', 1)
               data = data.strip()
@@ -51,7 +62,7 @@ jobs:
                   raise SystemExit(f'{marker} staging hash mismatch: expected {expected}, got {digest}')
               parts.append((marker, data))
           parts.sort()
-          expected_markers = [f'PHASE2IC-PKG-{i:02d}' for i in range(5)]
+          expected_markers = [f'PHASE2IC-SMALL-{i:02d}' for i in range(16)]
           actual = [marker for marker, _ in parts]
           if actual != expected_markers:
               raise SystemExit(f'Package markers mismatch: {actual!r}')
