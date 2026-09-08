@@ -150,6 +150,14 @@ test("C2 responsive presentation is desktop map/list together and phone one-view
     );
     assert.match(
         css,
+        /\.plannerListPane\s*\{[\s\S]*height:\s*460px;[\s\S]*overflow-y:\s*auto;[\s\S]*overscroll-behavior:\s*contain;[\s\S]*scrollbar-gutter:\s*stable;/,
+    );
+    assert.match(
+        css,
+        /@media \(max-width: 760px\)[\s\S]*\.plannerListPane\s*\{[\s\S]*height:\s*auto;[\s\S]*overflow-y:\s*visible;[\s\S]*border:\s*0;[\s\S]*background:\s*transparent;/,
+    );
+    assert.match(
+        css,
         /@media \(max-width: 760px\)[\s\S]*\.plannerViewToggle\s*\{[\s\S]*display:\s*inline-flex;/,
     );
     assert.match(

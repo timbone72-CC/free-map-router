@@ -472,6 +472,18 @@ li {
     overflow: hidden;
 }
 
+.plannerListPane {
+    height: 460px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    padding: 6px;
+    border: 1px solid #e5e5e5;
+    border-radius: 10px;
+    background: #fcfcfc;
+    box-sizing: border-box;
+}
+
 .plannerMapEmpty {
     margin: 8px 0 0;
 }
@@ -651,6 +663,16 @@ li {
         height: 56vh;
         min-height: 320px;
         max-height: 520px;
+    }
+
+    .plannerListPane {
+        height: auto;
+        overflow-y: visible;
+        overscroll-behavior: auto;
+        scrollbar-gutter: auto;
+        padding: 0;
+        border: 0;
+        background: transparent;
     }
 
     .plannerRouteHeader {
