@@ -562,6 +562,17 @@
             return target;
         }
 
+        function markCompatibilityMutation(history) {
+            if (history && typeof history === "object") {
+                Object.defineProperty(history, COMPAT_INPUT, {
+                    value: true,
+                    configurable: true,
+                    enumerable: false,
+                });
+            }
+            return history;
+        }
+
         function emptyHistory() {
             return attachCompatibility({
                 activePlan: null,
@@ -880,7 +891,34 @@
                 const dayContext = Object.hasOwn(changes, "dayContext")
                     ? normalizeDayContext(changes.dayContext)
                     : null;
-                if (!google && !basic) return normalized;
+                if (!google && !basic) {
+                    if (!dayContext) return normalized;
+                    const now = nextTimestamp();
+                    const identity = now.replace(/[^0-9A-Za-z]/g, "");
+                    const dayId = `workday-day-${identity}`;
+                    const activePlan = normalizeRoutePlan({
+                        planId: `workday-plan-${identity}`,
+                        revision: 1,
+                        updatedAt: now,
+                        activeDayId: dayId,
+                        workItems: [],
+                        standaloneStops: [],
+                        days: [
+                            {
+                                dayId,
+                                revision: 1,
+                                updatedAt: now,
+                                dayContext,
+                                google: null,
+                                basic: null,
+                            },
+                        ],
+                    });
+                    return attachCompatibility({
+                        activePlan,
+                        pending: normalized.pending,
+                    });
+                }
                 const migrated = migrateOneDayRouteHistory({
                     dayContext,
                     google,
@@ -1160,7 +1198,11 @@
                 stored = null;
             }
 
-            if (history?.[COMPAT_INPUT] && stored?.activePlan) {
+            if (
+                !restoreReplacement &&
+                history?.[COMPAT_INPUT] &&
+                stored?.activePlan
+            ) {
                 normalized = rebaseCompatOntoStored(
                     normalized,
                     stored,
@@ -1198,6 +1240,7 @@
             }
 
             if (
+                !restoreReplacement &&
                 !replaceStoredDayContext &&
                 stored?.dayContext &&
                 normalized.activePlan &&
@@ -1211,6 +1254,7 @@
             }
 
             if (
+                !restoreReplacement &&
                 !normalized.google?.schedule &&
                 canPreserveStoredGoogleSchedule(normalized, stored)
             ) {
@@ -1271,10 +1315,12 @@
                 validIds,
                 key === "google",
             );
-            return replaceActiveDay(
-                normalized,
-                { [key]: nextSnapshot },
-                { validIds },
+            return markCompatibilityMutation(
+                replaceActiveDay(
+                    normalized,
+                    { [key]: nextSnapshot },
+                    { validIds },
+                ),
             );
         }
 
@@ -1304,10 +1350,12 @@
                 validIds,
                 key === "google",
             );
-            return replaceActiveDay(
-                normalized,
-                { [key]: nextSnapshot },
-                { validIds },
+            return markCompatibilityMutation(
+                replaceActiveDay(
+                    normalized,
+                    { [key]: nextSnapshot },
+                    { validIds },
+                ),
             );
         }
 
@@ -1523,12 +1571,41 @@
             if (!planValue) return null;
             const key = workItemKey(kind, workItemId);
             const plan = normalizeRoutePlan(planValue);
+            const removed = plan.workItems.find(
+                (item) => workItemKey(item.kind, item.workItemId) === key,
+            );
+            const workItems = plan.workItems.filter(
+                (item) => workItemKey(item.kind, item.workItemId) !== key,
+            );
+            const remainingWorkStops = new Set(
+                workItems.map((item) => item.stopId),
+            );
+            const standaloneStops = plan.standaloneStops.map((stop) => ({
+                ...stop,
+            }));
+            if (removed && !remainingWorkStops.has(removed.stopId)) {
+                const routedDay = plan.days.find((day) =>
+                    routeStopIds(day.google, day.basic).includes(
+                        removed.stopId,
+                    ),
+                );
+                if (
+                    routedDay &&
+                    !standaloneStops.some(
+                        (stop) => stop.stopId === removed.stopId,
+                    )
+                ) {
+                    standaloneStops.push({
+                        stopId: removed.stopId,
+                        assignedDate: routedDay.dayContext?.routeDate || null,
+                        lockedDay: false,
+                    });
+                }
+            }
             return normalizeRoutePlan({
                 ...plan,
-                workItems: plan.workItems.filter(
-                    (item) =>
-                        workItemKey(item.kind, item.workItemId) !== key,
-                ),
+                workItems,
+                standaloneStops,
             });
         }
 
@@ -1669,7 +1746,7 @@
                     pending: normalized.pending,
                 });
             }
-            return normalized;
+            return markCompatibilityMutation(normalized);
         }
 
         function workbookRouteRelation(history, sourceUpdatedAt) {
@@ -1725,10 +1802,12 @@
                 false,
             );
             return {
-                history: attachCompatibility({
-                    activePlan: normalized.activePlan,
-                    pending,
-                }),
+                history: markCompatibilityMutation(
+                    attachCompatibility({
+                        activePlan: normalized.activePlan,
+                        pending,
+                    }),
+                ),
                 result,
             };
         }
