@@ -512,3 +512,37 @@ Tests must continue to protect:
   stops and service durations, and not fabricating timed schedule confidence;
 - version-1 backup compatibility and version-2 gig preservation; and
 - the five-page dropdown menu with only one selected page visible.
+
+## 9. Phase 2H-C planner protection
+
+1. Build Route planner facts are derived from the current governed route, work,
+   pay, Workday, schedule, and saved-stop state. Planner rendering never becomes
+   a second durable route or storage owner.
+2. One planner card represents one physical `stopId`. Distinct workbook Order
+   IDs / `Source_ID`s and manual `Gig_ID`s remain distinct work items nested
+   beneath that stop, and work-item count remains separate from physical-stop
+   count.
+3. The day summary reports expected pay and service time with explicit
+   completeness. Missing represented pay or unknown service duration never
+   becomes a false complete `$0` or `0 min` result.
+4. Traffic-aware ETA, travel, field-finish, Home, Preferred Finish, and Home By
+   facts are shown only from a current valid Google schedule whose governed
+   basis still matches. Basic Route never claims Google traffic timing
+   confidence.
+5. The planner map uses only valid saved display coordinates. Google
+   request-only geocoding coordinates are never planner-map truth. A route stop
+   without a saved display coordinate remains in the ordered planner list,
+   remains part of route identity, and is reported as unplottable rather than
+   being dropped.
+6. Marker/card focus resolves by exact `stopId` and is presentation state only.
+   Focusing a stop must not add, remove, reorder, complete, optimize, edit pins,
+   write planning data, call Google, or write Drive/workbook state.
+7. Desktop and phone consume the same derived planner model. Desktop/tablet may
+   show map and cards together with the route-card pane scrolling independently
+   beside the map. Phone List/Map mode is presentation-only and must not create a
+   second route, second planner model, persisted mobile route state, observer,
+   polling loop, or duplicate event-registration loop.
+8. Phase 2H-C preserves the existing five top-level pages and protected Build
+   Route controls. It adds no new map provider/package/API key, OAuth scope,
+   Drive file, storage schema, backup schema, workbook handoff schema, or Google
+   optimization request/response contract.
