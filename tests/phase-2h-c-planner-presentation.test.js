@@ -87,8 +87,14 @@ test("C2 Build Route contains one day summary, one map, one route list, and a bo
         assert.equal(countMatches(html, new RegExp(`id="${id}"`, "g")), 1);
     }
 
-    assert.equal(countMatches(html, /data-planner-view="list"/g), 1);
-    assert.equal(countMatches(html, /data-planner-view="map"/g), 1);
+    assert.equal(
+        countMatches(html, /<button[\s\S]{0,180}data-planner-view="list"/g),
+        1,
+    );
+    assert.equal(
+        countMatches(html, /<button[\s\S]{0,180}data-planner-view="map"/g),
+        1,
+    );
     assert.match(html, /<details class="plannerUtilities">/);
     assert.match(html, /<summary>Route tools &amp; maintenance<\/summary>/);
 });
