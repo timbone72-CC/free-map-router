@@ -369,7 +369,7 @@ test("editing workday controls saves timing without changing route order or opti
     );
 });
 
-test("Build Route contains exactly the four Phase 2H-A controls before app.js", () => {
+test("Build Route keeps exactly the four Phase 2H-A controls and loads Workday before app.js", () => {
     const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
 
     for (const id of [
@@ -378,14 +378,17 @@ test("Build Route contains exactly the four Phase 2H-A controls before app.js", 
         "routePreferredFinishTime",
         "routeHomeByTime",
     ]) {
-        assert.match(html, new RegExp(`id="${id}"`));
+        const matches = html.match(new RegExp(`id="${id}"`, "g")) || [];
+        assert.equal(matches.length, 1, `${id} must exist exactly once`);
     }
     assert.match(html, /id="routeDayContextStatus"/);
     assert.match(html, /route-history\.js\?v=6\.0\.0/);
     assert.match(html, /workday-context\.js\?v=1\.0\.0/);
     assert.match(html, /backup\.js\?v=4\.1\.0/);
-    assert.ok(
-        html.indexOf("workday-context.js?v=1.0.0") <
-            html.indexOf("app.js?v=3.32.0"),
-    );
+
+    const workdayIndex = html.indexOf("workday-context.js?v=1.0.0");
+    const appMatch = html.match(/app\.js\?v=\d+\.\d+\.\d+/);
+    assert.ok(workdayIndex >= 0, "Workday context script must be loaded");
+    assert.ok(appMatch, "Cache-versioned app.js must be loaded");
+    assert.ok(workdayIndex < html.indexOf(appMatch[0]));
 });
