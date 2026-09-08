@@ -1,9 +1,10 @@
 # Phase 2H-C1 — Derived Planner Models Change Record
 
 Date: 2026-09-08  
-Status: **IMPLEMENTED ON BRANCH — FOCUSED VERIFICATION PASSED — FINAL CI PENDING**  
+Status: **IMPLEMENTED — VERIFIED — READY TO MERGE**  
 Governed base: `e6f02f045c0a833fa1a24539b12c8071c98f0c2c`  
 Implementation branch: `feat/phase-2h-c1-derived-planner-models`  
+Verified runtime head: `d28d2e09275d2459de24c086fa17e17136c7d097`  
 Change class: **Level 2 runtime feature**  
 Workbook/router integration: **No workbook/router integration impact.**
 
@@ -140,7 +141,7 @@ A focused development test exposed and fixed a JavaScript coercion edge case whe
 
 Google request-only geocoding coordinates are not an input to C1 and are never used for map plottability.
 
-## Focused verification
+## Verification
 
 Development focused run after the coordinate fix:
 
@@ -160,7 +161,13 @@ The focused suite proves:
 9. planner derivation does not mutate supplied inputs;
 10. a schedule whose service total disagrees with the derived current route service is not exposed as current.
 
-Final complete repository CI and root JavaScript syntax checks remain required on the exact final branch head before merge.
+Final repository verification on the exact runtime head completed successfully in **Verify Contract and App run #274**:
+
+- **426 tests passed / 0 failed**;
+- root first-party JavaScript syntax checks passed;
+- verified runtime head: `d28d2e09275d2459de24c086fa17e17136c7d097`.
+
+This documentation-only verification-record update does not invalidate that runtime result under `TESTING_CONTRACT.md`.
 
 ## Contract protection introduced by C1
 
