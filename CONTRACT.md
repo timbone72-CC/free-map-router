@@ -84,7 +84,7 @@ versions of one job route, and opens the selected version in Google Maps.
    after saving.
 6. Settings provides a downloadable backup and restore. The backup contains
    Home, saved addresses, pins, manual gigs, Google Route, Basic Route, and any
-   pending new workbook route, but never the Geoapify key.
+   pending workbook route, but never the Geoapify key.
 7. Google Drive backup uses the limited `drive.file` permission and may access
    only files created or selected for this app. It must never request access to
    every file in Google Drive.
@@ -119,7 +119,7 @@ versions of one job route, and opens the selected version in Google Maps.
     true are then reapplied to both usable route versions by physical stop, so
     starting a workbook route does not silently discard planned manual work.
 14. Downloaded and Google Drive backups preserve Google Route, Basic Route, any
-    pending new workbook route, and manual gigs. Older valid version-1 backups
+    pending workbook route, and manual gigs. Older valid version-1 backups
     without gigs remain restorable and yield an empty gig collection.
 15. Repeated manual backup requests are serialized so the latest requested
     state is written last.
