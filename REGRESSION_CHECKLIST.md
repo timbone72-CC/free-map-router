@@ -365,3 +365,41 @@ Required for Level 3 data changes and any Level 2 import or storage change.
 - [ ] The change merged through a pull request.
 - [ ] GitHub Pages published the expected commit.
 - [ ] The required affected live check passed.
+
+## Planner checks — Phase 2H-C protected baseline
+
+Required after planner-model derivation, Build Route planner rendering, planner
+map/list interaction, or planner responsive-presentation changes.
+
+- [ ] One physical `stopId` produces one numbered planner card, while every
+      attached workbook Order ID / `Source_ID` and manual `Gig_ID` remains a
+      distinct exact work row beneath that card.
+- [ ] Day summary work-item count and physical-stop count remain separate facts.
+- [ ] Missing represented pay remains incomplete rather than becoming a false
+      complete `$0`; unknown manual service time remains incomplete rather than
+      becoming `0 min`.
+- [ ] Current Google ETA/travel/field-finish/Home/Preferred Finish/Home By facts
+      appear only while the governed schedule basis and current service total
+      still match. Stale timing is withheld without deleting route order.
+- [ ] Basic Route never receives traffic-aware Google ETA/Home-By confidence.
+- [ ] Planner markers use only valid saved display coordinates. Null, empty,
+      partial, or invalid coordinates are not coerced into map points, and
+      Google request-only geocoding coordinates are never used as planner-map
+      truth.
+- [ ] An unplottable route stop remains in the full ordered card list and route
+      identity and increments the visible unplottable count rather than being
+      dropped.
+- [ ] Marker/card focus resolves the same exact `stopId` and does not add,
+      remove, reorder, complete, optimize, edit pins, write planning data,
+      trigger Google, or write Drive/workbook state.
+- [ ] Every protected Build Route control remains present and the app keeps
+      exactly the existing five top-level pages.
+- [ ] Desktop and phone consume the same planner model with no alternate route
+      array, persisted phone route state, MutationObserver, polling loop, or
+      duplicate event-registration loop.
+- [ ] Desktop/tablet can keep the planner map visible while route cards scroll in
+      their own bounded pane; the phone breakpoint returns that pane to normal
+      document flow and preserves the existing List/Map presentation behavior.
+- [ ] Planner work adds no new map provider/package/API key, OAuth permission,
+      Drive file, storage/backup schema, workbook handoff schema, or Google
+      optimization request/response contract.
