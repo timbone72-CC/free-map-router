@@ -245,6 +245,52 @@ planner-facing route changes.
 - [ ] Invalid or orphan planning data is isolated and cannot damage valid Home,
       saved stops, route snapshots, workbook Order IDs, or manual `Gig_ID`s.
 
+## Time-aware Google checks — Phase 2H-B protected baseline
+
+Required after Google timing/service request preparation, Google schedule
+persistence, Workday timing interactions that affect Google Optimize, or backup
+changes that can affect the Google schedule.
+
+- [ ] A timed Google request resolves the saved Route date, Departure, Home By,
+      and IANA timezone to whole-second request timing without changing the
+      stored local Workday values.
+- [ ] Each physical stop is sent to Google exactly once even when several exact
+      workbook Order IDs and/or manual `Gig_ID`s share that stop.
+- [ ] Known Phase 2G service durations at one physical stop are summed once and
+      sent as that visit's `serviceDurationSeconds`.
+- [ ] Routed manual work with unknown service duration blocks the time-aware
+      request before the Google network call and identifies the missing work
+      instead of treating it as zero.
+- [ ] Preferred field-work finish is not sent as a hard Google time window; it
+      remains a soft post-result overrun/warning.
+- [ ] With Home By enabled, skipped, missing, duplicate, unknown, incomplete, or
+      Home-By-infeasible Google output applies no partial route and preserves the
+      previously accepted route.
+- [ ] A complete accepted timed schedule maps visits one-to-one to the accepted
+      Google route IDs and is persisted only on Google Route. Basic Route and
+      pending route schedule state remain null.
+- [ ] Ordinary route-history reads/writes preserve a valid accepted Google
+      schedule when its governed route/work and hard timing basis is unchanged.
+- [ ] Google route order or membership, represented work metadata, Home, routed
+      service duration, Route date, Departure, Home By, or timezone changes make
+      the prior schedule stale without deleting the saved route order.
+- [ ] Changing only Preferred Finish does not invalidate the accepted schedule
+      because Preferred Finish is not part of the hard Google request basis.
+- [ ] Whole-app backup version 4 preserves a valid Google schedule and restore
+      returns it only when it remains structurally valid for the saved Google
+      route; Basic schedule remains null.
+- [ ] Clearing the visible **Home by** field leaves the last valid saved Home By
+      unchanged and runs Google Optimize through the existing untimed request
+      path while preserving exact stops and service durations.
+- [ ] Untimed/Home-By-off optimization does not fabricate or persist a timed
+      Home-By-safe schedule, and re-entering a valid Home By restores the timed
+      behavior.
+- [ ] Changing between Home-By-enabled and Home-By-off mode while Google is
+      calculating fails stale rather than applying a result from the wrong mode.
+- [ ] Phase 2H-B changes never rewrite saved address text, manually verified
+      pins, workbook Order IDs / `Source_ID`s, manual `Gig_ID`s, workbook handoff
+      files, route-order return schema, Drive file names, or Drive permissions.
+
 ## Garmin export checks
 
 - [ ] GPX contains Home, every selected stop once, and Home again.
