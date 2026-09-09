@@ -246,17 +246,16 @@ Planning rules:
 
 Cross-system implication:
 
-- the current workbook and Free Map Router handoff does not yet carry due date, service duration, or locked/assigned-day metadata;
-- before any integration change, audit what exact InspectorADE/workbook fields are actually available and decide which system owns each planning field;
-- additions to the workbook handoff must be backward compatible and optional unless explicitly versioned.
+- the current workbook Address Inbox is address-oriented, so any future InspectorADE per-order planning metadata must be added backward-compatibly and must retain exact `Source_ID` ownership;
+- the workbook must not become the durable owner of FMR route-day state.
 
-### Phase 2H — Time-Aware One-Day Planning
+### Phase 2H — Time-Aware Single-Day Routing and Planner UI Foundation
 
-Improve one-day planning before multi-day Route Plans depend on it.
+Make the existing Google route model reflect the operator's real working day and establish the permanent planner structure before multi-day splitting is introduced.
 
-Workday defaults:
+Initial workday controls:
 
-- **Departure:** route-day departure time chosen by the operator;
+- **Route date / departure time:** operator-selected, with a convenient current-time default for same-day planning;
 - **Preferred field-work finish:** default **3:00 PM**, editable for the selected day;
 - **Home by:** default **5:00 PM**, editable for the selected day;
 - 3:00 PM is a preferred field-work finish target, not an automatic route-failure boundary. The planner may show a sensible route that runs somewhat later when that still fits the operator's stronger home-by goal, but it must make the overrun visible rather than hiding it;
@@ -366,3 +365,214 @@ Replanning and persistence:
 #### Standard known-road / construction avoidance
 
 Known-road/construction avoidance is a **standard built-in route-planning capability**.
+
+It is not an optional add-on that may be omitted from the planned product. At the same time, ordinary routing must not force the operator to enter or acknowledge a restriction when there is no known road problem that day.
+
+Design direction:
+
+- the feature ships as part of the standard route-planning toolset;
+- when no known restrictions are recorded, routing proceeds normally with no extra required setup;
+- the operator may add a known closed or undesirable road/corridor with a short name, reason, and optional until-date;
+- the operator may remove, ignore, or temporarily disable any saved road restriction;
+- the feature must never modify saved job addresses, Order IDs, `Gig_ID`s, permanent correction aliases, or prediction identity;
+- when a restriction applies to a plan/day, FMR should use the known restriction as planning guidance and/or warn when the selected Google route appears to depend on that blocked corridor;
+- because normal Google Maps multi-stop links recalculate the actual road path, the first version must not falsely promise that a marked road can never be used by Google Maps navigation;
+- during this phase, perform a controlled real-world test with a known closure/undesirable corridor and measure what Google Route Optimization and the final Google Maps navigation path can actually be influenced to do;
+- choose the strongest practical first-version enforcement/warning method only from that test evidence; do not pre-commit to a forced-detour technique that Google may not honor;
+- any later stronger enforcement method (for example, forced detour waypoints or a different route-path/navigation contract) requires its own design and approval rather than silently replacing the current Google Maps behavior.
+
+This standard feature exists for cases where field knowledge is newer or more accurate than Google's current road-closure data. The capability should always be available even though the operator only needs to enter restrictions when a real closure or avoidance condition exists.
+
+Real-world soak and calibration:
+
+- test representative large routes, same-address multi-order stops, manual gigs, interior inspections, different departure/preferred-finish/home-by times, known road closures, and day-to-day replanning;
+- compare predicted versus actual finish/home times;
+- keep five-minute normal and twenty-minute interior service defaults as starting estimates, not immutable truths;
+- add a configurable daily reserve/buffer only if field evidence shows the planner is consistently too aggressive;
+- verify that active-plan completion identity remains lightweight and is purged when the operator deliberately replaces/deletes the plan rather than accumulating indefinitely;
+- retain a clean rollback path between each implementation slice instead of shipping the whole track as one giant route-system replacement.
+
+Route-planner visual polish after behavior is proven:
+
+- after the Route Plan, map/list, stop-card, timing, replanning, and road-awareness behavior survives field use, perform a separate professional visual polish slice;
+- improve typography, spacing, cards, icons, responsive presentation, mobile action hierarchy, and the Home/day summary without redesigning the underlying route model;
+- Home may evolve from primarily Home Base setup into a useful daily summary once reliable day-plan data exists, while Home Base editing remains available;
+- professional polish must not become a prerequisite for validating the underlying planner behavior.
+
+**Phase 2F-2K sequencing rule:** complete and validate each phase before making the next phase depend on it. Phase 3 design work may continue in parallel, but Phase 3 runtime coding should not depend on an unstable route/day identity model.
+
+## Route-Planner Decisions Intentionally Deferred
+
+The following are deliberately **not** locked into the first route-planner implementation yet:
+
+- exact placement/suggestion behavior for new work arriving during an active multi-day plan;
+- the exact technical enforcement method for arbitrary known-road avoidance until the controlled Google behavior test is performed;
+- the central true-sync provider, offline-sync queue, conflict-resolution UI, and live synchronization runtime;
+- permanent detailed completed-route history;
+- continuous GPS/fleet tracking;
+- automatic background replanning;
+- generic High/Medium/Low route priority;
+- mandatory lunch/break scheduling;
+- AI-estimated service duration;
+- a new top-level page merely for planner controls.
+
+Deferring these items does not mean they are forgotten. The audit remains the evidence record for revisiting them when real use justifies the added complexity.
+
+### Phase 3 — HNP Work-Order View and Field Photo Evidence
+
+**Status:** DESIGN AUDIT IN PROGRESS — NO RUNTIME CODING AUTHORIZED.
+
+An HNP stop should be able to open a job/work-order view in the app, but the photo workflow must preserve field evidence and client-specific requirements rather than reducing every job to a generic Inside/Outside photo bucket.
+
+Initial work-order concept to audit:
+
+- work-order/job details and current instructions;
+- evidence plan / required-shot checklist for the active order;
+- broad groups such as Identity/Access, Exterior, Interior, Work/Line Item, Damage/Measurements, Notices/Final Secure where useful;
+- before/during/after stages for work line items when required;
+- required/collected photo counts as a completeness aid, not as a substitute for coverage;
+- job notes and unable-to-complete/exception notes;
+- field QC before leaving the property;
+- completion action that cannot claim evidence-ready status when required evidence is missing.
+
+Photo evidence requirements already established by the Phase 3 audit:
+
+- Every photo entering the job workflow must be associated with exact `Gig_ID`, work-order ID when present, evidence category/line item, and capture/visit context.
+- Original field photos are source evidence and must not be overwritten, renamed in place, moved, deleted, or silently stripped of metadata by the workflow.
+- The active work order/client instructions control exact shot count, allowed image type/size, date/time/GPS requirements, line-item mapping, and submission deadline.
+- Preserve capture date/time and GPS/location when the client requires them; do not invent missing metadata.
+- Retakes and true accidental duplicates must remain distinguishable enough to avoid mixing required angles or visits.
+- Before/during/after work should retain stage identity and matching-angle context when required.
+- The app must support a field QC check before the operator leaves when a return trip would be costly or impossible.
+- Compression/resizing may be used only after confirming client acceptance; originals remain retained separately.
+
+Reliability requirements:
+
+- Do not hold a large batch of full-resolution images only in volatile browser memory.
+- Captured/attached evidence must have recoverable pending state before it is considered safe.
+- Offline or failed uploads remain visibly pending; a failed upload cannot mark the job uploaded.
+- Closing/reopening the app must not lose the job/evidence manifest for photos already accepted into the workflow.
+- A later visit or correction must not overwrite the original visit record or original submitted package.
+
+#### Phase 3 audit boundary with Field Photo Prep
+
+A separate `field-photo-prep` project already has a contract foundation for protecting original photos while creating resized copies. Its approved role is company-neutral derivative preparation: select existing photos, create separate resized copies, preserve supported metadata, and share/upload those copies through Android. Its contract explicitly excludes a job database, vendor-specific workflow, automatic upload, and direct Drive API integration in the initial release.
+
+Therefore the current design direction is:
+
+- Free Map Router owns job identity, work-order context, evidence requirements, evidence manifest, route linkage, and job-level completion/QC state.
+- Field Photo Prep may later remain an optional derivative-processing helper, but it must not become the authority for `Gig_ID`, work-order state, route state, or evidence completeness.
+- Do not make Phase 3 depend on Field Photo Prep runtime until that project is itself approved and implemented; its GitHub `main` currently does not contain a production Android runtime.
+- Do not duplicate photo-byte ownership in both apps without an explicit handoff contract.
+
+See `docs/2026-08-27_PHASE_3_FIELD_PHOTO_DESIGN_AUDIT.md` for the evidence-based starting audit.
+
+### Phase 4 — Business Google Drive Job Media
+
+Photo/work-order storage must use a configurable Drive destination and must not hard-code the current personal Google account.
+
+The design must support moving new job media to the business Google Drive/account without rebuilding the photo system.
+
+Candidate structure:
+
+```text
+Field Jobs/
+  HNP/
+    2026/
+      <ADDRESS>/
+        <GIG_OR_WORK_ORDER_ID>/
+          Work Order/
+          Original Photos/
+          Prepared Photos/
+          <ADDRESS>-<GIG_OR_WORK_ORDER_ID>.zip
+```
+
+Drive requirements to settle before implementation:
+
+- exact business account/folder ownership;
+- authorization method used by the app/backend;
+- private-by-default sharing behavior;
+- who may access job folders;
+- retention period for work orders, original photos, prepared copies, and ZIP packages;
+- whether old personal-Drive records are migrated or only new jobs use business Drive;
+- whether Drive retains individual photos, a ZIP package, or both.
+
+Upload integrity:
+
+- The app records pending, uploaded, and failed media state.
+- A job is not marked fully uploaded until the expected files are verified at the destination.
+- Cross-device retries must not duplicate or overwrite unrelated job media.
+- Original evidence and prepared/upload copies must remain distinguishable.
+
+### Phase 5 — Existing File Organizer Integration
+
+Review the existing file-organizer workbook before assigning it responsibilities.
+
+Preferred separation:
+
+- Free Map Router owns the relationship between route stop, gig/work order, and the job evidence manifest.
+- The organizer may handle later filing, cleanup, retention, movement, indexing, or archival.
+- The organizer must not be required to infer which unsorted photos belong to which job.
+- Do not duplicate a filing function in both systems unless one is explicitly the authoritative writer and the other is read-only/supporting.
+
+### Phase 6 — Field Workflow Cleanup and Soak
+
+After the core features work together:
+
+- streamline taps and status visibility for phone use;
+- clearly show job state, photo state, upload state, and pay state;
+- confirm remote/multi-device edits cannot overwrite newer field state;
+- add practical recovery for interrupted work;
+- validate representative real HNP jobs before broad use.
+
+A successful test run is not the end of the rollout. Use a controlled soak period with real jobs and watch for sync conflicts, missing photos, duplicate uploads, Drive filing errors, route-pay mismatches, and workbook handoff problems before expanding the feature set.
+
+## Decisions Still Needed Before Phase 3 Photo Runtime
+
+- Exact HNP/client image requirements: original resolution versus accepted resized copies, maximum/minimum dimensions, file type, and file-size limits.
+- Exact HNP/client metadata requirements: visible timestamp, EXIF capture time, GPS/location metadata, or combinations of these.
+- Whether work-order evidence is entered manually, imported from a file/message, or later parsed from another source.
+- Whether the first Phase 3 runtime slice attaches existing camera photos to the exact gig or launches a camera/capture path from inside the job view.
+- Whether required-shot rules begin as operator-entered checklists or use a small set of reusable work-type templates.
+- Whether and how Field Photo Prep participates in derivative preparation without becoming a second job database.
+- Exact business Drive account/folder ownership and authorization method for Phase 4.
+- Whether Drive retains originals plus prepared copies, originals plus ZIP, or all three.
+- Retention/deletion rules for original evidence, prepared copies, and corrected/resubmitted packages.
+
+## Protected Existing Behavior
+
+Future work must preserve unless a later approved change explicitly says otherwise:
+
+- existing InspectorADE workbook-to-router import;
+- exact workbook Order-ID and manual `Gig_ID` identity handoff;
+- permanent InspectorADE/workbook address corrections: once a correction is successfully stored in Google Drive, future matching workbook imports should reuse it rather than requiring the operator to correct the same incoming address again;
+- governed Free Map Router Drive resource identity and limited `drive.file` scope unless a later approved design proves a permission change is required;
+- Basic and Google route choices;
+- current one-driver / one-vehicle routing model;
+- corrected-address behavior and source association;
+- manual **Include in Route** selections and shared-stop behavior;
+- same-address work-item identity remaining distinct while the property routes once;
+- route persistence and backup behavior;
+- route expected-pay behavior and blank-pay warning semantics;
+- Google Print output for current InspectorADE and manual gig work;
+- navigation/export behavior;
+- current Google Maps navigation behavior unless a later road-avoidance design explicitly changes it;
+- known-road/construction avoidance is a standard built-in planning capability, while ordinary routing remains usable with no restriction entries when nothing is known to be blocked;
+- future Route Plan completion tracking must remain lightweight and bounded rather than creating an unbounded permanent detailed route-history archive;
+- backup/restore remains recovery behavior until a separately approved true-sync phase exists;
+- InspectorADE prediction/history isolation from unrelated gigs;
+- workbook ownership of `Actual_Pay`.
+
+## Risk and Change-Control Notes
+
+- This 2026-09-02 route-planner roadmap consolidation is documentation-only Level 1 work based on `docs/2026-09-02_ROUTE_PLANNER_PRODUCT_AUDIT.md` and the operator's accepted follow-up decisions. It authorizes no runtime, storage-schema, handoff, API-permission, route-algorithm, Drive, workbook-data, synchronization-service, or deployment change.
+- Changed surfaces for this consolidation: `docs/FIELD_WORK_EXPANSION_PLAN.md` and `docs/2026-09-02_ROUTE_PLANNER_ROADMAP_CONSOLIDATION_CHANGE_RECORD.md` only.
+- Protected behavior: all current production routing, Google/Basic selection, exact Order-ID/`Gig_ID` identity, Drive resources, workbook handoffs, predictions, manual gigs, printing, navigation, and five-page app navigation remain unchanged by this documentation update.
+- Verification for this Level 1 update is diff/contract review plus repository CI; no runtime test or live smoke check is required because no runtime file changes.
+- No workbook/router integration impact from this documentation-only change. Future Phase 2F/2G/2J implementation will have cross-system impact and must use `INTEGRATION_CONTRACT.md` and the Cross-System Reality Gate when separately authorized.
+- The prior 2026-09-02 road-avoidance/usability correction and the route-planner product audit were documentation-only Level 1 work and authorized no runtime, permission, schema, Drive-media, or deployment change.
+- A work-order view that only presents already-stored gig data may be normal feature work, but any new persistent evidence/job schema must be classified by its real storage impact.
+- Photo persistence, automatic uploads, business Drive media creation, new OAuth scopes, true cross-device synchronization, cross-device media state, and deletion/retention behavior are Level 3 candidates and require their own impact record and explicit pre-merge approval when implementation is authorized.
+- Do not combine selectable sync, work-item planning metadata, time-aware routing, multi-day storage migration, day-aware workbook return, road avoidance, live synchronization, work-order UI, photo-byte storage, compression, Drive upload, and file-organizer integration into one release.
+- Each implementation slice must establish one durable ownership boundary and rollback point before the next slice starts.
+- Phase 2 remains in real-work soak while Phase 3 is designed; do not reopen or modify R6 conflict reconciliation as part of this expansion.
