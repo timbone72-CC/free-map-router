@@ -107,7 +107,8 @@ test("real multi-day Route Plan emits only the active Day with exact v2 metadata
     assert.equal(routeOrder.routeScope, ACTIVE_DAY_ROUTE_SCOPE);
     assert.equal(routeOrder.routeScope, "active_day");
     assert.equal(routeOrder.routeSlot, "google");
-    assert.equal(routeOrder.optimizationStatus, "google_optimized");
+    assert.equal(routeOrder.optimizationStatus, history.google.optimizationStatus);
+    assert.equal(routeOrder.optimizationStatus, "not_optimized");
     assert.equal(routeOrder.sourceUpdatedAt, "2026-09-09T12:00:00.000Z");
     assert.deepEqual(routeOrder.routePlan, {
         planId: history.activePlan.planId,
@@ -178,7 +179,8 @@ test("active-Day Basic return uses the Basic snapshot order and status", () => {
     const routeOrder = buildFor(history, "basic");
 
     assert.equal(routeOrder.routeSlot, "basic");
-    assert.equal(routeOrder.optimizationStatus, "basic_optimized");
+    assert.equal(routeOrder.optimizationStatus, history.basic.optimizationStatus);
+    assert.equal(routeOrder.optimizationStatus, "not_optimized");
     assert.deepEqual(routeOrder.stops, [
         {
             stopNumber: 1,
