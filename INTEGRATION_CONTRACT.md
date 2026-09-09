@@ -58,41 +58,101 @@ label, client, and inferred alias matching are prohibited.
 ## Route-order return
 
 The workbook may send optional `orderIds` beside one de-duplicated physical
-address. The app preserves them inside the specific pending, Google, and Basic
-route snapshots instead of treating them as permanent address identity.
-Manual gigs likewise retain immutable `Gig_ID` values in the selected route
+address. The app preserves them inside the specific pending and Route Plan Day
+Google/Basic snapshots instead of treating them as permanent address identity.
+Manual gigs likewise retain immutable `Gig_ID` values in the selected Day route
 snapshot's `gigIdsByStopId`; those IDs are route/work-item identity, not
 physical-stop identity.
 
-The manual return file is named **Free Map Router Route Order.json** and keeps
-`routeOrderVersion: 1`. Each returned physical stop contains its visible stop
-number and address plus optional exact `orderIds` and optional exact `gigIds`.
-At least one of those identifier arrays must contain work for the returned
-stop. Address text is audit/print context only; the workbook matches
-InspectorADE jobs by exact Order ID and manual gigs by exact `Gig_Log.Gig_ID`.
-A shared physical stop may contain both types of work without merging their
-identities.
+The manual return file remains named **Free Map Router Route Order.json**. Each
+returned physical stop contains its visible stop number and address plus optional
+exact `orderIds` and optional exact `gigIds`. At least one of those identifier
+arrays must contain work for the returned stop. Address text is audit/print
+context only; the workbook matches InspectorADE jobs by exact Order ID and
+manual gigs by exact `Gig_Log.Gig_ID`. A shared physical stop may contain both
+types of work without merging their identities.
 
-When any InspectorADE Order ID is returned, the existing source export time is
-required and the workbook must retain the exact current-inbox freshness and
-Order-ID-set checks before route-number writes. A manual-gig-only return has no
-workbook source snapshot to verify and may omit `sourceUpdatedAt`; it is
-validated against the current healthy `Gig_Log` by exact Gig ID. A missing,
-duplicated, or ambiguous routed Gig ID stops before the workbook clears or
-changes existing route numbers and instructs the operator to sync gigs first
-when appropriate.
+### Legacy route-order version 1
 
-Phase 2E uses this existing route-order file as transient route context only.
+`routeOrderVersion: 1` remains the backward-compatible one-day contract. When
+any InspectorADE Order ID is returned, `sourceUpdatedAt` is required, must match
+the exact current workbook Address Inbox export time, and the returned
+InspectorADE Order-ID set must exactly equal the current inbox Order-ID set. A
+partial version-1 return remains invalid and must fail before workbook route
+writes.
+
+A manual-gig-only version-1 return has no workbook source snapshot to verify and
+may omit `sourceUpdatedAt`; it is validated against the current healthy
+`Gig_Log` by exact Gig ID.
+
+### Phase 2J route-order version 2 — active Day
+
+**New invariant — approved design decision 2026-09-08:** Phase 2J adds
+`routeOrderVersion: 2` to represent the one active Route Plan Day while FMR
+retains ownership of the complete multi-day Route Plan.
+
+A version-2 file keeps the existing app/target, route timestamp, route slot,
+optimization status, source timestamp, and stop structure and additionally
+requires:
+
+- `routeScope: "active_day"`; and
+- a `routePlan` object containing:
+  - nonblank stable `planId`;
+  - positive whole-number `planRevision`;
+  - nonblank stable `dayId`;
+  - positive whole-number `dayRevision`;
+  - positive whole-number `dayNumber`;
+  - positive whole-number `dayCount`, with `dayNumber <= dayCount`; and
+  - `routeDate` as a valid local `YYYY-MM-DD` calendar date or `null`.
+
+The version-2 file carries only the displayed route for the active Day. It does
+not carry other Days' stop lists, route orders, assignments, completion state,
+or work-item collections. The workbook does not become the durable database for
+the full Route Plan.
+
+When a version-2 return contains InspectorADE Order IDs:
+
+- `sourceUpdatedAt` remains required and must exactly equal the current workbook
+  Address Inbox `updatedAt`;
+- every returned InspectorADE Order ID must exist in that current inbox;
+- any returned InspectorADE Order ID not present in the current inbox is a hard
+  refusal before workbook route writes; and
+- current-inbox InspectorADE IDs omitted from the returned active Day are allowed
+  because they may belong to another FMR Day. Their omission is not deletion,
+  cancellation, completion, or route damage.
+
+A version-2 manual-gig-only return may omit `sourceUpdatedAt` and remains
+validated against current healthy `Gig_Log` by exact `Gig_ID`.
+
+For both versions, a missing, duplicated, or ambiguous routed Order ID or Gig ID,
+a duplicate stop number, malformed Day metadata, stale source time, damaged
+file, wrong target, or unsupported version stops before the workbook clears or
+changes existing route numbers. Address text is never an identity substitute.
+
+Phase 2E/2J uses this existing route-order file as transient route context only.
 It does not write route state into `Gig_Log`, does not alter `Actual_Pay`, and
 does not add another Drive handoff file or broader permission. The workbook's
 Google Print packet may use the returned stop number/address together with the
-matched `Gig_Log` row to render routed manual-gig details.
+matched `Job_Log`/`Gig_Log` row to render the returned Day.
+
+For a validated version-2 active-Day return, the workbook may rebuild the route
+packet from the exact returned Source_ID/Gig_ID identities rather than unrelated
+Print checkbox selections. It must not change or clear Print checkboxes during
+receive. The packet must identify `Day N of M` on every page and include the
+local route date when `routeDate` is present. Receiving a later Day replaces the
+workbook's current Stop/Print Order view and current route packet for that Day
+only; the earlier/later Days remain stored in FMR.
+
+Success surfaces for the day-aware return must distinguish InspectorADE job
+count, manual-gig count, and total returned work-item count. Physical stop count
+is a separate measure and must not be mislabeled as work items.
 
 The app-side file write and workbook-side clear/write/rebuild must remain
 backward-compatible during ordered deployment. The workbook companion is
-deployed first; older order-only route files remain valid. The workbook must
-ignore a missing file and reject damaged, duplicate, stale, or structurally
-invalid return data without clearing Route Number values.
+deployed first and must accept both legacy version 1 and day-aware version 2.
+Only after workbook v2 validation succeeds may FMR begin producing version 2.
+The workbook must ignore a missing file and reject damaged, duplicate, stale, or
+structurally invalid return data without clearing Route Number values.
 
 ## Manual-gig handoff
 
