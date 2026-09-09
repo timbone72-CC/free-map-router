@@ -30,6 +30,8 @@ Final merge commit: `de7d63909268f6bac770f671bad15991ae9fb954`.
 - deployed `github-pages` artifact ID: `10085829650`;
 - final 2I-D repository verification recorded **478 / 478** tests passing before merge plus JavaScript syntax PASS.
 
+This documentation-only closeout uses the normal pull-request CI gate without changing the already-verified Phase 2I runtime.
+
 ## Parent-phase coherent closeout smoke
 
 The exact deployed Pages artifact was exercised as one Phase 2I system rather than as four isolated slices.
