@@ -1,702 +1,712 @@
 <!doctype html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Free Map Router</title>
-        <link rel="stylesheet" href="styles.css?v=1.2.0" />
-        <link
-            rel="stylesheet"
-            href="vendor/leaflet.css?v=1.9.4"
-        />
-    </head>
-    <body>
-        <header class="appHeader">
-            <h1>Free Map Router</h1>
-            <label class="pageMenuLabel" for="pageMenu">
-                Go to
-                <select id="pageMenu">
-                    <option value="home">Home</option>
-                    <option value="addresses">Addresses</option>
-                    <option value="import">Import Addresses</option>
-                    <option value="route">Build Route</option>
-                    <option value="settings">Settings</option>
-                </select>
-            </label>
-        </header>
-
-        <main>
-        <section class="section appPage" data-page="home">
-            <h2>Home / Route Base</h2>
-            <form id="homeForm">
-                <label>
-                    Home address *
-                    <input
-                        type="text"
-                        id="homeAddress"
-                        required
-                        autocomplete="street-address"
-                    />
-                </label>
-                <div class="btnRow">
-                    <button
-                        id="findHomeLocation"
-                        type="button"
-                        class="btn btnSmall"
-                    >
-                        Find Home Location (Free)
-                    </button>
-                </div>
-                <p id="homeLocationStatus" class="tiny muted">
-                    Find home, then click the exact property on the map.
-                </p>
-                <div
-                    id="homeLocationMap"
-                    class="locationMap"
-                    aria-label="Home location pin map"
-                    hidden
-                ></div>
-                <button type="submit" class="btn">Save Home Address</button>
-                <p id="homeStatus" class="tiny muted">
-                    Required before building a round trip.
-                </p>
-            </form>
-        </section>
-
-        <!-- CSV / Bulk Import -->
-        <section
-            id="importZone"
-            class="section dashed appPage"
-            data-page="import"
-            hidden
-        >
-            <h2>Import Addresses</h2>
-            <p class="muted">
-                Drag & drop a CSV file anywhere in this box, or use the file
-                picker.
-            </p>
-
-            <div class="flexRow">
-                <div class="panel">
-                    <label>
-                        Upload CSV (Inspectoria export)
-                        <input type="file" id="csvFile" accept=".csv,text/csv" />
-                    </label>
-                    <div class="btnRow">
-                        <button id="importCsvBtn" type="button" class="btn">
-                            Import CSV
-                        </button>
-                    </div>
-                    <p class="tiny muted">
-                        Uses MappingAddress fields for the address (with
-                        fallbacks to Address/City/State/Zip) and coordinates
-                        when present. Client is kept only as an optional label.
-                    </p>
-                    <p id="dropHint" class="tiny muted"></p>
-                </div>
-
-                <div class="panel grow">
-                    <label>
-                        Or paste CSV text here
-                        <textarea
-                            id="csvText"
-                            rows="6"
-                            placeholder="Paste CSV content here..."
-                        ></textarea>
-                    </label>
-                    <div class="btnRow">
-                        <button id="importCsvTextBtn" type="button" class="btn">
-                            Import Pasted CSV
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Addresses internal views -->
-        <section class="section appPage" data-page="addresses" hidden>
-            <h2>Addresses</h2>
-            <p class="tiny muted">
-                Choose the part of Addresses you need. Only one large list is shown at a time.
-            </p>
-
-            <input
-                class="addressViewChoice"
-                type="radio"
-                name="addressView"
-                id="addressViewAddEdit"
-            />
-            <input
-                class="addressViewChoice"
-                type="radio"
-                name="addressView"
-                id="addressViewManualGigs"
-            />
-            <input
-                class="addressViewChoice"
-                type="radio"
-                name="addressView"
-                id="addressViewWorkLibrary"
-            />
-            <input
-                class="addressViewChoice"
-                type="radio"
-                name="addressView"
-                id="addressViewSaved"
-                checked
-            />
-
-            <div class="addressViewTabs" role="tablist" aria-label="Addresses views">
-                <label for="addressViewAddEdit">Add / Edit</label>
-                <label for="addressViewManualGigs">Manual Gigs</label>
-                <label for="addressViewWorkLibrary">Work Library</label>
-                <label for="addressViewSaved">Saved Addresses</label>
-            </div>
-
-            <div class="addressViewPanes">
-                <div class="addressViewPane" data-address-view="add-edit">
-                    <h3>Add / Edit Address</h3>
-                    <form id="jobForm">
-                        <label>
-                            Address *
-                            <input
-                                type="text"
-                                id="address"
-                                required
-                                list="addressSuggestions"
-                                autocomplete="off"
-                            />
-                            <datalist id="addressSuggestions"></datalist>
-                        </label>
-                        <p class="tiny muted" style="margin-top: -6px">
-                            Suggestions come from your saved addresses.
-                        </p>
-                        <label>
-                            Label (optional)
-                            <input
-                                type="text"
-                                id="label"
-                                placeholder="Anything that helps you recognize this stop"
-                            />
-                        </label>
-
-                        <div class="row2">
-                            <label>
-                                Latitude (optional)
-                                <input type="number" id="latitude" step="any" />
-                            </label>
-
-                            <label>
-                                Longitude (optional)
-                                    <input type="number" id="longitude" step="any" />
-                            </label>
-                        </div>
-
-                        <div class="btnRow">
-                            <button
-                                id="findLocation"
-                                type="button"
-                                class="btn btnSmall"
-                            >
-                                Find Location (Free)
-                            </button>
-                            <a
-                                id="locationPreview"
-                                class="mapLink"
-                                target="_blank"
-                                rel="noopener"
-                                hidden
-                            >
-                                View Found Location
-                            </a>
-                        </div>
-                        <p id="locationStatus" class="tiny muted">
-                            Find the location, then click the exact property on the map.
-                        </p>
-                        <div
-                            id="locationMap"
-                            class="locationMap"
-                            aria-label="Location pin map"
-                            hidden
-                        ></div>
-
-                        <label>
-                            Notes (optional)
-                            <textarea id="notes"></textarea>
-                        </label>
-
-                        <button type="submit" class="btn">Save Address</button>
-                        <p id="addressCorrectionStatus" class="tiny muted">
-                            When you correct an address, the app saves that correction
-                            permanently in Google Drive.
-                        </p>
-                    </form>
-                </div>
-
-                <div class="addressViewPane" data-address-view="manual-gigs">
-                    <h3>Manual Gig</h3>
-                    <p class="tiny muted">
-                        Add paid work such as HNP without turning it into an InspectorADE job.
-                        Multiple gigs may share one physical address and one route stop.
-                    </p>
-                    <form id="gigForm">
-                        <label>
-                            Address *
-                            <input
-                                type="text"
-                                id="gigAddress"
-                                required
-                                list="addressSuggestions"
-                                autocomplete="off"
-                            />
-                        </label>
-                        <div class="row2">
-                            <label>
-                                Company / source *
-                                <select id="gigSource" required>
-                                    <option value="HNP">HNP</option>
-                                    <option value="OTHER">Other</option>
-                                </select>
-                            </label>
-                            <label>
-                                Work order / job ID (optional)
-                                <input type="text" id="gigWorkOrderId" />
-                            </label>
-                        </div>
-                        <label>
-                            Expected pay (optional)
-                            <input
-                                type="number"
-                                id="gigExpectedPay"
-                                min="0"
-                                step="0.01"
-                                inputmode="decimal"
-                            />
-                        </label>
-                        <div class="row2">
-                            <label>
-                                Due Date (optional)
-                                <input type="date" id="gigDueDate" />
-                            </label>
-                            <label>
-                                Completed Date (optional)
-                                <input type="date" id="gigCompletedDate" />
-                            </label>
-                        </div>
-                        <label>
-                            Notes (optional)
-                            <textarea id="gigNotes"></textarea>
-                        </label>
-                        <div class="btnRow">
-                            <button type="submit" class="btn">Save Gig</button>
-                            <button
-                                id="cancelGigEdit"
-                                type="button"
-                                class="btn btnSmall"
-                                hidden
-                            >
-                                Cancel Edit
-                            </button>
-                        </div>
-                        <p id="gigStatus" class="tiny muted">
-                            Manual gigs stay separate from InspectorADE prediction history.
-                        </p>
-                    </form>
-                    <h3>Manual Gigs</h3>
-                    <p class="tiny muted">
-                        Check Include in Route beside the gigs you want on today's route.
-                        New manual gigs start unchecked.
-                    </p>
-                    <div class="btnRow">
-                        <button
-                            id="syncGigsToWorkbook"
-                            type="button"
-                            class="btn btnSmall"
-                        >
-                            Sync Gigs to Workbook
-                        </button>
-                    </div>
-                    <p id="gigHandoffStatus" class="tiny muted">
-                        Sync is manual. It sends the current gig records to the workbook handoff without changing InspectorADE history.
-                    </p>
-                    <ul id="gigList"></ul>
-                </div>
-
-                <div class="addressViewPane" data-address-view="work-library">
-                    <h3>Manual Work Library</h3>
-                    <p class="tiny muted">
-                        Reusable manual properties are kept separately from today's route
-                        and from InspectorADE address-correction memory.
-                    </p>
-                    <div class="btnRow">
-                        <button id="syncManualWork" type="button" class="btn btnSmall">
-                            Sync Library
-                        </button>
-                    </div>
-                    <p id="manualWorkStatus" class="tiny muted">
-                        Saving a manual gig also attempts to save its property permanently
-                        in Google Drive.
-                    </p>
-                    <input
-                        id="showArchivedManualWork"
-                        type="checkbox"
-                        class="addressViewChoice"
-                    />
-                    <label class="showArchivedControl" for="showArchivedManualWork">
-                        Show Archived
-                    </label>
-                    <ul id="manualWorkList"></ul>
-                </div>
-
-                <div class="addressViewPane" data-address-view="saved-addresses">
-                    <h3>Saved Addresses</h3>
-                    <ul id="jobList"></ul>
-                </div>
-            </div>
-        </section>
-
-        <!-- Route Builder -->
-        <section id="routePage" class="section appPage" data-page="route" hidden>
-            <h2>Route Builder</h2>
-
-            <div class="plannerContext panel">
-                <div class="inlineHeader plannerRouteHeader">
-                    <label class="plannerRouteChoiceLabel">
-                        Route to use
-                        <select id="routeChoice">
-                            <option value="google">Google Route</option>
-                            <option value="basic">Basic Route</option>
-                        </select>
-                    </label>
-                    <p id="routeOptimizationStatus" class="tiny">
-                        Google Route: Not Optimized
-                    </p>
-                </div>
-
-                <div id="workdayControls" class="panel plannerWorkday">
-                    <h3>Workday</h3>
-                    <div class="row2">
-                        <label>
-                            Route date
-                            <input type="date" id="routeDate" />
-                        </label>
-                        <label>
-                            Departure
-                            <input type="time" id="routeDepartureTime" step="60" />
-                        </label>
-                    </div>
-                    <div class="row2">
-                        <label>
-                            Preferred field-work finish
-                            <input
-                                type="time"
-                                id="routePreferredFinishTime"
-                                step="60"
-                            />
-                        </label>
-                        <label>
-                            Home by
-                            <input type="time" id="routeHomeByTime" step="60" />
-                        </label>
-                    </div>
-                    <p id="routeDayContextStatus" class="tiny muted"></p>
-                </div>
-
-                <div id="plannerDaySummary" class="plannerDaySummary" aria-live="polite"></div>
-                <p id="routePaySummary" class="tiny">
-                    Google Route expected pay: no InspectorADE or manual gig pay attached.
-                </p>
-            </div>
-
-            <div id="newRouteAvailable" class="plannerNotice" hidden>
-                <p id="newRouteAvailableStatus" class="tiny"></p>
-                <button id="startNewRoute" type="button" class="btn btnSmall">
-                    Start New Route
-                </button>
-            </div>
-
-            <section class="plannerSurface" aria-labelledby="plannerHeading">
-                <div class="inlineHeader plannerSurfaceHeader">
-                    <h3 id="plannerHeading">Today's Route</h3>
-                    <div id="plannerViewToggle" class="plannerViewToggle" aria-label="Planner view">
-                        <button
-                            type="button"
-                            class="btn btnSmall"
-                            data-planner-view="list"
-                            aria-pressed="true"
-                        >List</button>
-                        <button
-                            type="button"
-                            class="btn btnSmall"
-                            data-planner-view="map"
-                            aria-pressed="false"
-                        >Map</button>
-                    </div>
-                </div>
-                <p id="plannerMapStatus" class="tiny muted"></p>
-                <div id="plannerWorkspace" class="plannerWorkspace" data-planner-view="list">
-                    <div class="plannerMapPane">
-                        <div
-                            id="plannerMap"
-                            class="plannerMap"
-                            aria-label="Current route map"
-                        ></div>
-                        <p id="plannerMapEmpty" class="tiny muted" hidden></p>
-                    </div>
-                    <div class="plannerListPane">
-                        <ul id="routeList" class="plannerRouteList"></ul>
-                    </div>
-                </div>
-            </section>
-
-            <section class="plannerActionSection" aria-labelledby="routeActionsHeading">
-                <h3 id="routeActionsHeading">Route Actions</h3>
-                <div class="btnRow">
-                    <button id="optimizeRoute" type="button" class="btn btnSmall">
-                        Optimize Route
-                    </button>
-                    <button
-                        id="googleOptimizeRoute"
-                        type="button"
-                        class="btn btnSmall"
-                        disabled
-                    >
-                        Google Optimize
-                    </button>
-                </div>
-                <div id="googleRouteSignIn" class="googleRouteSignIn"></div>
-                <p id="googleRouteAuthStatus" class="tiny muted">
-                    Google road optimization requires the approved company Google
-                    account.
-                </p>
-                <div class="btnRow plannerExecutionActions">
-                    <button
-                        id="startRouteNavigation"
-                        type="button"
-                        class="btn"
-                        disabled
-                    >
-                        Start Navigation
-                    </button>
-                    <button id="completeAndNavigateNext" type="button" class="btn" disabled>
-                        Done &amp; Navigate Next
-                    </button>
-                </div>
-                <p class="tiny muted">
-                    Tap Start Navigation to drive to the first stop without removing
-                    it. After finishing that stop, tap Done &amp; Navigate Next to
-                    remove it from this route and drive to the next stop. After the
-                    last stop, it navigates Home.
-                </p>
-                <p id="routeStatus" class="tiny muted">
-                    Select addresses, then optimize the route.
-                </p>
-            </section>
-
-            <details class="plannerUtilities">
-                <summary>Route tools &amp; maintenance</summary>
-                <div class="btnRow">
-                    <button
-                        id="checkWorkbookRoute"
-                        type="button"
-                        class="btn btnSmall"
-                    >
-                        Check Workbook Route
-                    </button>
-                    <button id="clearRoute" type="button" class="btn btnSmall">
-                        Clear Route
-                    </button>
-                    <button id="exportRoute" type="button" class="btn btnSmall">
-                        Open in Google Maps
-                    </button>
-                        <button
-                            id="sendRouteOrder"
-                            type="button"
-                            class="btn btnSmall"
-                            disabled
-                        >
-                            Send Route Order to Workbook
-                        </button>
-                    <button
-                        id="downloadGarminGpx"
-                        type="button"
-                        class="btn btnSmall"
-                    >
-                        Download Garmin GPX
-                    </button>
-                </div>
-                <div id="routeMapLinks" class="btnRow" hidden></div>
-                <p id="workbookRouteOrderStatus" class="tiny muted"></p>
-                <div class="btnRow">
-                    <button
-                        id="clearInspectorAdeJobs"
-                        type="button"
-                        class="btn btnSmall"
-                    >
-                        Clear InspectorADE Jobs
-                    </button>
-                    <button
-                        id="clearManualGigWork"
-                        type="button"
-                        class="btn btnSmall"
-                    >
-                        Clear Manual Gig Work
-                    </button>
-                </div>
-                <p class="tiny muted">
-                    These clear one kind of route work from both saved route versions
-                    without deleting the other kind of work or the saved addresses.
-                </p>
-            </details>
-        </section>
-
-        <section class="section appPage" data-page="settings" hidden>
-            <h2>Settings</h2>
-            <form id="settingsForm">
-                <label>
-                    Geoapify API key
-                    <input
-                        type="password"
-                        id="geoapifyKey"
-                        autocomplete="off"
-                        spellcheck="false"
-                    />
-                </label>
-                <div class="btnRow">
-                    <button type="submit" class="btn btnSmall">
-                        Save Key
-                    </button>
-                    <button
-                        id="clearGeoapifyKey"
-                        type="button"
-                        class="btn btnSmall"
-                    >
-                        Clear Key
-                    </button>
-                </div>
-                <p id="geoapifyKeyStatus" class="tiny muted">
-                    No key saved.
-                </p>
-                <p class="tiny muted">
-                    The key stays in this browser. It is not committed to
-                    GitHub or placed in a route link.
-                </p>
-            </form>
-            <hr />
-            <h3>App</h3>
-            <div class="btnRow">
-                <button id="updateApp" type="button" class="btn btnSmall">
-                    Update App
-                </button>
-            </div>
-            <p id="updateAppStatus" class="tiny muted">
-                Reload Free Map Router and refresh the app cache. Your saved
-                addresses and routes stay on this device.
-            </p>
-            <hr />
-            <h3>Backup</h3>
-            <div class="btnRow">
-                <button id="downloadBackup" type="button" class="btn btnSmall">
-                    Download Backup
-                </button>
-                <button id="restoreBackup" type="button" class="btn btnSmall">
-                    Restore Backup
-                </button>
-                <input
-                    id="backupFile"
-                    type="file"
-                    accept=".json,application/json"
-                    hidden
-                />
-            </div>
-            <p id="backupStatus" class="tiny muted">
-                Save the downloaded backup file in Google Drive.
-            </p>
-            <h3>Google Drive</h3>
-            <div class="btnRow">
-                <button
-                    id="backupGoogleDrive"
-                    type="button"
-                    class="btn btnSmall"
-                >
-                    Back Up Now
-                </button>
-                <button
-                    id="restoreGoogleDrive"
-                    type="button"
-                    class="btn btnSmall"
-                >
-                    Restore from Drive
-                </button>
-            </div>
-            <p id="googleDriveStatus" class="tiny muted">
-                Back Up Now remains the whole-app recovery snapshot. Manual Work
-                Library properties and permanent address corrections use their own
-                small Drive files.
-            </p>
-            <p id="googleDriveInboxStatus" class="tiny muted">
-                Workbook route details appear here after a route check.
-            </p>
-      </section>
-        </main>
-
-        <p class="tiny muted attribution">
-            Free address lookup ©
-            <a
-                href="https://www.openstreetmap.org/copyright"
-                target="_blank"
-                rel="noopener"
-            >OpenStreetMap contributors</a>.
-            Batch lookup powered by
-            <a
-                href="https://www.geoapify.com/"
-                target="_blank"
-                rel="noopener"
-            >Geoapify</a>.
-        </p>
-
-        <script>
-            document.getElementById("jobList")?.addEventListener(
-                "click",
-                (event) => {
-                    const button = event.target?.closest?.("button");
-                    if (!button || button.textContent.trim() !== "Edit") return;
-                    const addEditView = document.getElementById("addressViewAddEdit");
-                    if (addEditView) addEditView.checked = true;
-                },
-                true,
-            );
-        </script>
-        <script src="contract.js?v=3.0.0"></script>
-        <script src="gig-contract.js?v=2.0.0"></script>
-        <script src="work-item-planning.js?v=1.0.0"></script>
-        <script src="route-work-planning.js?v=1.0.0"></script>
-        <script src="manual-work-library.js?v=2.0.0"></script>
-        <script src="geocoder.js?v=2.0.0"></script>
-        <script src="settings.js?v=1.1.0"></script>
-        <script src="route-plan.js?v=1.0.0"></script>
-        <script src="route-history.js?v=7.0.0"></script>
-        <script src="workday-context.js?v=1.0.0"></script>
-        <script src="route-work-clear.js?v=1.1.0"></script>
-        <script src="backup.js?v=5.0.0"></script>
-        <script src="inbox.js?v=1.6.0"></script>
-        <script src="address-corrections.js?v=1.0.0"></script>
-        <script src="https://accounts.google.com/gsi/client" async></script>
-        <script src="google-drive.js?v=1.9.0"></script>
-        <script src="manual-work-drive.js?v=1.0.0"></script>
-        <script src="gig-handoff.js?v=1.0.0"></script>
-        <script src="route-order.js?v=1.1.0"></script>
-        <script src="google-route-contract.js?v=1.1.0"></script>
-        <script src="routing.js?v=1.5.0"></script>
-        <script src="garmin-gpx.js?v=1.2.0"></script>
-        <script src="vendor/leaflet.js?v=1.9.4"></script>
-        <script src="manual-gigs.js?v=2.1.0"></script>
-        <script src="work-item-planning-runtime.js?v=1.0.0"></script>
-        <script src="gig-handoff-ui.js?v=1.0.0"></script>
-        <script src="route-work-controls.js?v=1.0.0"></script>
-        <script src="planner-model.js?v=1.0.0"></script>
-        <script src="app.js?v=3.33.0"></script>
-        <script src="google-route-browser.js?v=1.9.0"></script>
-        <script src="garmin-export-ui.js?v=1.1.0"></script>
-    </body>
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Free Map Router</title>
+<link rel="stylesheet" href="styles.css?v=1.2.0" />
+<link
+rel="stylesheet"
+href="vendor/leaflet.css?v=1.9.4"
+/>
+</head>
+<body>
+<header class="appHeader">
+<h1>Free Map Router</h1>
+<label class="pageMenuLabel" for="pageMenu">
+Go to
+<select id="pageMenu">
+<option value="home">Home</option>
+<option value="addresses">Addresses</option>
+<option value="import">Import Addresses</option>
+<option value="route">Build Route</option>
+<option value="settings">Settings</option>
+</select>
+</label>
+</header>
+<main>
+<section class="section appPage" data-page="home">
+<h2>Home / Route Base</h2>
+<form id="homeForm">
+<label>
+Home address *
+<input
+type="text"
+id="homeAddress"
+required
+autocomplete="street-address"
+/>
+</label>
+<div class="btnRow">
+<button
+id="findHomeLocation"
+type="button"
+class="btn btnSmall"
+>
+Find Home Location (Free)
+</button>
+</div>
+<p id="homeLocationStatus" class="tiny muted">
+Find home, then click the exact property on the map.
+</p>
+<div
+id="homeLocationMap"
+class="locationMap"
+aria-label="Home location pin map"
+hidden
+></div>
+<button type="submit" class="btn">Save Home Address</button>
+<p id="homeStatus" class="tiny muted">
+Required before building a round trip.
+</p>
+</form>
+</section>
+<!-- CSV / Bulk Import -->
+<section
+id="importZone"
+class="section dashed appPage"
+data-page="import"
+hidden
+>
+<h2>Import Addresses</h2>
+<p class="muted">
+Drag & drop a CSV file anywhere in this box, or use the file
+picker.
+</p>
+<div class="flexRow">
+<div class="panel">
+<label>
+Upload CSV (Inspectoria export)
+<input type="file" id="csvFile" accept=".csv,text/csv" />
+</label>
+<div class="btnRow">
+<button id="importCsvBtn" type="button" class="btn">
+Import CSV
+</button>
+</div>
+<p class="tiny muted">
+Uses MappingAddress fields for the address (with
+fallbacks to Address/City/State/Zip) and coordinates
+when present. Client is kept only as an optional label.
+</p>
+<p id="dropHint" class="tiny muted"></p>
+</div>
+<div class="panel grow">
+<label>
+Or paste CSV text here
+<textarea
+id="csvText"
+rows="6"
+placeholder="Paste CSV content here..."
+></textarea>
+</label>
+<div class="btnRow">
+<button id="importCsvTextBtn" type="button" class="btn">
+Import Pasted CSV
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- Addresses internal views -->
+<section class="section appPage" data-page="addresses" hidden>
+<h2>Addresses</h2>
+<p class="tiny muted">
+Choose the part of Addresses you need. Only one large list is shown at a time.
+</p>
+<input
+class="addressViewChoice"
+type="radio"
+name="addressView"
+id="addressViewAddEdit"
+/>
+<input
+class="addressViewChoice"
+type="radio"
+name="addressView"
+id="addressViewManualGigs"
+/>
+<input
+class="addressViewChoice"
+type="radio"
+name="addressView"
+id="addressViewWorkLibrary"
+/>
+<input
+class="addressViewChoice"
+type="radio"
+name="addressView"
+id="addressViewSaved"
+checked
+/>
+<div class="addressViewTabs" role="tablist" aria-label="Addresses views">
+<label for="addressViewAddEdit">Add / Edit</label>
+<label for="addressViewManualGigs">Manual Gigs</label>
+<label for="addressViewWorkLibrary">Work Library</label>
+<label for="addressViewSaved">Saved Addresses</label>
+</div>
+<div class="addressViewPanes">
+<div class="addressViewPane" data-address-view="add-edit">
+<h3>Add / Edit Address</h3>
+<form id="jobForm">
+<label>
+Address *
+<input
+type="text"
+id="address"
+required
+list="addressSuggestions"
+autocomplete="off"
+/>
+<datalist id="addressSuggestions"></datalist>
+</label>
+<p class="tiny muted" style="margin-top: -6px">
+Suggestions come from your saved addresses.
+</p>
+<label>
+Label (optional)
+<input
+type="text"
+id="label"
+placeholder="Anything that helps you recognize this stop"
+/>
+</label>
+<div class="row2">
+<label>
+Latitude (optional)
+<input type="number" id="latitude" step="any" />
+</label>
+<label>
+Longitude (optional)
+<input type="number" id="longitude" step="any" />
+</label>
+</div>
+<div class="btnRow">
+<button
+id="findLocation"
+type="button"
+class="btn btnSmall"
+>
+Find Location (Free)
+</button>
+<a
+id="locationPreview"
+class="mapLink"
+target="_blank"
+rel="noopener"
+hidden
+>
+View Found Location
+</a>
+</div>
+<p id="locationStatus" class="tiny muted">
+Find the location, then click the exact property on the map.
+</p>
+<div
+id="locationMap"
+class="locationMap"
+aria-label="Location pin map"
+hidden
+></div>
+<label>
+Notes (optional)
+<textarea id="notes"></textarea>
+</label>
+<button type="submit" class="btn">Save Address</button>
+<p id="addressCorrectionStatus" class="tiny muted">
+When you correct an address, the app saves that correction
+permanently in Google Drive.
+</p>
+</form>
+</div>
+<div class="addressViewPane" data-address-view="manual-gigs">
+<h3>Manual Gig</h3>
+<p class="tiny muted">
+Add paid work such as HNP without turning it into an InspectorADE job.
+Multiple gigs may share one physical address and one route stop.
+</p>
+<form id="gigForm">
+<label>
+Address *
+<input
+type="text"
+id="gigAddress"
+required
+list="addressSuggestions"
+autocomplete="off"
+/>
+</label>
+<div class="row2">
+<label>
+Company / source *
+<select id="gigSource" required>
+<option value="HNP">HNP</option>
+<option value="OTHER">Other</option>
+</select>
+</label>
+<label>
+Work order / job ID (optional)
+<input type="text" id="gigWorkOrderId" />
+</label>
+</div>
+<label>
+Expected pay (optional)
+<input
+type="number"
+id="gigExpectedPay"
+min="0"
+step="0.01"
+inputmode="decimal"
+/>
+</label>
+<div class="row2">
+<label>
+Due Date (optional)
+<input type="date" id="gigDueDate" />
+</label>
+<label>
+Completed Date (optional)
+<input type="date" id="gigCompletedDate" />
+</label>
+</div>
+<label>
+Notes (optional)
+<textarea id="gigNotes"></textarea>
+</label>
+<div class="btnRow">
+<button type="submit" class="btn">Save Gig</button>
+<button
+id="cancelGigEdit"
+type="button"
+class="btn btnSmall"
+hidden
+>
+Cancel Edit
+</button>
+</div>
+<p id="gigStatus" class="tiny muted">
+Manual gigs stay separate from InspectorADE prediction history.
+</p>
+</form>
+<h3>Manual Gigs</h3>
+<p class="tiny muted">
+Check Include in Route beside the gigs you want on today's route.
+New manual gigs start unchecked.
+</p>
+<div class="btnRow">
+<button
+id="syncGigsToWorkbook"
+type="button"
+class="btn btnSmall"
+>
+Sync Gigs to Workbook
+</button>
+</div>
+<p id="gigHandoffStatus" class="tiny muted">
+Sync is manual. It sends the current gig records to the workbook handoff without changing InspectorADE history.
+</p>
+<ul id="gigList"></ul>
+</div>
+<div class="addressViewPane" data-address-view="work-library">
+<h3>Manual Work Library</h3>
+<p class="tiny muted">
+Reusable manual properties are kept separately from today's route
+and from InspectorADE address-correction memory.
+</p>
+<div class="btnRow">
+<button id="syncManualWork" type="button" class="btn btnSmall">
+Sync Library
+</button>
+</div>
+<p id="manualWorkStatus" class="tiny muted">
+Saving a manual gig also attempts to save its property permanently
+in Google Drive.
+</p>
+<input
+id="showArchivedManualWork"
+type="checkbox"
+class="addressViewChoice"
+/>
+<label class="showArchivedControl" for="showArchivedManualWork">
+Show Archived
+</label>
+<ul id="manualWorkList"></ul>
+</div>
+<div class="addressViewPane" data-address-view="saved-addresses">
+<h3>Saved Addresses</h3>
+<ul id="jobList"></ul>
+</div>
+</div>
+</section>
+<!-- Route Builder -->
+<section id="routePage" class="section appPage" data-page="route" hidden>
+<h2>Route Builder</h2>
+<div class="plannerContext panel">
+<div class="inlineHeader plannerRouteHeader">
+<label class="plannerRouteChoiceLabel">
+Route to use
+<select id="routeChoice">
+<option value="google">Google Route</option>
+<option value="basic">Basic Route</option>
+</select>
+</label>
+<p id="routeOptimizationStatus" class="tiny">
+Google Route: Not Optimized
+</p>
+</div>
+<div id="routePlanControls" class="panel">
+<div class="inlineHeader">
+<h3>Multi-Day Plan</h3>
+<label>
+Active Day
+<select id="routePlanDaySelector"></select>
+</label>
+</div>
+<div class="row2">
+<label>
+Days
+<input id="routePlanDayCount" type="number" min="1" step="1" value="1" />
+</label>
+<div class="btnRow">
+<button id="routePlanAutoDays" type="button" class="btn btnSmall">
+Suggest Days
+</button>
+<button id="routePlanBuildDays" type="button" class="btn btnSmall">
+Build / Replace Plan
+</button>
+</div>
+</div>
+<div class="btnRow">
+<button id="routePlanAssignDays" type="button" class="btn btnSmall">
+Reassign Unlocked Work
+</button>
+</div>
+<p id="routePlanStatus" class="tiny muted">
+One-day routes still work normally. Multi-day assignment is local and never calls Google automatically.
+</p>
+<details>
+<summary>Day assignments</summary>
+<div id="routePlanAssignmentList"></div>
+</details>
+</div>
+<div id="workdayControls" class="panel plannerWorkday">
+<h3>Workday</h3>
+<div class="row2">
+<label>
+Route date
+<input type="date" id="routeDate" />
+</label>
+<label>
+Departure
+<input type="time" id="routeDepartureTime" step="60" />
+</label>
+</div>
+<div class="row2">
+<label>
+Preferred field-work finish
+<input
+type="time"
+id="routePreferredFinishTime"
+step="60"
+/>
+</label>
+<label>
+Home by
+<input type="time" id="routeHomeByTime" step="60" />
+</label>
+</div>
+<p id="routeDayContextStatus" class="tiny muted"></p>
+</div>
+<div id="plannerDaySummary" class="plannerDaySummary" aria-live="polite"></div>
+<p id="routePaySummary" class="tiny">
+Google Route expected pay: no InspectorADE or manual gig pay attached.
+</p>
+</div>
+<div id="newRouteAvailable" class="plannerNotice" hidden>
+<p id="newRouteAvailableStatus" class="tiny"></p>
+<button id="startNewRoute" type="button" class="btn btnSmall">
+Start New Route
+</button>
+</div>
+<section class="plannerSurface" aria-labelledby="plannerHeading">
+<div class="inlineHeader plannerSurfaceHeader">
+<h3 id="plannerHeading">Today's Route</h3>
+<div id="plannerViewToggle" class="plannerViewToggle" aria-label="Planner view">
+<button
+type="button"
+class="btn btnSmall"
+data-planner-view="list"
+aria-pressed="true"
+>List</button>
+<button
+type="button"
+class="btn btnSmall"
+data-planner-view="map"
+aria-pressed="false"
+>Map</button>
+</div>
+</div>
+<p id="plannerMapStatus" class="tiny muted"></p>
+<div id="plannerWorkspace" class="plannerWorkspace" data-planner-view="list">
+<div class="plannerMapPane">
+<div
+id="plannerMap"
+class="plannerMap"
+aria-label="Current route map"
+></div>
+<p id="plannerMapEmpty" class="tiny muted" hidden></p>
+</div>
+<div class="plannerListPane">
+<ul id="routeList" class="plannerRouteList"></ul>
+</div>
+</div>
+</section>
+<section class="plannerActionSection" aria-labelledby="routeActionsHeading">
+<h3 id="routeActionsHeading">Route Actions</h3>
+<div class="btnRow">
+<button id="optimizeRoute" type="button" class="btn btnSmall">
+Optimize Route
+</button>
+<button
+id="googleOptimizeRoute"
+type="button"
+class="btn btnSmall"
+disabled
+>
+Google Optimize
+</button>
+</div>
+<div id="googleRouteSignIn" class="googleRouteSignIn"></div>
+<p id="googleRouteAuthStatus" class="tiny muted">
+Google road optimization requires the approved company Google
+account.
+</p>
+<div class="btnRow plannerExecutionActions">
+<button
+id="startRouteNavigation"
+type="button"
+class="btn"
+disabled
+>
+Start Navigation
+</button>
+<button id="completeAndNavigateNext" type="button" class="btn" disabled>
+Done &amp; Navigate Next
+</button>
+</div>
+<p class="tiny muted">
+Tap Start Navigation to drive to the first stop without removing
+it. After finishing that stop, tap Done &amp; Navigate Next to
+remove it from this route and drive to the next stop. After the
+last stop, it navigates Home.
+</p>
+<p id="routeStatus" class="tiny muted">
+Select addresses, then optimize the route.
+</p>
+</section>
+<details class="plannerUtilities">
+<summary>Route tools &amp; maintenance</summary>
+<div class="btnRow">
+<button
+id="checkWorkbookRoute"
+type="button"
+class="btn btnSmall"
+>
+Check Workbook Route
+</button>
+<button id="clearRoute" type="button" class="btn btnSmall">
+Clear Route
+</button>
+<button id="exportRoute" type="button" class="btn btnSmall">
+Open in Google Maps
+</button>
+<button
+id="sendRouteOrder"
+type="button"
+class="btn btnSmall"
+disabled
+>
+Send Route Order to Workbook
+</button>
+<button
+id="downloadGarminGpx"
+type="button"
+class="btn btnSmall"
+>
+Download Garmin GPX
+</button>
+</div>
+<div id="routeMapLinks" class="btnRow" hidden></div>
+<p id="workbookRouteOrderStatus" class="tiny muted"></p>
+<div class="btnRow">
+<button
+id="clearInspectorAdeJobs"
+type="button"
+class="btn btnSmall"
+>
+Clear InspectorADE Jobs
+</button>
+<button
+id="clearManualGigWork"
+type="button"
+class="btn btnSmall"
+>
+Clear Manual Gig Work
+</button>
+</div>
+<p class="tiny muted">
+These clear one kind of route work from both saved route versions
+without deleting the other kind of work or the saved addresses.
+</p>
+</details>
+</section>
+<section class="section appPage" data-page="settings" hidden>
+<h2>Settings</h2>
+<form id="settingsForm">
+<label>
+Geoapify API key
+<input
+type="password"
+id="geoapifyKey"
+autocomplete="off"
+spellcheck="false"
+/>
+</label>
+<div class="btnRow">
+<button type="submit" class="btn btnSmall">
+Save Key
+</button>
+<button
+id="clearGeoapifyKey"
+type="button"
+class="btn btnSmall"
+>
+Clear Key
+</button>
+</div>
+<p id="geoapifyKeyStatus" class="tiny muted">
+No key saved.
+</p>
+<p class="tiny muted">
+The key stays in this browser. It is not committed to
+GitHub or placed in a route link.
+</p>
+</form>
+<hr />
+<h3>App</h3>
+<div class="btnRow">
+<button id="updateApp" type="button" class="btn btnSmall">
+Update App
+</button>
+</div>
+<p id="updateAppStatus" class="tiny muted">
+Reload Free Map Router and refresh the app cache. Your saved
+addresses and routes stay on this device.
+</p>
+<hr />
+<h3>Backup</h3>
+<div class="btnRow">
+<button id="downloadBackup" type="button" class="btn btnSmall">
+Download Backup
+</button>
+<button id="restoreBackup" type="button" class="btn btnSmall">
+Restore Backup
+</button>
+<input
+id="backupFile"
+type="file"
+accept=".json,application/json"
+hidden
+/>
+</div>
+<p id="backupStatus" class="tiny muted">
+Save the downloaded backup file in Google Drive.
+</p>
+<h3>Google Drive</h3>
+<div class="btnRow">
+<button
+id="backupGoogleDrive"
+type="button"
+class="btn btnSmall"
+>
+Back Up Now
+</button>
+<button
+id="restoreGoogleDrive"
+type="button"
+class="btn btnSmall"
+>
+Restore from Drive
+</button>
+</div>
+<p id="googleDriveStatus" class="tiny muted">
+Back Up Now remains the whole-app recovery snapshot. Manual Work
+Library properties and permanent address corrections use their own
+small Drive files.
+</p>
+<p id="googleDriveInboxStatus" class="tiny muted">
+Workbook route details appear here after a route check.
+</p>
+</section>
+</main>
+<p class="tiny muted attribution">
+Free address lookup ©
+<a
+href="https://www.openstreetmap.org/copyright"
+target="_blank"
+rel="noopener"
+>OpenStreetMap contributors</a>.
+Batch lookup powered by
+<a
+href="https://www.geoapify.com/"
+target="_blank"
+rel="noopener"
+>Geoapify</a>.
+</p>
+<script>
+document.getElementById("jobList")?.addEventListener(
+"click",
+(event) => {
+const button = event.target?.closest?.("button");
+if (!button || button.textContent.trim() !== "Edit") return;
+const addEditView = document.getElementById("addressViewAddEdit");
+if (addEditView) addEditView.checked = true;
+},
+true,
+);
+</script>
+<script src="contract.js?v=3.0.0"></script>
+<script src="gig-contract.js?v=2.0.0"></script>
+<script src="work-item-planning.js?v=1.0.0"></script>
+<script src="route-work-planning.js?v=1.0.0"></script>
+<script src="manual-work-library.js?v=2.0.0"></script>
+<script src="geocoder.js?v=2.0.0"></script>
+<script src="settings.js?v=1.1.0"></script>
+<script src="route-plan.js?v=1.0.0"></script>
+<script src="route-plan-days.js?v=1.0.0"></script>
+<script src="route-history.js?v=7.0.0"></script>
+<script src="workday-context.js?v=1.0.0"></script>
+<script src="route-work-clear.js?v=1.1.0"></script>
+<script src="backup.js?v=5.0.0"></script>
+<script src="inbox.js?v=1.6.0"></script>
+<script src="address-corrections.js?v=1.0.0"></script>
+<script src="https://accounts.google.com/gsi/client" async></script>
+<script src="google-drive.js?v=1.9.0"></script>
+<script src="manual-work-drive.js?v=1.0.0"></script>
+<script src="gig-handoff.js?v=1.0.0"></script>
+<script src="route-order.js?v=1.1.0"></script>
+<script src="google-route-contract.js?v=1.1.0"></script>
+<script src="routing.js?v=1.5.0"></script>
+<script src="garmin-gpx.js?v=1.2.0"></script>
+<script src="vendor/leaflet.js?v=1.9.4"></script>
+<script src="manual-gigs.js?v=2.1.0"></script>
+<script src="work-item-planning-runtime.js?v=1.0.0"></script>
+<script src="gig-handoff-ui.js?v=1.0.0"></script>
+<script src="route-work-controls.js?v=1.0.0"></script>
+<script src="planner-model.js?v=1.0.0"></script>
+<script src="route-plan-controls.js?v=1.0.0"></script>
+<script src="app.js?v=3.33.0"></script>
+<script src="google-route-browser.js?v=1.9.0"></script>
+<script src="garmin-export-ui.js?v=1.1.0"></script>
+</body>
 </html>

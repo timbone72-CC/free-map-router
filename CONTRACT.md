@@ -306,12 +306,14 @@ versions of one job route, and opens the selected version in Google Maps.
     The Build Route planning editor refreshes only the planning projection after
     a successful save.
 32. Downloaded and Drive whole-app backups preserve valid Phase 2G work-item
-    planning records in current backup version 4. Valid version-3 backups retain
-    their planning records when restored; older valid version-1 and version-2
-    backups remain restorable and begin with an empty planning collection.
-33. Build Route contains one compact **Workday** area for the current one-day
-    route with **Route date**, **Departure**, **Preferred field-work finish**,
-    and **Home by** controls.
+    planning records in current backup version 5. Valid version-4 and version-3
+    backups retain their planning records when restored; older valid version-1
+    and version-2 backups remain restorable and begin with an empty planning
+    collection.
+33. Build Route contains one compact **Workday** area for the current active
+    Route Plan Day with **Route date**, **Departure**, **Preferred field-work
+    finish**, and **Home by** controls. The one-day path remains valid without
+    requiring multi-day setup.
 34. When no saved workday context exists, the controls show the operator's
     current local calendar date and local clock time, plus the approved default
     Preferred finish of 3:00 PM and Home by of 5:00 PM. These defaults are not
@@ -331,12 +333,15 @@ versions of one job route, and opens the selected version in Google Maps.
 38. Starting a genuinely new workbook route clears stale prior-day timing and
     schedule state rather than attaching an old route's timing/ETA context to the
     new work.
-39. Route-history version 6 owns the shared one-day `dayContext` and the
-    nullable per-route `schedule` field. A complete accepted timed Google
-    schedule may be retained only on Google Route; Basic Route and pending
-    routes do not gain Google schedule confidence. Older valid route history
-    migrates without losing route order, route identity, source metadata, pay
-    metadata, or exact work identities.
+39. Route-history version 7 owns one canonical `activePlan` plus the existing
+    pending workbook route. Each saved Route Plan Day owns its own `dayContext`,
+    Google snapshot, and Basic snapshot. Current one-day compatibility views are
+    derived from the active Day and are not separately persisted competing
+    copies. A complete accepted timed Google schedule may be retained only on a
+    Day's Google Route; Basic Route and pending routes do not gain Google
+    schedule confidence. Older valid route history migrates without losing
+    route order, route identity, source metadata, pay metadata, exact work
+    identities, or pending workbook work.
 40. A time-aware **Google Optimize** request uses the saved Route date,
     Departure, Home By, and IANA timezone to resolve whole-second timing. Each
     physical stop is sent once, and known Phase 2G work-item durations are
@@ -351,16 +356,18 @@ versions of one job route, and opens the selected version in Google Maps.
     Home, service-duration, Departure, and Home By basis remains current. Basis
     changes remove schedule confidence without deleting route order. Valid
     schedule state survives ordinary route-history writes and is preserved by
-    backup version 4 when its route identity remains valid.
+    backup version 5 when its Route Plan Day and route identity remain valid.
 43. Clearing the visible **Home by** field is a temporary operator-controlled
     Google Optimize mode. It does not erase the last valid saved Home By. The
     untimed request preserves exact stops and service durations but does not
     fabricate or persist a Home-By-safe schedule. Re-entering a valid Home By
     restores the timed behavior.
-44. Whole-app backup version 4 preserves route-history v6 workday context,
-    existing planning data, and a valid Google schedule. Valid backup versions
-    1, 2, and 3 remain restorable without inventing workday or schedule data
-    that did not exist in those backups.
+44. Whole-app backup version 5 preserves route-history v7 Route Plan identity,
+    ordered Days, per-Day Workday context, existing planning data, pending
+    workbook route, and valid per-Day Google schedule state. Valid backup
+    versions 1, 2, 3, and 4 remain restorable without inventing extra Days,
+    workday timing, schedule confidence, or exact work identity that did not
+    exist in those backups.
 
 ## 6. Manual gig rules
 
@@ -490,9 +497,11 @@ Tests must continue to protect:
 - fail-closed duplicate exact-work identity across different physical stops;
 - stale-safe planning revisions and planning-only saves that do not change route
   order, route membership, optimizer status, source, pay, or workbook state;
-- version-4 backup preservation of planning and workday context plus
-  version-1/version-2/version-3 restore compatibility without invented timing;
-- route-history v5-to-v6 migration without route/order/work-identity loss;
+- version-5 backup preservation of planning, Route Plan Days, and workday context
+  plus version-1/version-2/version-3/version-4 restore compatibility without
+  invented timing or extra Days;
+- route-history v6-to-v7 migration without route/order/work-identity/pending-work
+  loss;
 - exact local date/time/timezone workday round trip without UTC drift;
 - invalid Home-by/Departure and nonexistent DST local times failing closed;
 - timing edits preserving route order, membership, optimizer status, exact work
@@ -506,7 +515,7 @@ Tests must continue to protect:
   remaining schedule-null;
 - Home By hard-conflict behavior applying no partial route while Preferred
   finish remains a soft post-result warning;
-- backup version 4 preserving a valid Google schedule through ordinary
+- backup version 5 preserving a valid per-Day Google schedule through ordinary
   route-history writes and restore;
 - temporary visible Home By opt-out preserving the last saved Home By, exact
   stops and service durations, and not fabricating timed schedule confidence;
@@ -546,3 +555,56 @@ Tests must continue to protect:
    Route controls. It adds no new map provider/package/API key, OAuth scope,
    Drive file, storage schema, backup schema, workbook handoff schema, or Google
    optimization request/response contract.
+
+## 10. Phase 2I-C multi-day planning protection
+
+1. The existing one-day route path remains first-class. Multi-day planning adds
+   bounded controls inside Build Route and does not add a sixth top-level page,
+   second planner, alternate mobile route state, timer, polling loop, or
+   MutationObserver.
+2. Exact work-item Day assignment remains owned by the existing planning
+   `assignedDate` / `lockedDay` fields. The Route Plan stores exact work identity
+   and per-Day route state but does not duplicate those exact-work assignment
+   fields. Standalone route-only stops may retain their own assignment because no
+   exact work-item planning record exists for them.
+3. Automatic Day assignment is explicit, deterministic, local, and network-free.
+   It must not invoke Google Optimize, Drive, workbook handoff, or any provider
+   API. Google optimization remains a separate operator action on the selected
+   Day only.
+4. Exact work sharing one physical `stopId` stays on the same Day by default.
+   Automatic assignment must never create two driving visits to the same
+   property merely because multiple Order IDs / `Gig_ID`s exist there.
+5. A manual gig with unknown service duration is never counted as zero. If it
+   already has a valid manual Day assignment it may remain there; otherwise it
+   stays visibly unassigned until the operator supplies enough information or
+   moves it manually.
+6. Only actual due-date data may influence Day priority. Current governed
+   workbook inbox data has no workbook due-date field, so Phase 2I-C does not
+   fabricate one. Valid manual-gig due dates may be used.
+7. Saved display coordinates may influence deterministic local geography
+   ordering. Missing coordinates do not delete, hide, or fabricate work, and no
+   request-only geocoding coordinate becomes saved planner truth.
+8. A Day-count suggestion is a minimum derived from known service time and the
+   current Workday target. Unknown-duration work is reported separately and is
+   not hidden inside that minimum. Overflow remains visible for manual review.
+9. Creating/replacing a multi-day plan requires explicit operator confirmation.
+   Cancel leaves the current active plan unchanged. Replace may change only the
+   active plan's Day assignments/routes and existing planning assignment fields;
+   it must preserve saved addresses, pins, gigs, Manual Work Library records,
+   permanent corrections, workbook history, prediction history, and the pending
+   workbook route.
+10. Generated or reassigned Day route snapshots begin without stale optimization
+    or schedule confidence. Google and Basic candidates are produced locally; a
+    valid Google schedule can exist only after the operator explicitly optimizes
+    that selected Day through the governed Google path.
+11. Day switching changes the active `dayId` and renders that Day through the
+    existing planner/Workday owners. It does not add/remove exact work, call
+    Google, or mutate the pending workbook route.
+12. Bulk Day-assignment commits must re-check both Route Plan revision and
+    planning state before writing. A stale change fails closed. If planning is
+    written but the paired Route Plan write unexpectedly fails, the pre-action
+    planning snapshot is restored.
+13. Whole-app backup version 5 preserves the resulting multi-day Route Plan and
+    its existing planning records; no backup schema or Drive filename change is
+    introduced by Phase 2I-C.
+
