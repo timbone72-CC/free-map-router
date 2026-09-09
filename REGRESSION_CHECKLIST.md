@@ -462,3 +462,17 @@ selection, manual move/lock, or the bounded multi-day Build Route controls.
       second mobile planner state, new provider, API key, OAuth scope, Drive
       filename, or workbook handoff schema.
 
+## Active-plan completion checks — Phase 2I-D
+
+Required after active-plan completion, remaining-work filtering, or plan replacement changes.
+
+- [ ] `Done & Navigate Next` records every exact Order ID / `Gig_ID` represented at the first physical stop with one completion timestamp and removes that stop from both Google and Basic candidates for the active Day.
+- [ ] A route-only stop records only standalone stop identity; no fake workbook/manual work ID is invented.
+- [ ] Completing a stop clears stale Google schedule confidence and increments both Day and Route Plan revision before the canonical v7 write.
+- [ ] Completed work disappears from remaining-work planning, automatic Day assignment, manual assignment controls, and ordinary candidate regeneration; switching Google/Basic or reassigning Days does not resurrect it.
+- [ ] A stale Route Plan completion write fails closed and does not partially change route or completion state.
+- [ ] Stop-ID remap preserves exact completion identity at the retained physical stop; removing a completed manual gig removes its temporary completion record too.
+- [ ] Backup v5 round-trips valid optional completion state; older Route Plans and backups with no completion state remain valid without invented completions.
+- [ ] Active-plan replacement remains explicit: Cancel changes nothing; Replace discards temporary completion progress and carries forward only remaining work. Saved addresses, pins, gigs, corrections, workbook history, prediction history, and pending workbook state are not deleted.
+- [ ] Starting a newer pending workbook route explicitly warns that old temporary completion progress is discarded and creates the new plan without inheriting old completion state.
+- [ ] Phase 2I-D adds no workbook handoff schema, Drive permission/file, Google request contract, sixth page, alternate phone route state, observer/polling loop, or permanent detailed route-history attic.
