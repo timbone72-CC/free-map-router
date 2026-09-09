@@ -92,6 +92,6 @@ test("clearing or completing the final stop resets an empty route", () => {
     );
     assert.match(
         app,
-        /nextRouteIds\.length === 0 \? "not_optimized" : null/,
+        /function completeCurrentStopAndNavigate\(\)[\s\S]*completeActivePlanStop\([\s\S]*writeRouteHistory\(/,
     );
 });
