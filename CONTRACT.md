@@ -608,3 +608,15 @@ Tests must continue to protect:
     its existing planning records; no backup schema or Drive filename change is
     introduced by Phase 2I-C.
 
+## 11. Phase 2I-D active-plan completion protection
+
+1. `Done & Navigate Next` completes one physical stop in the active Route Plan Day and records every exact workbook Order ID / manual `Gig_ID` represented at that stop. Route-only stops retain only `stopId` plus completion timestamp; no invented work identity is created.
+2. Completion records are temporary active-plan facts only: `{kind, workItemId, stopId, completedAt}` for exact work and `{stopId, completedAt}` for standalone route-only stops. They do not copy address, coordinates, pay, notes, route geometry, workbook history, or permanent gig history.
+3. Completing a stop removes that physical stop from both Google and Basic candidates for the active Day and clears stale Google schedule confidence. The exact work pool remains available only as identity needed to prevent resurrection while the active plan exists.
+4. Completed exact work and completed standalone stops are excluded from Day-count suggestions, automatic reassignment, manual Day-assignment lists, and ordinary Route Plan candidate regeneration. Ordinary writes or slot switching must not resurrect them.
+5. Completion writes increment the active Day and Route Plan revision and use the existing route-history v7 stale-write gate. A stale completion or conflicting write fails closed before navigation state is changed.
+6. Stop-ID remap carries temporary completion identity to the retained physical stop. Removing an exact work item from the active plan removes its corresponding temporary completion record.
+7. Route Plan schema version 1 gains only backward-compatible optional completion arrays; route-history remains version 7 and whole-app backup remains version 5. Older valid Route Plans/backups with no completion arrays normalize with no invented completion state. Backup v5 preserves valid completion arrays.
+8. Deliberate active-plan replacement requires the existing explicit confirmation. Cancel leaves plan/completion state unchanged. Replace discards temporary completion progress and carries forward only work that was still remaining, so completed jobs are not silently resurrected by replacement.
+9. Starting a newer pending workbook route explicitly replaces the active Route Plan and its temporary completion progress after confirmation. It does not delete saved addresses, pins, manual gigs, permanent corrections, workbook history, or prediction history.
+10. No workbook/router handoff schema, Drive filename/permission, Google optimization request, top-level page count, alternate mobile route state, polling loop, observer, or permanent detailed completed-route archive is added by Phase 2I-D.

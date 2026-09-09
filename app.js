@@ -92,6 +92,7 @@ const {
     parseCorrectionRecord,
 } = globalThis.FMRAddressCorrections;
 const {
+    completeActivePlanStop,
     readRouteHistory,
     remapRouteStopIds,
     replaceRoute,
@@ -1060,7 +1061,7 @@ if (els.startNewRoute) {
         if (pendingCount === 0) return;
         if (
             !confirm(
-                `Start the new ${pendingCount}-job route? This replaces both the saved Google Route and Basic Route. Saved addresses and pins will be kept.`,
+                `Start the new ${pendingCount}-job route? This replaces the active Route Plan, both saved route versions, and any temporary completion progress for that plan. Saved addresses, pins, manual gigs, and the pending route jobs being started will be kept.`,
             )
         ) {
             return;
@@ -1593,10 +1594,17 @@ function completeCurrentStopAndNavigate() {
         return;
     }
 
-    routeIds = nextRouteIds;
-    persistActiveRoute(
-        nextRouteIds.length === 0 ? "not_optimized" : null,
+    routeHistory = completeActivePlanStop(
+        routeHistory,
+        currentStopId,
+        savedJobIds(),
     );
+    routeHistory = writeRouteHistory(
+        localStorage,
+        routeHistory,
+        savedJobIds(),
+    );
+    routeIds = routeHistory[activeRouteSlot]?.routeIds.slice() || [];
     renderRouteList();
     renderJobsList();
 
