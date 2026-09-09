@@ -1,17 +1,50 @@
 # Phase 2J — Day-Aware Workbook Return and Print
 
-**Status:** CONTRACT / DESIGN PHASE — NO RUNTIME CHANGE YET  
-**Date:** 2026-09-08  
-**FMR branch:** `phase-2j/day-aware-workbook-return`  
+**Status:** COMPLETE / MERGED / DEPLOYED — CROSS-SYSTEM REALITY GATE PASSED  
+**Design date:** 2026-09-08  
+**Closeout date:** 2026-09-09  
+**FMR implementation branch:** `phase-2j/day-aware-workbook-return`  
 **FMR rollback base:** `65bd25b853b2836e99f48b20fc6e85fff4d1179f`  
+**FMR runtime head:** `1bf972cb7db115e2bac2d0014b82d23f36e83acf`  
+**FMR merge commit:** `bc03d6785f8bec1518bfdc44594564113d565f4e`  
 **Workbook companion branch:** `work/phase-2j-day-aware-return-20260908`  
-**Workbook rollback base:** `98cc1046bf8670de94a74c07ca90ac46a77c286d`
+**Workbook rollback base:** `98cc1046bf8670de94a74c07ca90ac46a77c286d`  
+**Workbook runtime head:** `04c3a2a980739b950c14376a6b84ec46f5e47515`  
+**Workbook merge commit:** `1e5630e391f277aa1a783f51b12d653e57c10bd7`
+
+## Closeout summary
+
+Phase 2J is closed. The approved day-aware route-return design was implemented
+in both repositories, validated through the real operator flow and real Drive
+artifact, merged after explicit Level 3 pre-merge approval, and deployed in the
+required workbook-first order.
+
+Closeout evidence:
+
+- workbook PR #32 merged and its production Apps Script `clasp push` succeeded;
+- FMR PR #99 merged into `main`;
+- Google Cloud Build for FMR main commit `bc03d6785f8bec1518bfdc44594564113d565f4e`
+  completed successfully on 2026-09-09;
+- Day 1 actual send produced only Source_IDs `112605349`, `112655076`, and
+  `112620264` with v2 active-Day Route Plan metadata;
+- the workbook Sandbox received/numbered/printed only Day 1 and left Day 2
+  `112147281` untouched;
+- the Day 1 packet showed `Day 1 of 2 — 2026-09-09`;
+- Day 2 actual send then produced only Source_ID `112147281`;
+- the workbook replaced the current route-number/packet view with Day 2 only;
+- the Day 2 packet showed `Day 2 of 2 — 2026-09-10`;
+- FMR retained both Days after both sends; and
+- workbook Print checkboxes remained unchanged.
+
+The historical design sections below are retained as the implementation record.
+Statements that described the runtime as not yet implemented are superseded by
+this closeout summary.
 
 ## Operator-approved goal
 
 Make the existing Free Map Router → workbook route-order return understand that the displayed route is one active Day inside a larger FMR-owned Route Plan.
 
-The finished behavior must let the operator:
+The finished behavior lets the operator:
 
 1. keep a complete multi-day Route Plan in FMR;
 2. display Day 1 and send only Day 1 to the workbook;
@@ -21,25 +54,17 @@ The finished behavior must let the operator:
 
 ## Evidence for the change
 
-Current Phase 2I route history already exposes the active Route Plan Day through the compatibility `google`, `basic`, and `dayContext` views. The existing route-order serializer therefore sees the active Day's selected route without requiring a second planner model.
+Phase 2I route history exposed the active Route Plan Day through the compatibility `google`, `basic`, and `dayContext` views. The route-order serializer therefore already had access to the active Day's selected route without requiring a second planner model.
 
-The current workbook receiver is the blocker: `iadfRequireCurrentFreeMapRouterRouteOrder_()` requires returned InspectorADE Order IDs to equal the complete current Address Inbox Order-ID set. That was correct for the earlier one-day model, but it rejects a deliberate Day 1 subset when Day 2/Day 3 work correctly remains in FMR.
+The prior workbook receiver was the blocker: `iadfRequireCurrentFreeMapRouterRouteOrder_()` required returned InspectorADE Order IDs to equal the complete current Address Inbox Order-ID set. That was correct for the earlier one-day model, but it rejected a deliberate Day 1 subset when Day 2/Day 3 work correctly remained in FMR.
 
-The existing route-order return also lacks explicit Route Plan / Day identity and print labeling.
+The prior route-order return also lacked explicit Route Plan / Day identity and print labeling.
 
 ## Change classification
 
-The runtime portion is **Level 3 / cross-application synchronization** because it changes the JSON handoff contract and workbook acceptance rules.
+The runtime portion was **Level 3 / cross-application synchronization** because it changed the JSON handoff contract and workbook acceptance rules.
 
-The contract/design commit is documentation-only and does not authorize deployment.
-
-Runtime merge remains blocked until:
-
-- governing contracts are amended first;
-- focused producer → artifact → consumer coverage passes in both runtime-changed repositories;
-- one final complete suite/syntax gate passes on each exact runtime head;
-- the Cross-System Reality Gate passes; and
-- explicit operator pre-merge approval is given.
+The implementation used the required realistic fixture/safe environment, complete final test gates, Cross-System Reality Gate, exact rollback points, and explicit operator pre-merge approval.
 
 ## Ownership boundaries
 
@@ -84,9 +109,9 @@ A partial version-1 return remains a refusal condition.
 
 ### Version 2 — explicit active-Day return
 
-Phase 2J introduces `routeOrderVersion: 2` in the same file and with the same app/target identity.
+Phase 2J introduced `routeOrderVersion: 2` in the same file and with the same app/target identity.
 
-Required new top-level field:
+Required top-level field:
 
 - `routeScope: "active_day"`
 
@@ -156,7 +181,7 @@ A later Day 2 return replaces the current Google Doc route packet with Day 2 onl
 
 ## Success wording
 
-FMR send and workbook receive success surfaces should report three truthful counts:
+FMR send and workbook receive success surfaces report three truthful counts:
 
 - InspectorADE jobs;
 - manual gigs;
@@ -202,7 +227,7 @@ Physical stop count may be shown separately but must not be confused with work-i
 | Gig_Log | `Gig_ID` plus existing gig print fields | read-only |
 | Google Doc route packet | returned Day cards + Day/date label | generated presentation only |
 
-No workbook sheet schema change is planned.
+No workbook sheet schema change was introduced.
 
 ## Stale / damaged output behavior
 
@@ -221,79 +246,83 @@ Before route columns are changed, refuse:
 
 A refusal preserves existing route numbers and current print output.
 
-If route numbers were successfully applied but document generation later fails, retain the current existing behavior of reporting the print failure without pretending the route-column write was rolled back.
+If route numbers were successfully applied but document generation later fails, the implementation retains the existing behavior of reporting the print failure without pretending the route-column write was rolled back.
 
-## Ordered rollout
+## Ordered rollout — completed
 
-1. **Workbook companion first:** accept legacy v1 exactly as today and add v2 active-Day validation/printing.
-2. Prove workbook focused tests and Sandbox behavior without changing the FMR producer.
-3. **FMR second:** begin producing v2 active-Day route-order files.
-4. Inspect the actual produced JSON artifact.
-5. Receive it through the workbook Sandbox/shared handoff and verify exact Day-only numbering/printing.
-6. Only after the full gate passes may either runtime change be considered mergeable/deployable.
+1. **Workbook companion first:** legacy v1 remained accepted while v2 active-Day validation/printing was added.
+2. Workbook focused/full tests and Sandbox behavior passed before the FMR producer rollout.
+3. **FMR second:** v2 active-Day route-order production was enabled.
+4. Actual produced JSON artifacts were inspected.
+5. The workbook Sandbox consumed the Day 1 and Day 2 artifacts and verified exact Day-only numbering/printing.
+6. Explicit Level 3 pre-merge approval was received.
+7. Workbook PR #32 merged and the production Apps Script push succeeded.
+8. FMR PR #99 merged and the automatic Google Cloud Build succeeded.
 
-During the ordered rollout, an older FMR v1 file must continue to work in the upgraded workbook.
+An older FMR v1 file remains compatible with the upgraded workbook.
 
-## Cross-System Reality Gate operator path
+## Cross-System Reality Gate — PASS
 
-Use the real controls:
+The real controls were used:
 
-1. Send a known InspectorADE set from the workbook to FMR.
-2. In FMR create/retain a Route Plan with at least two Days and place known InspectorADE work on both Days; include a manual gig on one Day when practical.
-3. Make Day 1 active, display the intended Google or Basic route, and press **Send Route Order to Workbook**.
-4. Inspect the actual `Free Map Router Route Order.json` and verify v2 Day metadata plus only Day 1 work IDs.
-5. In the workbook run **Receive Route Order + Rebuild Print**.
-6. Verify only Day 1 jobs receive Stop/Print Order values and only Day 1 work prints with the correct Day/date label.
-7. Confirm Day 2 remains intact in FMR.
-8. Make Day 2 active and repeat the send/receive.
-9. Verify Day 1 workbook route numbers are cleared/replaced by Day 2 values, the Google Doc now contains Day 2 only, and the FMR plan still retains both Days.
+1. A known InspectorADE set was loaded into FMR.
+2. FMR retained a Route Plan with Day 1 and Day 2 work.
+3. Day 1 became active and **Send Route Order to Workbook** wrote v2.
+4. The actual Drive JSON contained the required v2 Day metadata and only Day 1 IDs.
+5. Workbook **Receive Route Order + Rebuild Print** consumed that artifact.
+6. Only Day 1 jobs received Stop/Print Order values and only Day 1 printed with the correct label.
+7. Day 2 remained intact in FMR.
+8. Day 2 became active and the send/receive repeated.
+9. Day 1 workbook route numbers were cleared/replaced by Day 2 values, the Google Doc contained Day 2 only, and the FMR plan still retained both Days.
 
-Unless separately proven isolated, the workbook test environment must be labeled **workbook sandbox / shared FMR handoff** because the Sandbox may use the same governed FMR Drive folder/file names.
+The isolated Phase 2J validation folders used for this gate are not production dependencies and are approved for retirement in the 2026-09-09 housekeeping pass.
 
-## Focused automated coverage required
+## Automated verification completed
 
 ### FMR
 
-- v2 serializer emits active-Day plan/day metadata and exact active-Day work IDs;
-- one physical stop may carry multiple exact Order IDs and Gig IDs;
-- no work from inactive Days leaks into the file;
-- app-only stops carry no invented IDs;
-- malformed/duplicate work identity still refuses;
-- route date null/valid-date behavior is explicit;
-- success count reports InspectorADE, gigs, and total work items truthfully.
+Final evidence before merge:
 
-### Workbook
+- complete regression suite: 486/486;
+- focused Phase 2J: 8/8;
+- root JavaScript syntax checks passed;
+- GitHub Actions passed on exact runtime head `1bf972cb...`.
 
-- legacy v1 exact-full-set acceptance remains unchanged;
-- partial v1 still refuses before writes;
-- v2 exact current-inbox subset succeeds;
-- v2 unexpected/stale InspectorADE ID refuses before writes;
-- v2 missing/invalid Day metadata refuses before writes;
-- exact Gig_ID validation remains fail-closed;
-- receiving Day 2 clears/replaces Day 1 Stop/Print Order values;
-- v2 Google Doc contains only returned identities even if unrelated Print rows are checked;
-- every page carries the correct Day/date label;
-- raw Job_Log addresses and every non-route field remain unchanged.
+Coverage included:
 
-## Final runtime gates
+- v2 serializer active-Day plan/day metadata and exact active-Day work IDs;
+- multiple exact Order IDs and Gig IDs at one physical stop;
+- no inactive-Day leakage;
+- no invented IDs for app-only stops;
+- fail-closed malformed/duplicate work identity;
+- route date null/valid-date handling; and
+- truthful InspectorADE/gig/total-work-item success counts.
 
-Before merge of runtime changes:
+### Workbook companion
 
-- run focused tests while developing;
-- record the baseline and final full-suite test counts from the actual parent/final heads;
-- run each repository's complete required suite once on its final runtime head;
-- run FMR root JavaScript syntax checks on its final runtime head;
-- run workbook identity/predeploy checks appropriate to Sandbox vs production;
-- inspect final diffs for unrelated changes;
-- pass the Cross-System Reality Gate;
-- obtain explicit operator pre-merge approval.
+Final evidence before merge:
+
+- focused Phase 2J: 9/9;
+- relevant v1 + Phase 2E compatibility: 21/21;
+- focused governance: 15/15;
+- complete suite: 470/470.
 
 ## Rollback
 
 FMR rollback point: `65bd25b853b2836e99f48b20fc6e85fff4d1179f`.
 
-Workbook branch rollback point: `98cc1046bf8670de94a74c07ca90ac46a77c286d`.
+Workbook rollback point: `98cc1046bf8670de94a74c07ca90ac46a77c286d`.
 
-Because rollout is workbook-first and the workbook remains v1-compatible, FMR can be rolled back to the v1 producer without making the upgraded workbook unusable.
+Because rollout was workbook-first and the workbook remains v1-compatible, FMR can be rolled back to the v1 producer without making the upgraded workbook unusable.
 
-No production `clasp push`, FMR publication, merge, or deployment is authorized by this design record.
+## Approval and publication closeout
+
+The user explicitly approved merging FMR PR #99 and workbook PR #32 after the Cross-System Reality Gate passed.
+
+The approved release transaction is complete:
+
+- workbook PR #32 merged and production Apps Script push succeeded;
+- FMR PR #99 merged;
+- automatic Google Cloud Build completed successfully.
+
+No additional Phase 2J runtime change is authorized by this closeout record. Any later behavior change requires a new governed work item.
