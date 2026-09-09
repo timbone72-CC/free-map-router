@@ -33,6 +33,8 @@ function runDoneAndNext({ home, jobs, routeIds }) {
         renderRouteCalls: 0,
         renderJobsCalls: 0,
         persistRouteCalls: 0,
+        completionCalls: 0,
+        writeHistoryCalls: 0,
     };
 
     vm.runInNewContext(
@@ -40,6 +42,26 @@ function runDoneAndNext({ home, jobs, routeIds }) {
         let home = ${JSON.stringify(home)};
         let jobs = ${JSON.stringify(jobs)};
         let routeIds = ${JSON.stringify(routeIds)};
+        const activeRouteSlot = "google";
+        let routeHistory = {
+            google: { routeIds: routeIds.slice() },
+            basic: { routeIds: routeIds.slice() },
+        };
+        const localStorage = {};
+        const savedJobIds = () => null;
+        const completeActivePlanStop = (history, stopId) => {
+            completionCalls += 1;
+            const withoutStop = (ids) => ids.filter((id) => id !== stopId);
+            return {
+                ...history,
+                google: { ...history.google, routeIds: withoutStop(history.google.routeIds) },
+                basic: { ...history.basic, routeIds: withoutStop(history.basic.routeIds) },
+            };
+        };
+        const writeRouteHistory = (_storage, history) => {
+            writeHistoryCalls += 1;
+            return history;
+        };
         const els = { routeStatus: { textContent: "" } };
         const alert = (message) => alerts.push(message);
         const window = { open: (url, target) => opens.push({ url, target }) };
@@ -54,6 +76,8 @@ function runDoneAndNext({ home, jobs, routeIds }) {
         completeCurrentStopAndNavigate();
         this.result = {
             routeIds: routeIds.slice(),
+            googleRouteIds: routeHistory.google.routeIds.slice(),
+            basicRouteIds: routeHistory.basic.routeIds.slice(),
             jobs: jobs.map((job) => ({ ...job })),
             status: els.routeStatus.textContent,
         };
@@ -166,7 +190,7 @@ test("Start does nothing when no current route stop exists", () => {
     ]);
 });
 
-test("Done removes only the current route stop and navigates to the next", () => {
+test("Done completes the current physical stop across both route candidates and navigates to the next", () => {
     const jobs = [
         { id: "a", address: "100 First St" },
         { id: "b", address: "200 Second St" },
@@ -179,6 +203,8 @@ test("Done removes only the current route stop and navigates to the next", () =>
     });
 
     assert.deepEqual(Array.from(context.result.routeIds), ["b"]);
+    assert.deepEqual(Array.from(context.result.googleRouteIds), ["b"]);
+    assert.deepEqual(Array.from(context.result.basicRouteIds), ["b"]);
     assert.deepEqual(
         Array.from(context.result.jobs, (job) => job.id),
         ["a", "b", "saved"],
@@ -188,7 +214,9 @@ test("Done removes only the current route stop and navigates to the next", () =>
     assert.equal(context.opens[0].target, "_blank");
     assert.equal(context.renderRouteCalls, 1);
     assert.equal(context.renderJobsCalls, 1);
-    assert.equal(context.persistRouteCalls, 1);
+    assert.equal(context.persistRouteCalls, 0);
+    assert.equal(context.completionCalls, 1);
+    assert.equal(context.writeHistoryCalls, 1);
     assert.match(context.result.status, /Completed 100 First St/);
     assert.match(context.result.status, /1 stop remain/);
 });
@@ -201,11 +229,15 @@ test("Done on the last stop keeps saved addresses and navigates Home", () => {
     });
 
     assert.deepEqual(Array.from(context.result.routeIds), []);
+    assert.deepEqual(Array.from(context.result.googleRouteIds), []);
+    assert.deepEqual(Array.from(context.result.basicRouteIds), []);
     assert.equal(context.result.jobs.length, 1);
     assert.equal(context.opens.length, 1);
     assert.equal(context.opens[0].url, "navigate:222 Blackburn Blvd");
     assert.equal(context.opens[0].target, "_blank");
-    assert.equal(context.persistRouteCalls, 1);
+    assert.equal(context.persistRouteCalls, 0);
+    assert.equal(context.completionCalls, 1);
+    assert.equal(context.writeHistoryCalls, 1);
     assert.match(context.result.status, /Route complete/);
 });
 
