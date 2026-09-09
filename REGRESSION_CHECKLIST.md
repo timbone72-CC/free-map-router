@@ -276,9 +276,9 @@ changes that can affect the Google schedule.
       the prior schedule stale without deleting the saved route order.
 - [ ] Changing only Preferred Finish does not invalidate the accepted schedule
       because Preferred Finish is not part of the hard Google request basis.
-- [ ] Whole-app backup version 4 preserves a valid Google schedule and restore
-      returns it only when it remains structurally valid for the saved Google
-      route; Basic schedule remains null.
+- [ ] Whole-app backup version 5 preserves a valid per-Day Google schedule and
+      restore returns it only when it remains structurally valid for the saved
+      Google route; Basic schedule remains null.
 - [ ] Clearing the visible **Home by** field leaves the last valid saved Home By
       unchanged and runs Google Optimize through the existing untimed request
       path while preserving exact stops and service durations.
@@ -403,3 +403,62 @@ map/list interaction, or planner responsive-presentation changes.
 - [ ] Planner work adds no new map provider/package/API key, OAuth permission,
       Drive file, storage/backup schema, workbook handoff schema, or Google
       optimization request/response contract.
+
+## Multi-day planning checks — Phase 2I-C
+
+Required after Route Plan Day management, local automatic assignment, Day
+selection, manual move/lock, or the bounded multi-day Build Route controls.
+
+- [ ] A current one-day route remains usable without creating additional Days or
+      completing a wizard. The app still has exactly five top-level pages.
+- [ ] Building a multi-day plan requires explicit replacement confirmation.
+      Cancel leaves the active Route Plan and planning records unchanged.
+- [ ] A created plan has one stable active Day at a time and each Day has its own
+      local Route date / Departure / Preferred finish / Home By context.
+- [ ] Switching the Day selector changes only the active `dayId` and renders that
+      Day through the existing Workday/planner owners; it does not call Google or
+      change the pending workbook route.
+- [ ] Automatic Day-count suggestion is a minimum based on known service time and
+      the Workday target. Unknown manual-gig duration is reported separately and
+      is never counted as zero.
+- [ ] Automatic Day assignment is deterministic with identical input and uses no
+      network, Google Optimize, Drive, or workbook handoff call.
+- [ ] Same-address exact work remains together on one Day by default. Multiple
+      Order IDs and/or `Gig_ID`s at one `stopId` never create duplicate visits on
+      separate Days.
+- [ ] Existing locked `assignedDate` values win. Conflicting locked assignments
+      fail visibly; a lock outside the requested Day range remains intact and is
+      not silently moved or cleared.
+- [ ] Actual manual-gig due dates may affect assignment priority. Workbook due
+      dates are not invented because the current governed inbox does not provide
+      them.
+- [ ] Saved display coordinates may influence local geography ordering. Missing
+      coordinates never remove work and request-only Google geocoding never
+      becomes planner truth.
+- [ ] Unknown-duration manual work with no valid existing Day remains visibly
+      unassigned; overflow and assignment conflicts remain visible for manual
+      adjustment rather than disappearing.
+- [ ] Manual move changes every exact work item at that physical address to the
+      selected Day and preserves exact work identity. Manual lock/unlock writes
+      only the existing planning `assignedDate` / `lockedDay` fields (plus
+      standalone-stop lock state where no exact work identity exists).
+- [ ] Generated/reassigned Google and Basic Day candidates preserve every
+      assigned physical stop once, preserve exact Order IDs / `Gig_ID`s, clear
+      stale schedule confidence, and begin `not_optimized` until the operator
+      explicitly optimizes that selected Day.
+- [ ] No exact work or standalone route-only stop is silently dropped from the
+      active plan when it cannot be assigned; unassigned work stays represented
+      in the plan pool and assignment controls.
+- [ ] A stale Route Plan revision or changed planning snapshot blocks a bulk Day
+      commit. If the paired Route Plan write fails after planning persistence,
+      the pre-action planning snapshot is restored.
+- [ ] The pending newer workbook route survives plan creation, reassignment, Day
+      switching, manual move, and manual lock unchanged.
+- [ ] Whole-app backup version 5 round-trips a multi-day Route Plan and its
+      planning records without inventing extra work, Days, schedules, or due
+      dates. Valid backup versions 1-4 remain restorable.
+- [ ] The multi-day controls load before `app.js`, use the existing owner render
+      functions, and add no post-load UI rewrite, MutationObserver, polling loop,
+      second mobile planner state, new provider, API key, OAuth scope, Drive
+      filename, or workbook handoff schema.
+
