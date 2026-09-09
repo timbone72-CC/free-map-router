@@ -259,7 +259,10 @@ test("removing a completed manual gig removes its temporary completion identity 
 test("app wiring completes through the active-plan owner and replacement warnings disclose temporary completion purge", () => {
     const app = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
     const controls = fs.readFileSync(path.join(__dirname, "..", "route-plan-controls.js"), "utf8");
-    assert.match(app, /completeActivePlanStop\(routeHistory, currentStopId, savedJobIds\(\)/);
+    assert.match(
+        app,
+        /completeActivePlanStop\(\s*routeHistory,\s*currentStopId,\s*savedJobIds\(\),?\s*\)/,
+    );
     assert.doesNotMatch(app, /routeIds = nextRouteIds;\s*persistActiveRoute\(/);
     assert.match(app, /temporary completion progress/i);
     assert.match(controls, /temporary completion progress/i);
