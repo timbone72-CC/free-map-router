@@ -7,13 +7,15 @@ const path = require("node:path");
 
 const RouteHistory = require("../route-history.js");
 const RoutePlanDays = require("../route-plan-days.js");
+const RouteOrder = require("../route-order.js");
+const { createRouteOrderSendController } = require("../route-order-ui.js");
 const {
     ACTIVE_DAY_ROUTE_ORDER_VERSION,
     ACTIVE_DAY_ROUTE_SCOPE,
     buildActiveDayWorkbookRouteOrder,
     manualGigIdCount,
     workbookOrderIdCount,
-} = require("../route-order.js");
+} = RouteOrder;
 
 function dayContext(routeDate = "2026-09-09") {
     return {
@@ -308,20 +310,95 @@ test("malformed canonical active-Day identity fails closed instead of being sile
     );
 });
 
-test("live Send control uses the active-Day producer, reports all work-item counts, and cache-busts changed modules", () => {
-    const app = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
-    const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
+test("actual Send control path writes the active-Day artifact, reports all counts, and is loaded before the legacy app handler", async () => {
+    const history = multiDayHistory();
+    const status = { textContent: "" };
+    const routeChoice = { value: "google" };
+    const sendButton = {
+        dataset: {},
+        disabled: false,
+        handler: null,
+        addEventListener(type, handler, capture) {
+            assert.equal(type, "click");
+            assert.equal(capture, true);
+            this.handler = handler;
+        },
+    };
+    const visibleNodes = history.google.routeIds.map((stopId) => ({
+        dataset: { stopId },
+    }));
+    const documentRef = {
+        getElementById(id) {
+            return {
+                sendRouteOrder: sendButton,
+                workbookRouteOrderStatus: status,
+                routeChoice,
+            }[id] || null;
+        },
+        querySelectorAll(selector) {
+            assert.equal(selector, "#routeList > li[data-stop-id]");
+            return visibleNodes;
+        },
+    };
+    const saved = savedStops();
+    const storage = {};
+    const writes = [];
+    const controller = createRouteOrderSendController({
+        contractApi: {
+            readStops(receivedStorage) {
+                assert.equal(receivedStorage, storage);
+                return { stops: saved };
+            },
+        },
+        routeHistoryApi: {
+            readRouteHistory(receivedStorage, validIds) {
+                assert.equal(receivedStorage, storage);
+                assert.deepEqual([...validIds].sort(), ["s1", "s2", "s3", "s4"]);
+                return history;
+            },
+        },
+        routeOrderApi: RouteOrder,
+        driveApi: {
+            async requestDriveToken() {
+                return "drive-token";
+            },
+            async saveRouteOrderToDrive(token, routeOrder) {
+                writes.push({ token, routeOrder });
+            },
+        },
+        storage,
+        documentRef,
+        now: () => new Date("2026-09-09T13:00:00.000Z"),
+    });
 
-    assert.match(app, /buildActiveDayWorkbookRouteOrder/);
-    assert.match(app, /routeHistory,/);
-    assert.match(app, /manualGigIdCount/);
-    assert.match(app, /InspectorADE job/);
-    assert.match(app, /manual gig/);
-    assert.match(app, /total work item/);
-    assert.doesNotMatch(
-        app,
-        /buildWorkbookRouteOrder\(\{\s*routeSlot:\s*activeRouteSlot,\s*routeSnapshot:/,
-    );
-    assert.match(html, /route-order\.js\?v=1\.2\.0/);
-    assert.match(html, /app\.js\?v=3\.34\.0/);
+    assert.equal(controller.attach(), true);
+    let prevented = false;
+    let stopped = false;
+    sendButton.handler({
+        preventDefault() {
+            prevented = true;
+        },
+        stopImmediatePropagation() {
+            stopped = true;
+        },
+    });
+    await controller.whenIdle();
+
+    assert.equal(prevented, true);
+    assert.equal(stopped, true);
+    assert.equal(writes.length, 1);
+    assert.equal(writes[0].token, "drive-token");
+    assert.equal(writes[0].routeOrder.routeOrderVersion, 2);
+    assert.equal(writes[0].routeOrder.routePlan.dayNumber, 1);
+    assert.match(status.textContent, /2 InspectorADE jobs/);
+    assert.match(status.textContent, /1 manual gig/);
+    assert.match(status.textContent, /3 total work items/);
+
+    const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
+    const routeOrderIndex = html.indexOf("route-order.js?v=1.2.0");
+    const routeOrderUiIndex = html.indexOf("route-order-ui.js?v=1.0.0");
+    const appIndex = html.indexOf("app.js?v=3.33.0");
+    assert.ok(routeOrderIndex >= 0);
+    assert.ok(routeOrderUiIndex > routeOrderIndex);
+    assert.ok(appIndex > routeOrderUiIndex);
 });
