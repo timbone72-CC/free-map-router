@@ -22,7 +22,7 @@ jobs:
       - name: Apply governed Phase 2I-D patches
         run: |
           set -euo pipefail
-          # retry after narrowing removePlanWorkItem patch targeting
+          # retry after multiline static wiring assertion fix
           python .tmp-2id-patch1.py
           python .tmp-2id-patch2.py
           python .tmp-2id-patch3.py
