@@ -171,15 +171,20 @@ replace_once(
                 });
 ''',
 )
-replace_once(
-    "route-history.js",
-    '''            return normalizeRoutePlan({
+
+# Scope this edit to removePlanWorkItem only; the same return shape exists elsewhere.
+p = Path("route-history.js")
+text = p.read_text()
+start = text.index("        function removePlanWorkItem(")
+end = text.index("\n        function setGigRouteMembership(", start)
+block = text[start:end]
+old = '''            return normalizeRoutePlan({
                 ...plan,
                 workItems,
                 standaloneStops,
             });
-''',
-    '''            const days = plan.days.map((day) => {
+'''
+new = '''            const days = plan.days.map((day) => {
                 const nextDay = { ...day };
                 const completedWorkItems = (day.completedWorkItems || []).filter(
                     (item) => workItemKey(item.kind, item.workItemId) !== key,
@@ -194,8 +199,12 @@ replace_once(
                 standaloneStops,
                 days,
             });
-''',
-)
+'''
+if block.count(old) != 1:
+    raise SystemExit(f"route-history.js: removePlanWorkItem return anchor count={block.count(old)}")
+block = block.replace(old, new, 1)
+p.write_text(text[:start] + block + text[end:])
+
 replace_once(
     "route-history.js",
     '''        function writeGoogleSchedule(
