@@ -373,6 +373,42 @@
                     </p>
                 </div>
 
+                <div id="routePlanControls" class="panel">
+                    <div class="inlineHeader">
+                        <h3>Multi-Day Plan</h3>
+                        <label>
+                            Active Day
+                            <select id="routePlanDaySelector"></select>
+                        </label>
+                    </div>
+                    <div class="row2">
+                        <label>
+                            Days
+                            <input id="routePlanDayCount" type="number" min="1" step="1" value="1" />
+                        </label>
+                        <div class="btnRow">
+                            <button id="routePlanAutoDays" type="button" class="btn btnSmall">
+                                Suggest Days
+                            </button>
+                            <button id="routePlanBuildDays" type="button" class="btn btnSmall">
+                                Build / Replace Plan
+                            </button>
+                        </div>
+                    </div>
+                    <div class="btnRow">
+                        <button id="routePlanAssignDays" type="button" class="btn btnSmall">
+                            Reassign Unlocked Work
+                        </button>
+                    </div>
+                    <p id="routePlanStatus" class="tiny muted">
+                        One-day routes still work normally. Multi-day assignment is local and never calls Google automatically.
+                    </p>
+                    <details>
+                        <summary>Day assignments</summary>
+                        <div id="routePlanAssignmentList"></div>
+                    </details>
+                </div>
+
                 <div id="workdayControls" class="panel plannerWorkday">
                     <h3>Workday</h3>
                     <div class="row2">
@@ -675,6 +711,7 @@
         <script src="geocoder.js?v=2.0.0"></script>
         <script src="settings.js?v=1.1.0"></script>
         <script src="route-plan.js?v=1.0.0"></script>
+        <script src="route-plan-days.js?v=1.0.0"></script>
         <script src="route-history.js?v=7.0.0"></script>
         <script src="workday-context.js?v=1.0.0"></script>
         <script src="route-work-clear.js?v=1.1.0"></script>
@@ -695,6 +732,7 @@
         <script src="gig-handoff-ui.js?v=1.0.0"></script>
         <script src="route-work-controls.js?v=1.0.0"></script>
         <script src="planner-model.js?v=1.0.0"></script>
+        <script src="route-plan-controls.js?v=1.0.0"></script>
         <script src="app.js?v=3.33.0"></script>
         <script src="google-route-browser.js?v=1.9.0"></script>
         <script src="garmin-export-ui.js?v=1.1.0"></script>
