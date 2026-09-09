@@ -1,7 +1,7 @@
 # Free Map Router — Field Work Expansion Roadmap
 
-**Status:** IN PROGRESS — PHASE 2 PRODUCTION-VALIDATED / PHASE 2F-2K ROUTE-PLANNER CORE PLANNED / ROUTE-PLANNER PRODUCT AUDIT INCORPORATED / PHASE 3 DESIGN AUDIT STARTED  
-**Updated:** 2026-09-02  
+**Status:** IN PROGRESS — PHASE 2I MULTI-DAY ROUTE PLANS COMPLETE / PHASE 2J NEXT / PHASE 3 DESIGN AUDIT STARTED  
+**Updated:** 2026-09-08  
 **Primary repo:** `timbone72-CC/free-map-router`
 
 ## Purpose
@@ -325,6 +325,8 @@ Day summary direction:
 - show estimated service time, drive time, preferred field finish, and home time when supported by the chosen optimizer;
 - use retained Google schedule/ETA facts to support useful stop cards and route summaries without requiring every timestamp to dominate the mobile screen;
 - make it obvious which day and optimizer are currently displayed.
+
+**Current status — 2026-09-08:** Complete. Phase 2I-A through 2I-D are merged and published. The final runtime is `de7d63909268f6bac770f671bad15991ae9fb954`. Route-history v7 / backup v5, multi-day Day management, local assignment, per-Day Workday state, manual move/lock, and active-plan completion/replacement are all in the published app. The final coherent deployed-artifact closeout smoke passed with no completed-work resurrection, no pending-work loss, and the five-page desktop/phone planner boundary preserved. See `docs/PHASE_2I_MULTI_DAY_ROUTE_PLAN_CLOSEOUT_2026-09-08.md`.
 
 ### Phase 2J — Day-Aware Workbook Return and Print
 
