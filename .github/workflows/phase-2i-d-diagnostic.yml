@@ -6,30 +6,91 @@ on:
       - staging/phase-2i-d-diagnostic
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  diagnose:
+  repair:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout exact PR head
+      - name: Checkout PR branch
         uses: actions/checkout@v4
         with:
-          ref: 9e28bab5b478df0fc3736b03957620a05ecae8f4
-      - name: Run full regression and capture log
+          ref: feat/phase-2i-d-active-plan-completion
+          fetch-depth: 0
+      - name: Update legacy completion expectations
         shell: bash
         run: |
-          set +e
-          npm test > /tmp/phase-2i-d-test.log 2>&1
-          status=$?
-          echo "$status" > /tmp/phase-2i-d-status.txt
-          tail -n 250 /tmp/phase-2i-d-test.log || true
-          exit 0
-      - name: Upload diagnostic log
-        uses: actions/upload-artifact@v4
-        with:
-          name: phase-2i-d-diagnostic
-          path: |
-            /tmp/phase-2i-d-test.log
-            /tmp/phase-2i-d-status.txt
-          if-no-files-found: error
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('tests/done-navigate-next.test.js')
+          s = p.read_text()
+          s = s.replace(
+              '        persistRouteCalls: 0,\n    };\n\n    vm.runInNewContext(',
+              '        persistRouteCalls: 0,\n        completionCalls: 0,\n        writeHistoryCalls: 0,\n    };\n\n    vm.runInNewContext(',
+              1,
+          )
+          s = s.replace(
+              '        let routeIds = ${JSON.stringify(routeIds)};\n        const els = { routeStatus: { textContent: "" } };',
+              '        let routeIds = ${JSON.stringify(routeIds)};\n        const activeRouteSlot = "google";\n        let routeHistory = {\n            google: { routeIds: routeIds.slice() },\n            basic: { routeIds: routeIds.slice() },\n        };\n        const localStorage = {};\n        const savedJobIds = () => null;\n        const completeActivePlanStop = (history, stopId) => {\n            completionCalls += 1;\n            const withoutStop = (ids) => ids.filter((id) => id !== stopId);\n            return {\n                ...history,\n                google: { ...history.google, routeIds: withoutStop(history.google.routeIds) },\n                basic: { ...history.basic, routeIds: withoutStop(history.basic.routeIds) },\n            };\n        };\n        const writeRouteHistory = (_storage, history) => {\n            writeHistoryCalls += 1;\n            return history;\n        };\n        const els = { routeStatus: { textContent: "" } };',
+              1,
+          )
+          s = s.replace(
+              '            routeIds: routeIds.slice(),\n            jobs: jobs.map((job) => ({ ...job })),',
+              '            routeIds: routeIds.slice(),\n            googleRouteIds: routeHistory.google.routeIds.slice(),\n            basicRouteIds: routeHistory.basic.routeIds.slice(),\n            jobs: jobs.map((job) => ({ ...job })),',
+              1,
+          )
+          s = s.replace(
+              'test("Done removes only the current route stop and navigates to the next", () => {',
+              'test("Done completes the current physical stop across both route candidates and navigates to the next", () => {',
+              1,
+          )
+          s = s.replace(
+              '    assert.deepEqual(Array.from(context.result.routeIds), ["b"]);\n',
+              '    assert.deepEqual(Array.from(context.result.routeIds), ["b"]);\n    assert.deepEqual(Array.from(context.result.googleRouteIds), ["b"]);\n    assert.deepEqual(Array.from(context.result.basicRouteIds), ["b"]);\n',
+              1,
+          )
+          s = s.replace(
+              '    assert.equal(context.persistRouteCalls, 1);\n',
+              '    assert.equal(context.persistRouteCalls, 0);\n    assert.equal(context.completionCalls, 1);\n    assert.equal(context.writeHistoryCalls, 1);\n',
+              1,
+          )
+          s = s.replace(
+              '    assert.deepEqual(Array.from(context.result.routeIds), []);\n    assert.equal(context.result.jobs.length, 1);',
+              '    assert.deepEqual(Array.from(context.result.routeIds), []);\n    assert.deepEqual(Array.from(context.result.googleRouteIds), []);\n    assert.deepEqual(Array.from(context.result.basicRouteIds), []);\n    assert.equal(context.result.jobs.length, 1);',
+              1,
+          )
+          s = s.replace(
+              '    assert.equal(context.persistRouteCalls, 1);\n    assert.match(context.result.status, /Route complete/);',
+              '    assert.equal(context.persistRouteCalls, 0);\n    assert.equal(context.completionCalls, 1);\n    assert.equal(context.writeHistoryCalls, 1);\n    assert.match(context.result.status, /Route complete/);',
+              1,
+          )
+          p.write_text(s)
+
+          p = Path('tests/route-optimizer-status.test.js')
+          s = p.read_text()
+          old = '''    assert.match(\n        app,\n        /nextRouteIds\\.length === 0 \\? "not_optimized" : null/,\n    );'''
+          new = '''    assert.match(\n        app,\n        /function completeCurrentStopAndNavigate\\(\\)[\\s\\S]*completeActivePlanStop\\([\\s\\S]*writeRouteHistory\\(/,\n    );'''
+          if old not in s:
+              raise SystemExit('route optimizer legacy assertion anchor missing')
+          p.write_text(s.replace(old, new, 1))
+          PY
+      - name: Run focused completion regressions
+        run: node --test tests/done-navigate-next.test.js tests/route-optimizer-status.test.js tests/phase-2i-d-active-plan-completion.test.js
+      - name: Run complete regression suite
+        run: npm test
+      - name: Run first-party JavaScript syntax gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in *.js; do node --check "$file"; done
+      - name: Commit verified test corrections to PR branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/done-navigate-next.test.js tests/route-optimizer-status.test.js
+          git diff --cached --exit-code && exit 0 || true
+          git commit -m "Update legacy tests for active-plan completion"
+          git push origin HEAD:feat/phase-2i-d-active-plan-completion
