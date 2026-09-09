@@ -1,0 +1,59 @@
+name: Build Phase 2I-D active-plan completion
+
+on:
+  push:
+    branches:
+      - feat/phase-2i-d-build-runner
+    paths:
+      - .github/workflows/phase-2id-build.yml
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout runner branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/phase-2i-d-build-runner
+
+      - name: Apply governed Phase 2I-D patches
+        run: |
+          set -euo pipefail
+          python .tmp-2id-patch1.py
+          python .tmp-2id-patch2.py
+          python .tmp-2id-patch3.py
+          git diff --check
+
+      - name: Focused Phase 2I regression set
+        run: |
+          set -euo pipefail
+          node --test \
+            tests/phase-2i-route-plan.test.js \
+            tests/phase-2i-b-route-plan-persistence.test.js \
+            tests/phase-2i-c-day-management.test.js \
+            tests/phase-2i-d-active-plan-completion.test.js
+
+      - name: Changed JavaScript syntax
+        run: |
+          set -euo pipefail
+          node --check route-plan.js
+          node --check route-history.js
+          node --check route-plan-days.js
+          node --check route-plan-controls.js
+          node --check app.js
+
+      - name: Commit tested Phase 2I-D tree
+        run: |
+          set -euo pipefail
+          rm .tmp-2id-patch1.py .tmp-2id-patch2.py .tmp-2id-patch3.py
+          rm .github/workflows/phase-2id-build.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add route-plan.js route-history.js route-plan-days.js route-plan-controls.js app.js CONTRACT.md REGRESSION_CHECKLIST.md
+          git add -u .tmp-2id-patch1.py .tmp-2id-patch2.py .tmp-2id-patch3.py .github/workflows/phase-2id-build.yml
+          git diff --cached --check
+          git commit -m "Phase 2I-D: close active-plan completion"
+          git push origin HEAD:feat/phase-2i-d-build-runner
