@@ -1,0 +1,40 @@
+name: Phase 2I closeout roadmap repair
+
+on:
+  push:
+    branches:
+      - docs/phase-2i-closeout-20260909
+    paths:
+      - .github/workflows/phase2i-closeout-repair.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out closeout branch
+        uses: actions/checkout@v4
+        with:
+          ref: docs/phase-2i-closeout-20260909
+          fetch-depth: 0
+
+      - name: Restore full roadmap and apply intended closeout edits
+        run: python tools/phase2i-closeout-repair.py
+
+      - name: Verify docs-only final diff
+        run: |
+          git diff --check
+          changed="$(git diff --name-only de7d63909268f6bac770f671bad15991ae9fb954...HEAD; git diff --name-only)"
+          printf '%s\n' "$changed" | sed '/^$/d' | sort -u
+          test "$(printf '%s\n' "$changed" | sed '/^$/d' | sort -u | grep -Ev '^(docs/FIELD_WORK_EXPANSION_PLAN.md|docs/PHASE_2I_MULTI_DAY_ROUTE_PLAN_IMPLEMENTATION_RECORD_2026-09-08.md|docs/PHASE_2I_MULTI_DAY_ROUTE_PLAN_CLOSEOUT_2026-09-08.md)$' | wc -l)" -eq 0
+          test "$(wc -c < docs/FIELD_WORK_EXPANSION_PLAN.md)" -ge 45000
+
+      - name: Commit repaired closeout tree
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Repair Phase 2I closeout roadmap"
+          git push origin HEAD:docs/phase-2i-closeout-20260909
