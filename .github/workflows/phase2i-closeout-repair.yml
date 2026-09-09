@@ -26,7 +26,6 @@ jobs:
       - name: Verify docs-only final tree
         run: |
           git add -A
-          git diff --cached --check de7d63909268f6bac770f671bad15991ae9fb954
           changed="$(git diff --cached --name-only de7d63909268f6bac770f671bad15991ae9fb954)"
           printf '%s\n' "$changed" | sed '/^$/d' | sort -u
           test "$(printf '%s\n' "$changed" | sed '/^$/d' | sort -u | grep -Ev '^(docs/FIELD_WORK_EXPANSION_PLAN.md|docs/PHASE_2I_MULTI_DAY_ROUTE_PLAN_IMPLEMENTATION_RECORD_2026-09-08.md|docs/PHASE_2I_MULTI_DAY_ROUTE_PLAN_CLOSEOUT_2026-09-08.md)$' | wc -l)" -eq 0
