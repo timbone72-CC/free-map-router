@@ -1,7 +1,7 @@
 # Phase 2I — Multi-Day Route Plans Implementation / Impact Record
 
 **Date:** 2026-09-08  
-**Status:** GOVERNED DESIGN COMPLETE — IMPLEMENTATION MAY START IN SLICES — LEVEL 3 PRE-MERGE APPROVAL REQUIRED FOR STORAGE/MIGRATION SLICE  
+**Status:** COMPLETE — PHASE 2I-A THROUGH 2I-D MERGED, DEPLOYED, AND COHERENT CLOSEOUT SMOKE PASSED  
 **Repository:** `timbone72-CC/free-map-router`  
 **Governed base:** `fc480293233f034681287c814b3666dcc4ece166`  
 **Roadmap owner:** `docs/FIELD_WORK_EXPANSION_PLAN.md`  
@@ -702,3 +702,48 @@ No duplicate approval is needed for the documentation plan or the dormant pure 2
 **Explicit Level-3 pre-merge operator approval remains REQUIRED before merging Phase 2I-B or any later Phase 2I runtime slice that changes durable Route Plan / route-history / backup state.**
 
 If implementation reveals that the workbook handoff, Drive permission, provider API contract, or another currently excluded boundary must change, stop and re-scope before continuing.
+
+## 23. Phase 2I closeout — 2026-09-08
+
+Phase 2I is complete.
+
+Implemented and merged slices:
+
+- **2I-A — Pure Route Plan / Day Contract** — PR #93, exact approved head `85834511d49b6c06eb683c6b8ad1227e352895c5`.
+- **2I-B — Route-History v7 Persistence + Backup v5** — PR #94, exact approved head `4de9823a0a910533ca7019d0f5ce797c935b739c`.
+- **2I-C — Day Management and Local Day Assignment** — PR #96, exact approved head `0ac38c3857d0005a2e84a8de41d53e2f614aeb64`.
+- **2I-D — Active-Plan Completion / Replacement Closure** — PR #97, exact approved head `f8d53a6860ec81439ca9b73c7fb1febc19a93c98`.
+
+Final Phase 2I runtime merge on `main`:
+
+`de7d63909268f6bac770f671bad15991ae9fb954`
+
+Publication / verification evidence:
+
+- post-merge **Verify Contract and App** on final merge: PASS;
+- GitHub Pages deployment for final merge: PASS;
+- exact deployed GitHub Pages artifact: `github-pages` artifact `10085829650`;
+- combined deployed-artifact Phase 2I regression smoke: **75 passed / 0 failed**;
+- deployed planner presentation/responsive coverage: **17 passed / 0 failed**;
+- one coherent A→D closeout scenario passed migration → two-day split → Day switching → per-Day Workday isolation → manual move/lock → selected-Day Basic optimization → active-plan completion → backup-v5 round trip → replacement cancel → confirmed replacement with no completed-work resurrection.
+
+The coherent closeout scenario also verified:
+
+- route-history v6 → v7 migration preserves independent Google and Basic orders;
+- pending workbook work remains pending throughout Phase 2I operations;
+- same-address exact workbook/manual work stays grouped at one physical stop;
+- automatic Day assignment is local and deterministic;
+- Day 1 / Day 2 Workday changes do not bleed across Days;
+- manual move/lock preserves exact work identity;
+- optimizing one selected Day does not rewrite the other Day;
+- Basic Route retains no Google schedule confidence;
+- completion removes the physical stop from remaining Google and Basic Day routes while retaining only lightweight exact completion identity;
+- backup v5 preserves multi-day Route Plan state and completion state;
+- replacement Cancel leaves current plan state untouched;
+- confirmed replacement discards old temporary completion state and does not resurrect completed work;
+- saved stops and manual gigs remain preserved;
+- exactly five top-level pages and the existing desktop/phone planner presentation remain protected.
+
+No runtime code, storage schema, backup version, workbook handoff, Drive permission, provider API, or page-count change is introduced by this closeout record.
+
+**Next governed roadmap phase: Phase 2J — Day-Aware Workbook Return and Print.**
