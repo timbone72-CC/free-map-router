@@ -1,0 +1,35 @@
+name: Phase 2I-D diagnostic
+
+on:
+  push:
+    branches:
+      - staging/phase-2i-d-diagnostic
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: 9e28bab5b478df0fc3736b03957620a05ecae8f4
+      - name: Run full regression and capture log
+        shell: bash
+        run: |
+          set +e
+          npm test > /tmp/phase-2i-d-test.log 2>&1
+          status=$?
+          echo "$status" > /tmp/phase-2i-d-status.txt
+          tail -n 250 /tmp/phase-2i-d-test.log || true
+          exit 0
+      - name: Upload diagnostic log
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase-2i-d-diagnostic
+          path: |
+            /tmp/phase-2i-d-test.log
+            /tmp/phase-2i-d-status.txt
+          if-no-files-found: error
