@@ -101,9 +101,9 @@ test("real workbook-start route state reaches the route-order artifact with the 
     ]);
 });
 
-test("the live page cache-busts the Phase 2E route-order module", () => {
-    assert.match(indexHtml, /route-order\.js\?v=1\.1\.0/);
-    assert.doesNotMatch(indexHtml, /route-order\.js\?v=1\.0\.0/);
+test("the live page cache-busts the Phase 2J route-order module", () => {
+    assert.match(indexHtml, /route-order\.js\?v=1\.2\.0/);
+    assert.doesNotMatch(indexHtml, /route-order\.js\?v=1\.1\.0/);
 });
 
 test("one Gig ID cannot identify two physical route stops", () => {
