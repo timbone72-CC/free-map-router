@@ -105,12 +105,27 @@ test("workbook and manual gig work aggregate at one stop without merging their i
     ]);
 });
 
-test("manual gig duration remains unknown until an exact override exists", () => {
-    const summary = summarizeStopServiceMinutes({ gigIds: ["gig_unknown"] }, []);
-    assert.equal(summary.serviceMinutes, null);
-    assert.equal(summary.knownServiceMinutes, 0);
-    assert.equal(summary.complete, false);
-    assert.equal(summary.items[0].serviceMinutes, null);
+test("manual gig blank service minutes use the five-minute default, including an already-saved blank plan", () => {
+    const savedBlankPlan = createPlanningRecord({
+        kind: "gig",
+        workItemId: "gig_default",
+        serviceMinutes: null,
+    }, { now: "2026-09-03T12:00:00.000Z" });
+
+    assert.equal(savedBlankPlan.serviceMinutes, null);
+    assert.equal(
+        resolveWorkItemServiceMinutes("gig", "gig_default", [savedBlankPlan]),
+        5,
+    );
+
+    const summary = summarizeStopServiceMinutes(
+        { gigIds: ["gig_default"] },
+        [savedBlankPlan],
+    );
+    assert.equal(summary.serviceMinutes, 5);
+    assert.equal(summary.knownServiceMinutes, 5);
+    assert.equal(summary.complete, true);
+    assert.equal(summary.items[0].serviceMinutes, 5);
 });
 
 test("planning records persist exact identity, assigned local date, lock state, revision, and timestamp", () => {
