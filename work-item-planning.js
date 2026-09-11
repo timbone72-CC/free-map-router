@@ -296,7 +296,9 @@
                 : DEFAULT_WORKBOOK_SERVICE_MINUTES;
         }
 
-        return DEFAULT_MANUAL_SERVICE_MINUTES;
+        // A manual gig still starts unknown. Saving its planning with blank
+        // service minutes is the operator's explicit choice to use the default.
+        return record ? DEFAULT_MANUAL_SERVICE_MINUTES : null;
     }
 
     function uniqueIds(values) {
