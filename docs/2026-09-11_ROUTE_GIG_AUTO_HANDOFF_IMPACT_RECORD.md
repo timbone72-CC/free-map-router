@@ -1,176 +1,124 @@
-# Route Send Manual-Gig Handoff Impact Record
+# One-Step Routed Manual-Gig Handoff Impact Record
 
 **Date:** 2026-09-11  
-**Change class:** Level 3 — cross-application synchronization / automatic companion Drive write  
+**Change class:** Level 3 — cross-application synchronization / companion Drive write  
 **Status:** IMPLEMENTATION AUTHORIZED / PRE-MERGE APPROVAL PENDING  
-**Branch:** `fix/route-gig-auto-handoff-20260911`  
+**Branch:** `work/one-step-routed-gig-handoff-20260911`  
+**Draft PR:** #103 — `Simplify routed manual-gig handoff`  
 **Rollback base:** `e6a0bc301517dadda9f3c454c3de1c95d1e831ce`  
-**Workbook companion branch:** `fix/route-gig-auto-bootstrap-20260911`
+**Workbook companion:** `work/one-step-routed-gig-receive-20260911` / PR #35
 
-## Problem and evidence
+## Why this change exists
 
-The operator sent a clean Free Map Router route containing an exact routed manual `Gig_ID`, then the workbook refused **Receive Route Order + Rebuild Print** because that Gig_ID was not already present in `Gig_Log`. The existing FMR workflow publishes `Free Map Router Route Order.json` independently from the explicit **Sync Gigs to Workbook** action, so a valid route can arrive before the companion gig ledger data needed to print it.
+The normal route workflow currently makes the operator remember an extra manual-gig synchronization sequence between Free Map Router and the workbook. A valid route can contain an exact manual `Gig_ID` that the workbook cannot print yet because that same Gig_ID has not separately been copied into `Gig_Log`.
 
-This forces the operator to remember a separate sync step even though the route send already knows which exact Gig_ID values it is returning.
+The operator identified the workflow itself as the problem: too many cross-system steps to remember. The approved goal is to keep the app's existing pages, route behavior, and explicit manual sync control, while removing that extra sync requirement from the normal routed-gig path.
 
-## Approved behavior
+Earlier draft PR #102 was closed unmerged when the operator asked to keep the live app unchanged while the workflow was reassessed. This clean continuation preserves the same narrow implementation on a new branch; opening this branch/PR does not alter production.
+
+## Approved normal behavior
 
 When the operator explicitly presses **Send Route Order to Workbook**:
 
-- if the displayed route contains no manual gigs, preserve the current route-order-only write path;
-- if the displayed route contains one or more manual gigs, build the current full gig handoff and the route-order artifact from one operation timestamp;
-- before any Drive write, verify every routed `gigId` exists exactly once in the current handoff;
-- reuse the existing `drive.file` authorization and exact governed folder;
-- write `Free Map Router Gig Handoff.json` first;
-- only after that succeeds, write `Free Map Router Route Order.json` second;
-- if the handoff write fails, do not publish the route order;
-- retain the explicit **Sync Gigs to Workbook** control as the operator's full-ledger refresh path.
+- a displayed route with no manual gigs keeps the existing route-order-only write path;
+- a displayed route containing one or more exact manual `Gig_ID`s builds the existing full gig handoff and route order from one operation timestamp;
+- every routed `Gig_ID` must exist in the handoff before Drive authorization or publication;
+- `Free Map Router Gig Handoff.json` is written first;
+- only after that succeeds is `Free Map Router Route Order.json` written;
+- both artifacts use the same normalized top-level `updatedAt`;
+- a gig-handoff write failure prevents route-order publication;
+- the existing **Sync Gigs to Workbook** control remains available as the separate full-ledger/manual refresh path.
 
-The two artifacts share the same normalized top-level `updatedAt`, allowing the workbook companion to prove that a missing routed gig came from the same explicit route-send operation without changing either existing schema.
+This is not background synchronization. The companion handoff occurs only as part of the operator's explicit route-send action and only when that displayed route contains manual gig work.
 
-## Owning files and functions
+## Runtime ownership
 
-Runtime:
+Changed runtime:
 
-- `route-order-ui.js` — explicit Send Route Order orchestration only;
-- existing `gig-handoff.js` builder/writer and `FMRManualGigs.list()` are reused unchanged.
+- `route-order-ui.js` — prepares the route order and, only when needed, its companion gig handoff from one operation time; publishes handoff first and route order second.
 
-Focused coverage:
+Reused unchanged:
 
-- `tests/phase-2j-active-day-route-order.test.js`;
-- `tests/route-order-gig-auto-handoff.test.js`.
+- `gig-handoff.js` — existing handoff schema, validation, and Drive writer;
+- `FMRManualGigs.list()` — current manual-gig ledger provider;
+- existing route-order schema and Drive helpers.
 
-No `index.html` or cache-version change is required; the existing Update App/cache-busting path remains unchanged.
+Focused protection:
 
-## Read surfaces
+- `tests/route-order-gig-auto-handoff.test.js`;
+- active-Day route-send coverage in `tests/phase-2j-active-day-route-order.test.js`.
 
-- current displayed active-Day route and route metadata;
-- current saved stops used by the existing route-order producer;
-- current manual gig collection used by the existing gig-handoff producer;
-- existing Drive token and governed folder/file lookup behavior.
+## Data, schema, and permission boundary
 
-## Write surfaces
+No new schema or permission is introduced:
 
-Only the two already-governed files in the existing Free Map Router folder:
-
-1. `Free Map Router Gig Handoff.json` when routed manual gigs exist;
-2. `Free Map Router Route Order.json` after the handoff succeeds.
-
-No browser storage, route membership, route order, manual gig record, Manual Work Library record, workbook inbox, correction record, backup, Home value, or API key is written by this change.
-
-## Required and optional data
-
-Required for the companion-write path:
-
-- a valid route-order artifact under the existing route-order contract;
-- at least one exact routed `Gig_ID`;
-- every routed Gig_ID must exist in the current valid manual gig collection and therefore in the built handoff;
-- the existing governed Drive connection/folder must be available.
-
-The handoff continues to carry only its existing approved fields and optional values. Blank optional pay/date/work-order/note values remain blank; nothing is invented to make the send succeed.
-
-## Schema and permission impact
-
-None.
-
-- no new route-order version;
-- no new gig-handoff version;
-- no new Drive filename;
-- no new folder;
+- no new route-order or gig-handoff version;
+- no new Drive filename or folder;
 - no new OAuth scope;
 - no new browser-storage key;
-- no stored-data migration;
-- no new page or background synchronization.
+- no migration;
+- no new page, timer, observer, polling loop, or background sync.
 
-## Hard limits and identity rules
+The only additional write is the already-governed `Free Map Router Gig Handoff.json`, and only when the explicitly sent displayed route contains manual gigs. The route itself, saved addresses, pins, Home, route membership/order, Manual Work Library, backups, corrections, workbook inbox, API keys, and local gig records are not changed by this send orchestration.
 
-- routed manual work is identified only by immutable exact `Gig_ID`;
-- address text, work-order text, source, and property similarity never substitute for Gig_ID;
-- duplicate/ambiguous route Gig_ID behavior remains fail-closed;
-- existing route-order limits and gig-handoff validation remain unchanged;
-- the companion handoff is a full current gig ledger snapshot, not a new routed-gig schema.
+## Identity and failure rules
 
-## Stale/failure behavior
+- routed manual work is identified only by exact immutable `Gig_ID`;
+- address, source, work-order text, and property similarity are never identity substitutes;
+- a routed Gig_ID missing from the current handoff stops before Drive authorization/publication;
+- a gig-handoff write failure prevents route-order publication;
+- if route-order publication fails after a successful handoff write, the route send reports failure; the standalone handoff does not itself change workbook route numbers;
+- duplicate governed files retain the existing fail-closed behavior;
+- a no-gig route remains the existing one-file route-order operation.
 
-- a routed Gig_ID absent from the current handoff stops before any Drive write;
-- gig-handoff Drive failure stops the transaction before route-order publication;
-- route-order Drive failure after a successful handoff reports the route send failure; the newer handoff alone is harmless because the workbook does not treat it as a route;
-- no-gig route sends remain the existing one-file operation;
-- duplicate governed files continue to fail closed through the existing Drive helpers.
+## Contract housekeeping included
 
-## Realistic fixture / safe validation plan
+The FMR product contract and regression checklist are also corrected to match the already-merged service-duration behavior from PR #101:
 
-Use existing test fixtures plus the established cross-system Sandbox workflow; do not create a new routine workbook.
+- manual gig with no saved planning remains unknown;
+- saved planning with Service Minutes left blank means the explicit five-minute **Use default** choice;
+- an explicit valid duration override still wins.
 
-Focused producer fixtures cover:
+That is documentation alignment for existing production behavior, not a second runtime change.
 
-- active Day with workbook work and one exact manual gig;
-- routed Gig_ID missing from the current manual gig collection;
-- handoff Drive write failure;
-- route with no manual gigs.
+## Verification evidence
 
-Before production publication, the Cross-System Reality Gate must exercise the real Send control, inspect both same-timestamp artifacts, and have the Sandbox workbook receive the route without running the separate manual-gig sync action first.
+On current PR head `84c12ce5073f525899db373561a3eed9477d9e44`, GitHub Actions **Verify Contract and App** run #332 completed successfully. Its complete regression-suite step and first-party JavaScript syntax step both passed.
 
-## Baseline and expected verification
+The final FMR gate still requires:
 
-Latest verified FMR baseline before this work: **486/486** complete-suite tests passed on the predecessor runtime line (Verify Contract and App run 327), with first-party JavaScript syntax checks passing.
+- final diff inspection for scope;
+- workbook companion verification/deployment first;
+- the cross-system reality gate using the actual Send Route Order action and actual Drive artifacts;
+- explicit Level 3 pre-merge operator approval after the evidence is complete.
 
-Required final gate:
+## Cross-system reality gate
 
-- focused route-send/gig-handoff tests pass;
-- complete repository suite and syntax checks pass once on the exact final runtime head;
-- final diff contains no unrelated runtime changes;
-- cross-system reality evidence is completed in the approved Sandbox path;
-- explicit Level 3 operator pre-merge approval is recorded.
+Use the existing workbook Sandbox path; do not create another routine workbook. The final gate must:
 
-The final suite count will be reported from the exact final runtime head rather than inferred.
+1. send a displayed route containing a previously unsynced manual gig through the actual FMR **Send Route Order to Workbook** control;
+2. confirm both governed Drive artifacts exist and share the same top-level `updatedAt`;
+3. receive that route in the Sandbox workbook without running either separate manual-gig sync action first;
+4. confirm the exact routed Gig_ID appears once in the route packet and route numbers apply correctly;
+5. confirm ordinary no-gig route sending remains unchanged.
 
-## Protected behavior
-
-- exact workbook Order-ID and manual Gig-ID route identity;
-- current Google/Basic route order and active-Day selection;
-- route optimization and timing behavior;
-- manual gig storage/schema and Manual Work Library behavior;
-- explicit **Sync Gigs to Workbook** remains available;
-- existing Drive folder, filenames, `drive.file` scope, duplicate-file refusal, and account behavior;
-- workbook Address Inbox and permanent correction behavior;
-- all Home, pin, backup, route-history, completion, and planning state.
-
-## Primary risks
-
-- publishing a route order before its required gig data is durable;
-- mismatching a route order with an older/newer handoff;
-- silently weakening exact Gig_ID identity;
-- accidental expansion into automatic background sync.
-
-The handoff-first ordering, shared operation timestamp, exact identity check, and no background trigger are the controls for those risks.
-
-## Rollback / recovery
-
-Source rollback base: `e6a0bc301517dadda9f3c454c3de1c95d1e831ce`.
-
-If post-publication verification fails, restore the predecessor route-send behavior. An extra valid gig-handoff file written before rollback is safe to leave in place; it does not itself change workbook route numbers or FMR local state.
+Because the Sandbox shares the governed FMR handoff resources, those writes are treated as shared-integration writes rather than as an isolated mock.
 
 ## Ordered rollout
 
-The workbook consumer must become compatible first. Production order is:
+Workbook consumer first:
 
-1. merge/deploy the workbook companion;
-2. verify workbook-side compatibility;
-3. merge/publish FMR producer;
-4. run the cross-system live smoke check.
+1. verify and merge/deploy workbook PR #35;
+2. confirm workbook-side compatibility;
+3. then merge/publish FMR PR #103;
+4. run the cross-system smoke/reality check.
 
-This avoids publishing a new producer behavior to a consumer that cannot use it.
+Publishing the FMR producer first is prohibited because it could create route sends that rely on workbook behavior not yet deployed.
 
-## Affected smoke checks
+## Rollback
 
-After publication:
-
-- send a route containing a manual gig and receive it in the workbook without manually running Sync Gigs first;
-- confirm the exact gig appears in the generated packet and route numbers apply;
-- confirm a route with no manual gigs still sends normally;
-- confirm the explicit manual gig sync control still works as the full-ledger refresh path.
+Restore FMR route-send runtime to `e6a0bc301517dadda9f3c454c3de1c95d1e831ce`. No migration cleanup is required. A valid gig-handoff file left in Drive is safe to retain because it does not itself change workbook route numbers.
 
 ## Approval state
 
-The operator explicitly authorized implementation with “do it.” Per Level 3 change control, a separate explicit pre-merge approval remains required after the final diff and verification evidence are ready.
+The operator approved this simplified workflow and authorized implementation with “let's do it.” The live app remains unchanged while the work stays on this draft branch. Per the Level 3 contract, a separate explicit pre-merge approval is still required after final workbook verification and cross-system evidence are ready.
