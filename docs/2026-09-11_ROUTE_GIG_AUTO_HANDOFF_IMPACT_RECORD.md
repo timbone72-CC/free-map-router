@@ -83,7 +83,7 @@ That is documentation alignment for existing production behavior, not a second r
 
 ## Verification evidence
 
-On current PR head `84c12ce5073f525899db373561a3eed9477d9e44`, GitHub Actions **Verify Contract and App** run #332 completed successfully. Its complete regression-suite step and first-party JavaScript syntax step both passed.
+Runtime/test-bearing head `84c12ce5073f525899db373561a3eed9477d9e44` passed GitHub Actions **Verify Contract and App** run #332, including the complete regression suite and first-party JavaScript syntax checks. Subsequent commits to this impact record are documentation-only and do not alter runtime, tests, workflow, dependencies, or build files. The later branch-head CI run #333 also completed successfully.
 
 The final FMR gate still requires:
 
