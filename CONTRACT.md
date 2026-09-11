@@ -107,10 +107,10 @@ versions of one job route, and opens the selected version in Google Maps.
     Address Inbox.json**. It is reserved for Daily Print jobs from
     **InspectorADE Repeat Job Predictor - LIVE**.
 12. The approved business-account sign-in uses the private read-only backend to
-   check that inbox. Valid Daily Print addresses from an accepted current or
-   newer export are added to saved addresses without weakening existing pins.
-   A newly accepted route uses workbook print order and waits as **New Route
-   Available** without replacing either usable route.
+    check that inbox. Valid Daily Print addresses from an accepted current or
+    newer export are added to saved addresses without weakening existing pins.
+    A newly accepted route uses workbook print order and waits as **New Route
+    Available** without replacing either usable route.
 13. **Start New Route** requires confirmation, replaces both Google Route and
     Basic Route with the pending workbook jobs in print order, marks both Not
     Optimized, and clears the pending snapshot. Reconnecting to the same export
@@ -296,8 +296,10 @@ versions of one job route, and opens the selected version in Google Maps.
 28. Without an exact override, ordinary workbook work uses a five-minute
     planning duration. A twenty-minute interior default may be applied only by
     an explicitly verified interior-code resolver; unknown or unverified work
-    codes are never guessed. A manual gig with no exact duration remains
-    unknown rather than receiving an invented default.
+    codes are never guessed. A manual gig with no saved planning record remains
+    unknown. After the operator explicitly saves planning for that exact
+    `Gig_ID`, leaving Service Minutes blank is an explicit **Use default** choice
+    and resolves to five minutes; an explicit valid duration override still wins.
 29. Route planning derives work identity from each route snapshot's exact
     workbook Order IDs and manual `Gig_ID`s. Multiple distinct work items may
     share one physical driving stop, and their known service durations add at
@@ -503,7 +505,8 @@ Tests must continue to protect:
 - exact Phase 2G work-item identity by `kind + workItemId`, independent of
   physical-stop identity;
 - five-minute ordinary workbook defaults, verified-only twenty-minute interior
-  defaults, and explicit unknown manual-gig duration when no override exists;
+  defaults, manual gigs remaining unknown before planning, and saved-blank
+  manual-gig planning resolving to the five-minute default;
 - same-stop work-item aggregation without duplicate driving stops or lost exact
   Order IDs / `Gig_ID`s;
 - fail-closed duplicate exact-work identity across different physical stops;
