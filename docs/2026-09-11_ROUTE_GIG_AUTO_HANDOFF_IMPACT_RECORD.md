@@ -33,14 +33,14 @@ The two artifacts share the same normalized top-level `updatedAt`, allowing the 
 Runtime:
 
 - `route-order-ui.js` — explicit Send Route Order orchestration only;
-- `gig-handoff.js` — existing handoff builder and Drive writer, reused without schema expansion;
-- `index.html` — cache version for the changed browser module only.
+- existing `gig-handoff.js` builder/writer and `FMRManualGigs.list()` are reused unchanged.
 
 Focused coverage:
 
-- `tests/phase-2j-active-day-route-order.test.js`.
+- `tests/phase-2j-active-day-route-order.test.js`;
+- `tests/route-order-gig-auto-handoff.test.js`.
 
-Governance/contract text may be changed only where required to describe the new companion write and cross-system acceptance rule.
+No `index.html` or cache-version change is required; the existing Update App/cache-busting path remains unchanged.
 
 ## Read surfaces
 
@@ -102,10 +102,9 @@ None.
 
 Use existing test fixtures plus the established cross-system Sandbox workflow; do not create a new routine workbook.
 
-Focused producer fixtures must cover:
+Focused producer fixtures cover:
 
 - active Day with workbook work and one exact manual gig;
-- manual-gig-only route;
 - routed Gig_ID missing from the current manual gig collection;
 - handoff Drive write failure;
 - route with no manual gigs.
