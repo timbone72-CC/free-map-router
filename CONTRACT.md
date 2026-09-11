@@ -137,11 +137,17 @@ versions of one job route, and opens the selected version in Google Maps.
     stop. Those IDs remain attached to the pending route and then to both named
     route versions; a newer pending workbook route cannot replace the IDs that
     belong to either usable route.
-19. **Send Route Order to Workbook** writes only the displayed Google or Basic
-    route to **Free Map Router Route Order.json** after the operator taps the
-    button and approves the existing limited Drive connection. It never runs as
-    an automatic Drive write. A duplicate exact route-order file stops the send
-    instead of choosing one silently.
+19. **Send Route Order to Workbook** is always an explicit operator action. A
+    route with no manual gigs writes only the displayed Google or Basic route to
+    **Free Map Router Route Order.json**. When the displayed route contains one
+    or more exact manual `Gig_ID`s, the same button first writes the existing
+    **Free Map Router Gig Handoff.json** from the current manual-gig ledger and
+    then writes **Free Map Router Route Order.json** only after that handoff
+    succeeds. Both artifacts use the same operation `updatedAt` so the workbook
+    can verify they belong to the same send. The action uses only the existing
+    limited Drive connection, never becomes a background/automatic sync, and a
+    duplicate exact governed file still stops the send instead of choosing one
+    silently.
 20. Downloaded and Drive backups retain each saved stop's optional address
     correction aliases. Older backups without aliases remain valid.
 21. The permanent **Free Map Router Manual Work.json** record uses the existing
@@ -436,8 +442,11 @@ versions of one job route, and opens the selected version in Google Maps.
 21. Phase 2E may carry an already-routed manual gig's exact immutable `Gig_ID`
     in the explicit route-order return so the workbook can print that work at
     the correct visible stop. This route context never converts the gig into a
-    workbook Order ID, never changes `Gig_Log`, and never uses address or work-
-    order text as gig identity.
+    workbook Order ID and never uses address or work-order text as gig identity.
+    When the exact gig is not yet in workbook `Gig_Log`, the workbook companion
+    may append that missing routed gig only from the same-send validated gig
+    handoff whose top-level `updatedAt` exactly matches the route order; existing
+    Gig_Log rows remain workbook-protected and are not auto-updated by receive.
 
 ## 7. Change control
 
@@ -478,6 +487,9 @@ Tests must continue to protect:
 - gig attachment surviving physical-stop correction/remap;
 - route-order return preserving exact workbook Order IDs and routed manual
   Gig_IDs without guessing identity from address text;
+- route sends containing manual gigs publishing the existing validated gig
+  handoff first and the route order second with one shared operation timestamp,
+  while no-gig route sends remain route-order-only;
 - permanent Manual Work Library property identity, stale-safe merge, archive,
   restore, and no automatic route inclusion;
 - version-1 Manual Work Library compatibility plus repeat-template identity,
