@@ -142,8 +142,9 @@
             <p id="workItemPlanningServiceSummary" class="tiny"></p>
             <p class="tiny muted">
                 Planning belongs to the exact Order ID or Gig_ID, not the address.
-                Blank InspectorADE minutes use the current default. Manual gigs need
-                an explicit duration before their service time is known.
+                Blank service minutes use the current 5-minute default for both
+                InspectorADE work and manual gigs. Enter an exact duration only
+                when this work item needs an override.
             </p>
             <form id="workItemPlanningForm">
                 <label>
@@ -294,7 +295,7 @@
                 "No saved planning override. InspectorADE work currently uses the 5-minute default unless an exact override or verified interior rule applies.";
         } else {
             status.textContent =
-                "No saved planning yet. Enter service minutes if this manual gig should count in route timing.";
+                "No saved planning override. This manual gig currently uses the 5-minute default unless you enter an exact override.";
         }
     }
 
