@@ -15,6 +15,7 @@
     const PLANNING_STORAGE_KEY = "fmr_work_item_planning_v1";
     const WORK_ITEM_KINDS = new Set(["workbook", "gig"]);
     const DEFAULT_WORKBOOK_SERVICE_MINUTES = 5;
+    const DEFAULT_MANUAL_SERVICE_MINUTES = 5;
     const DEFAULT_INTERIOR_SERVICE_MINUTES = 20;
 
     function text(value) {
@@ -295,7 +296,9 @@
                 : DEFAULT_WORKBOOK_SERVICE_MINUTES;
         }
 
-        return null;
+        // A manual gig still starts unknown. Saving its planning with blank
+        // service minutes is the operator's explicit choice to use the default.
+        return record ? DEFAULT_MANUAL_SERVICE_MINUTES : null;
     }
 
     function uniqueIds(values) {
@@ -352,6 +355,7 @@
         PLANNING_SCHEMA_VERSION,
         PLANNING_STORAGE_KEY,
         DEFAULT_WORKBOOK_SERVICE_MINUTES,
+        DEFAULT_MANUAL_SERVICE_MINUTES,
         DEFAULT_INTERIOR_SERVICE_MINUTES,
         normalizeWorkItemKind,
         normalizeWorkItemId,
