@@ -83,7 +83,8 @@ writes.
 
 A manual-gig-only version-1 return has no workbook source snapshot to verify and
 may omit `sourceUpdatedAt`; it is validated against the current healthy
-`Gig_Log` by exact Gig ID.
+`Gig_Log` by exact Gig ID, with the same-send missing-gig bootstrap exception
+described below.
 
 ### Phase 2J route-order version 2 — active Day
 
@@ -121,19 +122,25 @@ When a version-2 return contains InspectorADE Order IDs:
   because they may belong to another FMR Day. Their omission is not deletion,
   cancellation, completion, or route damage.
 
-A version-2 manual-gig-only return may omit `sourceUpdatedAt` and remains
-validated against current healthy `Gig_Log` by exact `Gig_ID`.
+A version-2 manual-gig-only return may omit `sourceUpdatedAt` and is validated
+by exact immutable `Gig_ID`, including the same-send missing-gig bootstrap
+exception described below.
 
 For both versions, a missing, duplicated, or ambiguous routed Order ID or Gig ID,
 a duplicate stop number, malformed Day metadata, stale source time, damaged
 file, wrong target, or unsupported version stops before the workbook clears or
 changes existing route numbers. Address text is never an identity substitute.
 
-Phase 2E/2J uses this existing route-order file as transient route context only.
-It does not write route state into `Gig_Log`, does not alter `Actual_Pay`, and
-does not add another Drive handoff file or broader permission. The workbook's
+Phase 2E/2J uses the existing route-order file as transient route context only.
+The route order itself does not become durable Gig_Log state and never alters
+`Actual_Pay`. When every routed Gig_ID already exists in healthy `Gig_Log`, the
+receiver remains read-only with respect to Gig_Log. When a routed exact Gig_ID
+is missing, the workbook companion may append only that missing routed gig from
+a valid **Free Map Router Gig Handoff.json** whose normalized top-level
+`updatedAt` exactly equals the route order's `updatedAt`. Existing Gig_Log rows
+are never auto-updated, cleared, or deleted by route receive. The workbook's
 Google Print packet may use the returned stop number/address together with the
-matched `Job_Log`/`Gig_Log` row to render the returned Day.
+matched or just-bootstrapped `Job_Log`/`Gig_Log` row to render the returned Day.
 
 For a validated version-2 active-Day return, the workbook may rebuild the route
 packet from the exact returned Source_ID/Gig_ID identities rather than unrelated
@@ -150,19 +157,46 @@ is a separate measure and must not be mislabeled as work items.
 The app-side file write and workbook-side clear/write/rebuild must remain
 backward-compatible during ordered deployment. The workbook companion is
 deployed first and must accept both legacy version 1 and day-aware version 2.
-Only after workbook v2 validation succeeds may FMR begin producing version 2.
-The workbook must ignore a missing file and reject damaged, duplicate, stale, or
-structurally invalid return data without clearing Route Number values.
+Only after workbook validation succeeds may FMR publish the companion handoff-
+first route send. The workbook must ignore a missing route-order file and reject
+damaged, duplicate, stale, mismatched-handoff, or structurally invalid return
+data without clearing Route Number values.
 
 ## Manual-gig handoff
 
-Phase 2C adds a separate explicit app → workbook handoff named **Free Map Router Gig Handoff.json** in the existing governed Free Map Router folder. It uses the existing limited `drive.file` permission and is written only when the operator presses **Sync Gigs to Workbook** on the Manual Gigs surface. Saving/editing/completing a gig, starting a route, syncing the Manual Work Library, opening the app, and Dashboard activity do not write this file automatically.
+Phase 2C uses **Free Map Router Gig Handoff.json** in the existing governed Free
+Map Router folder with the existing limited `drive.file` permission. The
+explicit **Sync Gigs to Workbook** action remains the full-ledger refresh path.
+Saving/editing/completing a gig, starting a route, syncing the Manual Work
+Library, opening the app, and Dashboard activity do not write this file merely
+because those actions occurred.
+
+A narrow route-send exception is approved for routed manual work: when the
+operator explicitly presses **Send Route Order to Workbook** and the displayed
+route contains one or more manual Gig IDs, FMR builds the current gig handoff
+and route-order artifact from one operation timestamp, verifies that every
+routed Gig_ID exists in the handoff, writes the handoff first, and writes the
+route order only after the handoff succeeds. A route with no manual gigs keeps
+the existing route-order-only write path. This is not a background sync.
 
 `gigHandoffVersion: 1` carries a snapshot of current manual gig occurrences. Each row is identified only by immutable `gigId` and may mirror source (`HNP` or `OTHER`), attached address, work-order/job ID, expected pay, due date, completed date, notes, and the gig's `updatedAt`. It never carries InspectorADE Order IDs, GIS/DCFS source, route membership, repeat-template identity, Home, prediction fields, or workbook-owned Actual Pay.
 
-The workbook companion validates the full payload before planned writes and upserts `Gig_Log` by exact `Gig_ID` only. Address and work-order text are never identity substitutes. A newer FMR timestamp may update only FMR-owned mirror fields; an older incoming row is skipped; same timestamp with different FMR-owned content is ambiguous and must stop rather than guess. A later handoff that omits a previously mirrored Gig_ID is not a deletion instruction. Existing `Gig_Log.Actual_Pay` is workbook-owned and may never be overwritten or cleared by this handoff.
+The workbook's explicit manual sync validates the full payload before planned
+writes and upserts `Gig_Log` by exact `Gig_ID` only. Address and work-order text
+are never identity substitutes. A newer FMR timestamp may update only FMR-owned
+mirror fields; an older incoming row is skipped; same timestamp with different
+FMR-owned content is ambiguous and must stop rather than guess. A later handoff
+that omits a previously mirrored Gig_ID is not a deletion instruction. Existing
+`Gig_Log.Actual_Pay` is workbook-owned and may never be overwritten or cleared
+by this handoff.
 
-A duplicate exact Drive handoff file, duplicate incoming Gig_ID, duplicate existing `Gig_Log.Gig_ID`, malformed required field, or damaged timestamp/date/pay must fail closed. Phase 2C does not write InspectorADE `Job_Log`, archive, prediction/history, or route-order state.
+During route receive, the same file has a much narrower role: it is read only
+when one or more exact routed Gig_ID values are absent from healthy Gig_Log. The
+workbook requires exact top-level `updatedAt` equality with the route order and
+may append only the missing routed rows. It may not use route receive to update
+existing Gig_Log rows or import unrelated non-routed gigs.
+
+A duplicate exact Drive handoff file, duplicate incoming Gig_ID, duplicate existing `Gig_Log.Gig_ID`, malformed required field, damaged timestamp/date/pay, same-send timestamp mismatch, or missing routed exact Gig_ID must fail closed before Job_Log route-number writes. This companion path does not write InspectorADE history, archive, prediction state, or unrelated workbook data.
 
 ## When extra work is not required
 
