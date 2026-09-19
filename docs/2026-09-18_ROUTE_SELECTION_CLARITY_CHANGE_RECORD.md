@@ -59,7 +59,9 @@ Focused tests must prove the explicit button names, delayed Basic activation, ro
 Before merge:
 - run the complete `npm test` suite once on the final runtime head;
 - run required first-party JavaScript syntax checks;
-- complete the affected Build Route smoke check.
+- execute the route-selector behavioral smoke test against the real `app.js` helper/handler path.
+
+The behavioral smoke uses Node's VM with a minimal route-selector DOM harness. It exercises the real route-choice functions and change handler rather than duplicating their logic: an optimized Google route plus a differently ordered unoptimized Basic route, cancel preserving the Google order, deliberate confirmation switching to Basic, and prepared-to-prepared switching without unnecessary confirmation.
 
 ## Smoke check
 
