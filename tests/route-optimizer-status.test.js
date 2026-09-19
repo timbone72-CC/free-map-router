@@ -33,7 +33,7 @@ test("each optimizer records its route source", () => {
 test("optimizer results remain bound to their own slot if selection changes", () => {
     assert.match(
         app,
-        /const basicRouteIds = routeIds\.slice\(\)[\s\S]*prepareMissingRouteCoordinates\([\s\S]*basicRouteIds[\s\S]*persistRouteSlot\([\s\S]*"basic"/,
+        /const basicRouteIds = routeHistory\.basic\?\.routeIds\.slice\(\) \|\| \[\][\s\S]*prepareMissingRouteCoordinates\([\s\S]*basicRouteIds[\s\S]*persistRouteSlot\([\s\S]*"basic"/,
     );
     assert.match(
         app,
@@ -136,10 +136,14 @@ test("route selector shows saved state and guards optimized-to-unoptimized switc
     assert.match(app, /function routeSwitchNeedsConfirmation/);
     assert.match(app, /function confirmRouteSwitchIfNeeded/);
 
-    const switchHandler = app.slice(
-        app.indexOf("if (els.routeChoice)"),
-        app.indexOf("if (els.startNewRoute)"),
+    const switchHandlerStart = app.indexOf(
+        'if (els.routeChoice) {\n    els.routeChoice.addEventListener("change"',
     );
+    const switchHandler = app.slice(
+        switchHandlerStart,
+        app.indexOf("if (els.startNewRoute)", switchHandlerStart),
+    );
+    assert.ok(switchHandlerStart >= 0);
     assert.ok(
         switchHandler.indexOf("confirmRouteSwitchIfNeeded(requested)") <
             switchHandler.indexOf("activateRouteSlot(requested)"),
