@@ -110,7 +110,7 @@ test("C2 loads planning and planner model dependencies before app.js without a n
     assert.ok(plannerModel > planningRuntime);
     assert.ok(appScript > plannerModel);
     assert.match(html, /planner-model\.js\?v=1\.0\.0/);
-    assert.match(html, /app\.js\?v=3\.33\.0/);
+    assert.match(html, /app\.js\?v=3\.34\.0/);
     assert.doesNotMatch(html, /maps\.googleapis\.com\/maps\/api\/js/);
 });
 

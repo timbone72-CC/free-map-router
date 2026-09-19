@@ -960,6 +960,42 @@ function renderRouteOptimizationStatus() {
     }`;
 }
 
+function routeChoiceStatusLabel(slot) {
+    const status = routeHistory[slot]?.optimizationStatus;
+    return (
+        {
+            basic_optimized: "Optimized",
+            google_optimized: "Optimized",
+            manually_changed: "Manually Changed",
+            not_optimized: "Not Optimized",
+        }[status] || "Not Optimized"
+    );
+}
+
+function routeChoiceName(slot) {
+    return slot === "basic" ? "Basic Route" : "Google Route";
+}
+
+function routeSwitchNeedsConfirmation(requested) {
+    if (requested === activeRouteSlot) return false;
+    const currentStatus = routeHistory[activeRouteSlot]?.optimizationStatus;
+    const requestedStatus = routeHistory[requested]?.optimizationStatus;
+    const currentIsPrepared =
+        currentStatus === "basic_optimized" ||
+        currentStatus === "google_optimized" ||
+        currentStatus === "manually_changed";
+    return currentIsPrepared && requestedStatus === "not_optimized";
+}
+
+function confirmRouteSwitchIfNeeded(requested) {
+    if (!routeSwitchNeedsConfirmation(requested)) return true;
+    return confirm(
+        `${routeChoiceName(requested)} is Not Optimized. ` +
+            `${routeChoiceName(activeRouteSlot)} is ${routeChoiceStatusLabel(activeRouteSlot)} and will stay saved.\n\n` +
+            `Switch to ${routeChoiceName(requested)} anyway?`,
+    );
+}
+
 function renderRouteChoice() {
     if (!els.routeChoice) return;
     els.routeChoice.value = activeRouteSlot;
@@ -970,10 +1006,14 @@ function renderRouteChoice() {
         'option[value="basic"]',
     );
     if (googleOption) {
+        googleOption.textContent =
+            `Google Route — ${routeChoiceStatusLabel("google")}`;
         googleOption.disabled =
             !routeHistory.google || routeHistory.google.routeIds.length === 0;
     }
     if (basicOption) {
+        basicOption.textContent =
+            `Basic Route — ${routeChoiceStatusLabel("basic")}`;
         basicOption.disabled =
             !routeHistory.basic || routeHistory.basic.routeIds.length === 0;
     }
@@ -1038,6 +1078,11 @@ if (els.routeChoice) {
             !routeHistory[requested] ||
             routeHistory[requested].routeIds.length === 0
         ) {
+            els.routeChoice.value = activeRouteSlot;
+            return;
+        }
+
+        if (!confirmRouteSwitchIfNeeded(requested)) {
             els.routeChoice.value = activeRouteSlot;
             return;
         }
@@ -1461,8 +1506,7 @@ async function prepareMissingRouteCoordinates(
 }
 
 async function optimizeSelectedRoute() {
-    activateRouteSlot("basic");
-    const basicRouteIds = routeIds.slice();
+    const basicRouteIds = routeHistory.basic?.routeIds.slice() || [];
     if (basicRouteIds.length < 2) {
         alert("Select at least 2 addresses to optimize.");
         return;
@@ -1529,7 +1573,7 @@ async function optimizeSelectedRoute() {
                 ? ` ${sections.length} numbered Google Maps sections are ready below.`
                 : "";
         els.routeStatus.textContent =
-            `Route optimized with ${selected.length} address${selected.length === 1 ? "" : "es"}.${mapsReady}`;
+            `Basic Route optimized with ${selected.length} address${selected.length === 1 ? "" : "es"} and selected. Google Route was kept.${mapsReady}`;
     }
 }
 
