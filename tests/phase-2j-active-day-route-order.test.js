@@ -427,7 +427,7 @@ test("actual Send control path writes the same-send gig handoff before the activ
     const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
     const routeOrderIndex = html.indexOf("route-order.js?v=1.2.0");
     const routeOrderUiIndex = html.indexOf("route-order-ui.js?v=1.0.0");
-    const appIndex = html.indexOf("app.js?v=3.33.0");
+    const appIndex = html.indexOf("app.js?v=3.34.0");
     assert.ok(routeOrderIndex >= 0);
     assert.ok(routeOrderUiIndex > routeOrderIndex);
     assert.ok(appIndex > routeOrderUiIndex);

@@ -400,7 +400,7 @@ test("2I-C Build Route controls are bounded, load before app.js, and contain no 
         assert.equal((html.match(new RegExp(`id="${id}"`, "g")) || []).length, 1);
     }
     assert.ok(html.indexOf("route-plan-days.js?v=1.0.0") < html.indexOf("route-history.js?v=7.0.0"));
-    assert.ok(html.indexOf("route-plan-controls.js?v=1.0.0") < html.indexOf("app.js?v=3.33.0"));
+    assert.ok(html.indexOf("route-plan-controls.js?v=1.0.0") < html.indexOf("app.js?v=3.34.0"));
     assert.doesNotMatch(controls, /fetch\s*\(/);
     assert.doesNotMatch(controls, /FMRGoogleRouteBrowser/);
     assert.doesNotMatch(pure, /fetch\s*\(/);

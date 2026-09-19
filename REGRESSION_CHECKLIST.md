@@ -343,8 +343,10 @@ Required for Level 3 data changes and any Level 2 import or storage change.
       inbox import before it can recreate an old address.
 - [ ] Merging an already-created old-address duplicate remaps all affected
       route snapshots, Order IDs, and attached manual gigs to the retained stop.
-- [ ] Route-order return happens only after the operator taps its button and
-      writes one exact JSON file in the existing app folder.
+- [ ] Route-order return happens only after the operator taps its button. A
+      route with no manual gigs writes only the exact route-order JSON; a route
+      with manual gigs may first write the existing exact gig-handoff JSON and
+      then the route-order JSON. Neither path becomes a background Drive write.
 - [ ] Manual Work Library writes do not change Drive permission, inbox structure,
       route-order JSON structure, workbook data, InspectorADE history, or
       prediction data.

@@ -107,10 +107,10 @@ versions of one job route, and opens the selected version in Google Maps.
     Address Inbox.json**. It is reserved for Daily Print jobs from
     **InspectorADE Repeat Job Predictor - LIVE**.
 12. The approved business-account sign-in uses the private read-only backend to
-    check that inbox. Valid Daily Print addresses from an accepted current or
-    newer export are added to saved addresses without weakening existing pins.
-    A newly accepted route uses workbook print order and waits as **New Route
-    Available** without replacing either usable route.
+   check that inbox. Valid Daily Print addresses from an accepted current or
+   newer export are added to saved addresses without weakening existing pins.
+   A newly accepted route uses workbook print order and waits as **New Route
+   Available** without replacing either usable route.
 13. **Start New Route** requires confirmation, replaces both Google Route and
     Basic Route with the pending workbook jobs in print order, marks both Not
     Optimized, and clears the pending snapshot. Reconnecting to the same export

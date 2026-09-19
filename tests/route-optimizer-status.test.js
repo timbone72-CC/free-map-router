@@ -22,7 +22,7 @@ test("Build Route owns one persistent optimizer status display", () => {
 test("each optimizer records its route source", () => {
     assert.match(
         app,
-        /optimizeSelectedRoute[\s\S]*activateRouteSlot\("basic"\)[\s\S]*persistRouteSlot\([\s\S]*"basic"[\s\S]*"basic_optimized"/,
+        /optimizeSelectedRoute[\s\S]*const basicRouteIds = routeHistory\.basic\?\.routeIds\.slice\(\) \|\| \[\][\s\S]*persistRouteSlot\([\s\S]*"basic"[\s\S]*"basic_optimized"/,
     );
     assert.match(
         app,
@@ -33,7 +33,7 @@ test("each optimizer records its route source", () => {
 test("optimizer results remain bound to their own slot if selection changes", () => {
     assert.match(
         app,
-        /const basicRouteIds = routeIds\.slice\(\)[\s\S]*prepareMissingRouteCoordinates\([\s\S]*basicRouteIds[\s\S]*persistRouteSlot\([\s\S]*"basic"/,
+        /const basicRouteIds = routeHistory\.basic\?\.routeIds\.slice\(\) \|\| \[\][\s\S]*prepareMissingRouteCoordinates\([\s\S]*basicRouteIds[\s\S]*persistRouteSlot\([\s\S]*"basic"/,
     );
     assert.match(
         app,
@@ -93,5 +93,63 @@ test("clearing or completing the final stop resets an empty route", () => {
     assert.match(
         app,
         /function completeCurrentStopAndNavigate\(\)[\s\S]*completeActivePlanStop\([\s\S]*writeRouteHistory\(/,
+    );
+});
+
+
+test("optimizer controls name the route they will change", () => {
+    assert.match(html, />\s*Optimize Basic Route\s*</);
+    assert.match(html, />\s*Optimize Google Route\s*</);
+    assert.doesNotMatch(html, />\s*Optimize Route\s*</);
+});
+
+test("Basic optimization does not switch away from Google until Basic succeeds", () => {
+    const basicOptimizer = app.slice(
+        app.indexOf("async function optimizeSelectedRoute()"),
+        app.indexOf("function exportToGoogleMaps()"),
+    );
+    const persistIndex = basicOptimizer.indexOf("persistRouteSlot(");
+    assert.ok(persistIndex > 0);
+    assert.doesNotMatch(
+        basicOptimizer.slice(0, persistIndex),
+        /activateRouteSlot\("basic"\)/,
+    );
+    assert.match(
+        basicOptimizer.slice(persistIndex),
+        /activeRouteSlot = "basic"/,
+    );
+    assert.match(
+        basicOptimizer,
+        /Basic Route optimized with[\s\S]*Google Route was kept/,
+    );
+});
+
+test("route selector shows saved state and guards optimized-to-unoptimized switches", () => {
+    assert.match(
+        app,
+        /Google Route — \$\{routeChoiceStatusLabel\("google"\)\}/,
+    );
+    assert.match(
+        app,
+        /Basic Route — \$\{routeChoiceStatusLabel\("basic"\)\}/,
+    );
+    assert.match(app, /function routeSwitchNeedsConfirmation/);
+    assert.match(app, /function confirmRouteSwitchIfNeeded/);
+
+    const switchHandlerStart = app.indexOf(
+        'if (els.routeChoice) {\n    els.routeChoice.addEventListener("change"',
+    );
+    const switchHandler = app.slice(
+        switchHandlerStart,
+        app.indexOf("if (els.startNewRoute)", switchHandlerStart),
+    );
+    assert.ok(switchHandlerStart >= 0);
+    assert.ok(
+        switchHandler.indexOf("confirmRouteSwitchIfNeeded(requested)") <
+            switchHandler.indexOf("activateRouteSlot(requested)"),
+    );
+    assert.match(
+        switchHandler,
+        /els\.routeChoice\.value = activeRouteSlot;[\s\S]*return;/,
     );
 });

@@ -5,7 +5,8 @@
 **Status:** IMPLEMENTATION AUTHORIZED / PRE-MERGE APPROVAL PENDING  
 **Branch:** `work/one-step-routed-gig-handoff-20260911`  
 **Draft PR:** #103 — `Simplify routed manual-gig handoff`  
-**Rollback base:** `e6a0bc301517dadda9f3c454c3de1c95d1e831ce`  
+**Original implementation base:** `e6a0bc301517dadda9f3c454c3de1c95d1e831ce`  
+**Current integration base:** `1cb2bed05279704993d43fd87e35a7c9ff29cc06`  
 **Workbook companion:** `work/one-step-routed-gig-receive-20260911` / PR #35
 
 ## Why this change exists
@@ -102,22 +103,29 @@ Use the existing workbook Sandbox path; do not create another routine workbook. 
 4. confirm the exact routed Gig_ID appears once in the route packet and route numbers apply correctly;
 5. confirm ordinary no-gig route sending remains unchanged.
 
-Because the Sandbox shares the governed FMR handoff resources, those writes are treated as shared-integration writes rather than as an isolated mock.
+The workbook Sandbox is staged against the existing isolated **Phase 2J FMR Reality Gate** Drive folder. The FMR producer side must be run locally against that same isolated folder for this gate. Production handoff files are not used.
 
 ## Ordered rollout
 
-Workbook consumer first:
+Pre-merge reality gate:
 
-1. verify and merge/deploy workbook PR #35;
+1. use the isolated FMR producer and the already-staged workbook Sandbox;
+2. prove the actual route-send path writes same-send handoff + route order;
+3. prove Sandbox receive appends only the missing routed Gig_ID and rebuilds the packet without either explicit gig-sync step;
+4. record the evidence and obtain separate explicit Level 3 pre-merge approval.
+
+Production rollout remains consumer first:
+
+1. merge/deploy workbook PR #35;
 2. confirm workbook-side compatibility;
 3. then merge/publish FMR PR #103;
-4. run the cross-system smoke/reality check.
+4. run the final production smoke check.
 
 Publishing the FMR producer first is prohibited because it could create route sends that rely on workbook behavior not yet deployed.
 
 ## Rollback
 
-Restore FMR route-send runtime to `e6a0bc301517dadda9f3c454c3de1c95d1e831ce`. No migration cleanup is required. A valid gig-handoff file left in Drive is safe to retain because it does not itself change workbook route numbers.
+Before this feature reaches production, abandon/revert the feature branch to current main integration base `1cb2bed05279704993d43fd87e35a7c9ff29cc06`. After production merge, revert the feature merge if rollback is required. No migration cleanup is required. A valid gig-handoff file left in Drive is safe to retain because it does not itself change workbook route numbers.
 
 ## Approval state
 
