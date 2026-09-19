@@ -11,7 +11,10 @@ const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
 
 function routeChoiceSection() {
     const start = app.indexOf("function routeChoiceStatusLabel");
-    const end = app.indexOf("if (els.startNewRoute)", start);
+    const end = app.indexOf(
+        'if (els.startNewRoute) {\n    els.startNewRoute.addEventListener',
+        start,
+    );
     assert.ok(start >= 0, "route choice helpers must exist");
     assert.ok(end > start, "route choice handler boundary must exist");
     return app.slice(start, end);
