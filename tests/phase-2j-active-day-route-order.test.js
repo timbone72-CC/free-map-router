@@ -8,6 +8,7 @@ const path = require("node:path");
 const RouteHistory = require("../route-history.js");
 const RoutePlanDays = require("../route-plan-days.js");
 const RouteOrder = require("../route-order.js");
+const GigHandoff = require("../gig-handoff.js");
 const { createRouteOrderSendController } = require("../route-order-ui.js");
 const {
     ACTIVE_DAY_ROUTE_ORDER_VERSION,
@@ -312,7 +313,7 @@ test("malformed canonical active-Day identity fails closed instead of being sile
     );
 });
 
-test("actual Send control path writes the active-Day artifact, reports all counts, and is loaded before the legacy app handler", async () => {
+test("actual Send control path writes the same-send gig handoff before the active-Day route artifact and reports all counts", async () => {
     const history = multiDayHistory();
     const status = { textContent: "" };
     const routeChoice = { value: "google" };
@@ -365,8 +366,29 @@ test("actual Send control path writes the active-Day artifact, reports all count
                 return "drive-token";
             },
             async saveRouteOrderToDrive(token, routeOrder) {
-                writes.push({ token, routeOrder });
+                writes.push({ kind: "route", token, routeOrder });
             },
+        },
+        gigHandoffApi: {
+            ...GigHandoff,
+            async saveGigHandoffToDrive(token, handoff) {
+                writes.push({ kind: "gig", token, handoff });
+            },
+        },
+        manualGigsProvider() {
+            return [
+                {
+                    id: "GIG-1",
+                    stopId: "s3",
+                    source: "HNP",
+                    workOrderId: "HNP-100",
+                    expectedPay: 25,
+                    dueDate: "2026-09-09",
+                    completedDate: null,
+                    notes: "Manual route work",
+                    updatedAt: "2026-09-09T12:45:00.000Z",
+                },
+            ];
         },
         storage,
         documentRef,
@@ -388,10 +410,16 @@ test("actual Send control path writes the active-Day artifact, reports all count
 
     assert.equal(prevented, true);
     assert.equal(stopped, true);
-    assert.equal(writes.length, 1);
+    assert.equal(writes.length, 2);
+    assert.equal(writes[0].kind, "gig");
+    assert.equal(writes[1].kind, "route");
     assert.equal(writes[0].token, "drive-token");
-    assert.equal(writes[0].routeOrder.routeOrderVersion, 2);
-    assert.equal(writes[0].routeOrder.routePlan.dayNumber, 1);
+    assert.equal(writes[1].token, "drive-token");
+    assert.equal(writes[0].handoff.updatedAt, "2026-09-09T13:00:00.000Z");
+    assert.equal(writes[1].routeOrder.updatedAt, writes[0].handoff.updatedAt);
+    assert.deepEqual(writes[0].handoff.gigs.map((gig) => gig.gigId), ["GIG-1"]);
+    assert.equal(writes[1].routeOrder.routeOrderVersion, 2);
+    assert.equal(writes[1].routeOrder.routePlan.dayNumber, 1);
     assert.match(status.textContent, /2 InspectorADE jobs/);
     assert.match(status.textContent, /1 manual gig/);
     assert.match(status.textContent, /3 total work items/);

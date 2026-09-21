@@ -16,11 +16,27 @@
         return Number(count) === 1 ? singular : pluralValue;
     }
 
+    function routedGigIds(routeOrder) {
+        const result = [];
+        const seen = new Set();
+        for (const stop of Array.isArray(routeOrder?.stops) ? routeOrder.stops : []) {
+            for (const value of Array.isArray(stop?.gigIds) ? stop.gigIds : []) {
+                const gigId = String(value || "").trim();
+                if (!gigId || seen.has(gigId)) continue;
+                seen.add(gigId);
+                result.push(gigId);
+            }
+        }
+        return result;
+    }
+
     function createRouteOrderSendController({
         contractApi,
         routeHistoryApi,
         routeOrderApi,
         driveApi,
+        gigHandoffApi,
+        manualGigsProvider,
         storage,
         documentRef,
         now = () => new Date(),
@@ -77,8 +93,7 @@
             });
         }
 
-        function prepareRouteOrder() {
-            const currentStops = savedStops();
+        function prepareRouteOrder(operationNow = now(), currentStops = savedStops()) {
             const validIds = new Set(
                 currentStops
                     .map((stop) => String(stop?.id || "").trim())
@@ -93,8 +108,59 @@
                 routeSlot,
                 routeHistory,
                 routeStops: displayedRouteStops(currentStops),
-                now: now(),
+                now: operationNow,
             });
+        }
+
+        function prepareGigHandoff(routeOrder, operationNow, currentStops) {
+            const gigIds = routedGigIds(routeOrder);
+            if (gigIds.length === 0) return null;
+
+            if (
+                typeof gigHandoffApi?.buildGigHandoff !== "function" ||
+                typeof gigHandoffApi?.saveGigHandoffToDrive !== "function" ||
+                typeof manualGigsProvider !== "function"
+            ) {
+                throw new Error(
+                    "Manual gig handoff support is unavailable. Update the app and try again.",
+                );
+            }
+
+            const currentGigs = manualGigsProvider();
+            const handoff = gigHandoffApi.buildGigHandoff(
+                Array.isArray(currentGigs) ? currentGigs : [],
+                currentStops,
+                operationNow,
+            );
+            const handoffGigIds = new Set(
+                (Array.isArray(handoff?.gigs) ? handoff.gigs : [])
+                    .map((gig) => String(gig?.gigId || "").trim())
+                    .filter(Boolean),
+            );
+            const missing = gigIds.filter((gigId) => !handoffGigIds.has(gigId));
+            if (missing.length > 0) {
+                throw new Error(
+                    `Routed Gig_ID ${missing[0]} is no longer in the current manual gig list. Refresh the route and try again.`,
+                );
+            }
+            if (handoff.updatedAt !== routeOrder.updatedAt) {
+                throw new Error(
+                    "The manual gig handoff and route order could not be prepared from the same send time.",
+                );
+            }
+            return handoff;
+        }
+
+        function prepareSendArtifacts() {
+            const operationNow = now();
+            const currentStops = savedStops();
+            const routeOrder = prepareRouteOrder(operationNow, currentStops);
+            const gigHandoff = prepareGigHandoff(
+                routeOrder,
+                operationNow,
+                currentStops,
+            );
+            return { routeOrder, gigHandoff };
         }
 
         function successMessage(routeOrder) {
@@ -117,8 +183,9 @@
             if (sendPromise) return sendPromise;
 
             let routeOrder;
+            let gigHandoff;
             try {
-                routeOrder = prepareRouteOrder();
+                ({ routeOrder, gigHandoff } = prepareSendArtifacts());
             } catch (error) {
                 setStatus(error?.message || "The active Day route could not be prepared.");
                 return null;
@@ -133,6 +200,9 @@
 
             sendPromise = (async () => {
                 const token = await driveApi.requestDriveToken();
+                if (gigHandoff) {
+                    await gigHandoffApi.saveGigHandoffToDrive(token, gigHandoff);
+                }
                 await driveApi.saveRouteOrderToDrive(token, routeOrder);
                 return routeOrder;
             })();
@@ -176,6 +246,7 @@
         return Object.freeze({
             attach,
             prepareRouteOrder,
+            prepareSendArtifacts,
             send,
             successMessage,
             whenIdle,
@@ -189,6 +260,8 @@
             routeHistoryApi: root.FMRRouteHistory,
             routeOrderApi: root.FMRRouteOrder,
             driveApi: root.FMRGoogleDrive,
+            gigHandoffApi: root.FMRGigHandoff,
+            manualGigsProvider: () => root.FMRManualGigs?.list?.() || [],
             storage: root.localStorage,
             documentRef: root.document,
         });

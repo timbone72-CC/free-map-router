@@ -186,6 +186,11 @@ changes.
       stop positions.
 - [ ] Send Route Order carries exact workbook Order IDs and exact routed manual
       Gig IDs for their physical stops; a shared stop may contain both.
+- [ ] When a displayed route contains manual gigs, Send Route Order prepares the
+      existing gig handoff and route order from one operation timestamp, writes
+      the gig handoff first, and writes the route order only after that succeeds.
+- [ ] A gig-handoff write failure prevents route-order publication; a displayed
+      route with no manual gigs preserves the route-order-only write path.
 - [ ] A route containing only manual gigs can still return those exact Gig IDs
       without inventing workbook Order IDs or requiring workbook source time.
 - [ ] App-only stops with neither workbook nor gig work are not returned and are
@@ -221,9 +226,11 @@ planner-facing route changes.
 - [ ] The twenty-minute interior default is used only through an explicitly
       verified interior-code resolver; unknown or unverified work codes are not
       guessed and stay on the ordinary default unless manually overridden.
-- [ ] A manual gig with no exact service-duration override remains explicitly
-      unknown; route planning never silently converts that missing duration to
-      zero.
+- [ ] A manual gig with no saved planning record remains explicitly unknown;
+      route planning never silently converts that missing duration to zero.
+- [ ] After planning is explicitly saved for an exact manual `Gig_ID`, leaving
+      Service Minutes blank resolves through the five-minute **Use default**
+      behavior; an explicit valid duration override still wins.
 - [ ] Known work-item durations at one physical stop add to one stop service
       duration, and route total service time equals the sum of the physical-stop
       totals without double counting shared work.
@@ -336,8 +343,10 @@ Required for Level 3 data changes and any Level 2 import or storage change.
       inbox import before it can recreate an old address.
 - [ ] Merging an already-created old-address duplicate remaps all affected
       route snapshots, Order IDs, and attached manual gigs to the retained stop.
-- [ ] Route-order return happens only after the operator taps its button and
-      writes one exact JSON file in the existing app folder.
+- [ ] Route-order return happens only after the operator taps its button. A
+      route with no manual gigs writes only the exact route-order JSON; a route
+      with manual gigs may first write the existing exact gig-handoff JSON and
+      then the route-order JSON. Neither path becomes a background Drive write.
 - [ ] Manual Work Library writes do not change Drive permission, inbox structure,
       route-order JSON structure, workbook data, InspectorADE history, or
       prediction data.
