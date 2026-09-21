@@ -121,7 +121,7 @@ function makeHarness({ routeGigIds = ["GIG-1"], currentGigs, failGigSave = false
                 return [{ dataset: { stopId: "s1" } }];
             },
         },
-        now: () => new Date("2026-09-11T13:00:00.000Z"),
+        now: () => new Date("2026-09-11T13:00:00.279Z"),
     });
 
     return {
@@ -139,7 +139,7 @@ test("route send with manual work writes same-timestamp gig handoff before route
 
     assert.ok(result);
     assert.deepEqual(harness.calls.map((call) => call.kind), ["gig", "route"]);
-    assert.equal(harness.calls[0].updatedAt, "2026-09-11T13:00:00.000Z");
+    assert.equal(harness.calls[0].updatedAt, "2026-09-11T13:00:00.279Z");
     assert.equal(harness.calls[1].updatedAt, harness.calls[0].updatedAt);
     assert.equal(harness.getManualProviderCalls(), 1);
     assert.equal(harness.getTokenCalls(), 1);

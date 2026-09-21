@@ -152,12 +152,16 @@
         }
 
         function prepareSendArtifacts() {
-            const operationNow = now();
+            const operationNow = new Date(now());
+            if (Number.isNaN(operationNow.getTime())) {
+                throw new Error("The route send time is invalid.");
+            }
+            const operationTimestamp = operationNow.toISOString();
             const currentStops = savedStops();
-            const routeOrder = prepareRouteOrder(operationNow, currentStops);
+            const routeOrder = prepareRouteOrder(operationTimestamp, currentStops);
             const gigHandoff = prepareGigHandoff(
                 routeOrder,
-                operationNow,
+                operationTimestamp,
                 currentStops,
             );
             return { routeOrder, gigHandoff };
