@@ -117,11 +117,20 @@ test("clearing Home By turns off the Google deadline without overwriting saved t
         /Home By limit off for Google Optimize/,
     );
 
+    // Off must survive a fresh app binding, not just the current input state.
+    const reloadedDocument = fakeWorkdayDocument();
+    assert.equal(workdayContext.bindWorkdayControls({ document: reloadedDocument, storage }), true);
+    assert.equal(reloadedDocument.elements.get("routeHomeByTime").value, "");
+    assert.equal(workdayContext.homeByRestrictionEnabled(reloadedDocument), false);
+
     homeBy.value = "22:30";
     homeBy.fire("change");
 
     assert.equal(workdayContext.homeByRestrictionEnabled(document), true);
     assert.equal(routeHistory.readRouteHistory(storage).dayContext.homeByTime, "22:30");
+    const enabledDocument = fakeWorkdayDocument();
+    workdayContext.bindWorkdayControls({ document: enabledDocument, storage });
+    assert.equal(enabledDocument.elements.get("routeHomeByTime").value, "22:30");
 });
 
 test("no-limit Google preparation omits the hard timing window but keeps exact route work and service duration", async () => {
