@@ -22,6 +22,7 @@
     const DEFAULT_PREFERRED_FINISH = "15:00";
     const DEFAULT_HOME_BY = "17:00";
     const LATE_DAY_HOME_BY = "23:59";
+    const HOME_BY_ENABLED_KEY = "fmr_home_by_enabled_v1";
 
     if (!routeHistory) {
         throw new Error("Free Map Router route history failed to load.");
@@ -155,7 +156,9 @@
             routeDate.value = context.routeDate;
             departureTime.value = context.departureTime;
             preferredFinishTime.value = context.preferredFinishTime;
-            homeByTime.value = context.homeByTime;
+            homeByTime.value = storage.getItem(HOME_BY_ENABLED_KEY) === "false"
+                ? ""
+                : context.homeByTime;
             setStatus(
                 current.saved
                     ? `Route timing saved for ${context.routeDate} • ${context.timeZone}.`
@@ -165,7 +168,14 @@
         }
 
         function save() {
-            if (!homeByRestrictionEnabled(document)) {
+            const enabled = homeByRestrictionEnabled(document);
+            if (!enabled) {
+                try {
+                    storage.setItem(HOME_BY_ENABLED_KEY, "false");
+                } catch (error) {
+                    setStatus(error?.message || "Home By preference could not be saved.", "error");
+                    return false;
+                }
                 setStatus(
                     "Home By limit off for Google Optimize. Enter a Home By time to turn the limit back on.",
                     "default",
@@ -188,6 +198,7 @@
 
             try {
                 writeDayContext(storage, validation.dayContext);
+                storage.setItem(HOME_BY_ENABLED_KEY, "true");
                 setStatus(
                     `Route timing saved for ${validation.dayContext.routeDate} • ${validation.dayContext.timeZone}.`,
                     "saved",
