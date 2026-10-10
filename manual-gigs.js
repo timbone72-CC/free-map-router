@@ -1045,8 +1045,14 @@
     function reconcileIncludedGigs() {
         let nextHistory = routeHistory;
         const validIds = currentStopIds();
+        const completedStopIds = new Set(
+            (nextHistory.activePlan?.days || []).flatMap((day) => [
+                ...(day.completedWorkItems || []).map((item) => item.stopId),
+                ...(day.completedStandaloneStops || []).map((stop) => stop.stopId),
+            ]),
+        );
         for (const gig of manualGigs) {
-            if (!gig.routeIncluded || !validIds.has(gig.stopId)) continue;
+            if (!gig.routeIncluded || !validIds.has(gig.stopId) || completedStopIds.has(gig.stopId)) continue;
             const missing = ["google", "basic"].some((slot) =>
                 !nextHistory[slot]?.gigIdsByStopId?.[gig.stopId]?.includes(gig.id)
             );
