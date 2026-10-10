@@ -150,3 +150,38 @@ test("physical-stop remap carries manual gig route metadata to the retained stop
     assert.deepEqual(remapped.google.gigManagedStopIds, ["shared"]);
     assert.equal(remapped.google.optimizationStatus, "google_optimized");
 });
+
+test("twelve included gigs on seven addresses recover missing memberships without duplicating stops", () => {
+    const stops = ["clinton", "cordellCrest", "chucker", "thornton", "sayre", "weatherford", "cordellSouth"];
+    const counts = [2, 3, 2, 1, 2, 1, 1];
+    const allowed = new Set(stops);
+    const gigs = stops.flatMap((stopId, index) =>
+        Array.from({ length: counts[index] }, (_, n) => ({
+            id: stopId + "-gig-" + n,
+            stopId,
+            routeIncluded: true,
+        }))
+    );
+    let history = {
+        google: { routeIds: stops, gigIdsByStopId: {} },
+        basic: { routeIds: stops, gigIdsByStopId: {} },
+    };
+    for (const item of gigs.slice(0, 10)) {
+        history = setGigRouteMembership(history, item, true, allowed);
+    }
+    for (const item of gigs) {
+        const missing = ["google", "basic"].some((slot) =>
+            !history[slot]?.gigIdsByStopId?.[item.stopId]?.includes(item.id)
+        );
+        if (item.routeIncluded && missing) {
+            history = setGigRouteMembership(history, item, true, allowed);
+        }
+    }
+    for (const slot of ["google", "basic"]) {
+        assert.deepEqual(history[slot].routeIds, stops);
+        assert.equal(
+            Object.values(history[slot].gigIdsByStopId).flat().length,
+            12,
+        );
+    }
+});
