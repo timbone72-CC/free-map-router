@@ -1042,6 +1042,21 @@
         );
     }
 
+    function reconcileIncludedGigs() {
+        let nextHistory = routeHistory;
+        const validIds = currentStopIds();
+        for (const gig of manualGigs) {
+            if (!gig.routeIncluded || !validIds.has(gig.stopId)) continue;
+            const missing = ["google", "basic"].some((slot) =>
+                !nextHistory[slot]?.gigIdsByStopId?.[gig.stopId]?.includes(gig.id)
+            );
+            if (missing) {
+                nextHistory = setGigRouteMembership(nextHistory, gig, true, validIds);
+            }
+        }
+        if (nextHistory !== routeHistory) persistRouteHistory(nextHistory);
+    }
+
     function reapplyIncludedGigsAfterWorkbookStart() {
         if (!pendingStartWasAvailable) return;
         pendingStartWasAvailable = false;
@@ -1090,6 +1105,7 @@
     function initialize() {
         manualGigs = readGigs(localStorage, currentStopIds());
         persistManualGigs(manualGigs);
+        reconcileIncludedGigs();
         manualWorkLibrary = readManualWork(localStorage);
         captureGigProperties({ touch: false });
         installBackupRestoreHook();
