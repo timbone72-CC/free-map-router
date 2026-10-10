@@ -457,3 +457,50 @@ test("Google browser adapter preserves the existing stale-route error code", () 
             error.code === "STALE_ROUTE",
     );
 });
+
+
+test("completed Clinton gigs can be reattached and saved canonically without restoring old completion markers", () => {
+    const storage = memoryStorage();
+    const validIds = new Set(["clinton", "other"]);
+    let original = RouteHistory.normalizeRouteHistory({
+        google: { routeIds: ["clinton", "other"], gigIdsByStopId: { clinton: ["grass", "winter"], other: ["otherGig"] } },
+        basic: { routeIds: ["clinton", "other"], gigIdsByStopId: { clinton: ["grass", "winter"], other: ["otherGig"] } },
+        dayContext: dayContext(),
+    }, validIds);
+    original = RouteHistory.writeRouteHistory(storage, original, validIds);
+    const completed = RouteHistory.completeActivePlanStop(original, "clinton", validIds);
+    RouteHistory.writeRouteHistory(storage, completed, validIds);
+    const savedBefore = RouteHistory.readRouteHistory(storage, validIds);
+    const plan = JSON.parse(JSON.stringify(savedBefore.activePlan));
+    const now = new Date().toISOString();
+    for (const day of plan.days) {
+        const prior = day.completedWorkItems || [];
+        const matches = prior.filter(item => item.stopId === "clinton" && ["grass", "winter"].includes(item.workItemId));
+        if (matches.length) {
+            day.completedWorkItems = prior.filter(item => !matches.includes(item));
+            day.revision += 1;
+            day.updatedAt = now;
+        }
+    }
+    plan.revision += 1;
+    plan.updatedAt = now;
+    let candidate = RouteHistory.normalizeRouteHistory({
+        version: RouteHistory.ROUTE_HISTORY_VERSION,
+        activePlan: plan,
+        pending: savedBefore.pending,
+    }, validIds);
+    for (const id of ["grass", "winter"]) {
+        candidate = RouteHistory.setGigRouteMembership(candidate, { id, stopId: "clinton" }, true, validIds);
+    }
+    const canonical = {
+        version: RouteHistory.ROUTE_HISTORY_VERSION,
+        activePlan: candidate.activePlan,
+        pending: candidate.pending,
+    };
+    const written = RouteHistory.writeRouteHistory(storage, canonical, validIds);
+    assert.deepEqual(written.google.routeIds, ["other", "clinton"]);
+    assert.deepEqual(written.google.gigIdsByStopId.clinton, ["grass", "winter"]);
+    assert.deepEqual(written.google.gigIdsByStopId.other, ["otherGig"]);
+    assert.equal(written.activePlan.days.flatMap(d => d.completedWorkItems || []).length, 0);
+    assert.equal(written.activePlan.planId, original.activePlan.planId);
+});
