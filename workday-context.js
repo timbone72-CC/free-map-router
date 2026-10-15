@@ -22,6 +22,7 @@
     const DEFAULT_PREFERRED_FINISH = "15:00";
     const DEFAULT_HOME_BY = "17:00";
     const LATE_DAY_HOME_BY = "23:59";
+    const HOME_BY_ENABLED_KEY = "fmr_home_by_enabled";
 
     if (!routeHistory) {
         throw new Error("Free Map Router route history failed to load.");
@@ -105,10 +106,13 @@
         };
     }
 
-    function homeByRestrictionEnabled(document = root?.document) {
-        const input = document?.getElementById?.("routeHomeByTime");
-        if (!input) return true;
-        return String(input.value ?? "").trim() !== "";
+    function homeByRestrictionEnabled(
+        document = root?.document,
+        storage = root?.localStorage,
+    ) {
+        const toggle = document?.getElementById?.("routeHomeByEnabled");
+        if (toggle) return toggle.checked === true;
+        return storage?.getItem?.(HOME_BY_ENABLED_KEY) !== "false";
     }
 
     function bindWorkdayControls({
@@ -125,6 +129,8 @@
             "routePreferredFinishTime",
         );
         const homeByTime = document.getElementById("routeHomeByTime");
+        const homeByEnabled = document.getElementById("routeHomeByEnabled");
+        const homeByState = document.getElementById("routeHomeBySwitchState");
         const status = document.getElementById("routeDayContextStatus");
         const inputs = [
             routeDate,
@@ -133,7 +139,13 @@
             homeByTime,
         ];
 
-        if (!container || inputs.some((input) => !input) || !status) return false;
+        if (
+            !container ||
+            inputs.some((input) => !input) ||
+            !homeByEnabled ||
+            !homeByState ||
+            !status
+        ) return false;
         if (container.dataset.fmrWorkdayBound === "true") return true;
         container.dataset.fmrWorkdayBound = "true";
 
@@ -148,6 +160,13 @@
             }
         }
 
+        function syncHomeByToggle() {
+            const enabled = homeByRestrictionEnabled(null, storage);
+            homeByEnabled.checked = enabled;
+            homeByTime.disabled = !enabled;
+            homeByState.textContent = enabled ? "ON" : "OFF";
+        }
+
         function refresh() {
             const current = displayContext(storage, now());
             const context = current.context;
@@ -156,6 +175,7 @@
             departureTime.value = context.departureTime;
             preferredFinishTime.value = context.preferredFinishTime;
             homeByTime.value = context.homeByTime;
+            syncHomeByToggle();
             setStatus(
                 current.saved
                     ? `Route timing saved for ${context.routeDate} • ${context.timeZone}.`
@@ -165,14 +185,6 @@
         }
 
         function save() {
-            if (!homeByRestrictionEnabled(document)) {
-                setStatus(
-                    "Home By limit off for Google Optimize. Enter a Home By time to turn the limit back on.",
-                    "default",
-                );
-                return true;
-            }
-
             const draft = {
                 routeDate: routeDate.value,
                 departureTime: departureTime.value,
@@ -205,6 +217,28 @@
         for (const input of inputs) {
             input.addEventListener("change", save);
         }
+
+        homeByEnabled.addEventListener("change", () => {
+            try {
+                storage.setItem(
+                    HOME_BY_ENABLED_KEY,
+                    String(homeByEnabled.checked === true),
+                );
+                syncHomeByToggle();
+                setStatus(
+                    homeByEnabled.checked
+                        ? "Home By limit ON for Google Optimize."
+                        : "Home By limit OFF for Google Optimize. Your saved time is kept.",
+                    "saved",
+                );
+            } catch (error) {
+                syncHomeByToggle();
+                setStatus(
+                    error?.message || "Home By setting could not be saved.",
+                    "error",
+                );
+            }
+        });
 
         if (
             root &&
