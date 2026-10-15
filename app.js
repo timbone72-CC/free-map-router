@@ -3069,6 +3069,7 @@ for (const inputId of [
     "routeDepartureTime",
     "routePreferredFinishTime",
     "routeHomeByTime",
+    "routeHomeByEnabled",
 ]) {
     document.getElementById(inputId)?.addEventListener("change", () => {
         refreshPlannerRouteHistory();

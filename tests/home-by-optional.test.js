@@ -44,6 +44,8 @@ function fakeWorkdayDocument() {
         "routeDepartureTime",
         "routePreferredFinishTime",
         "routeHomeByTime",
+        "routeHomeByEnabled",
+        "routeHomeBySwitchState",
         "routeDayContextStatus",
     ];
     const elements = new Map(ids.map((id) => [id, fakeElement()]));
@@ -93,35 +95,59 @@ function routeSnapshot() {
     };
 }
 
-test("clearing Home By turns off the Google deadline without overwriting saved timing", () => {
+test("Home By switch stays OFF after reload and ON restores the saved time", () => {
     const storage = memoryStorage();
     routeHistory.writeRouteHistory(storage, routeSnapshot(), new Set(["a"]));
     const document = fakeWorkdayDocument();
 
-    assert.equal(
-        workdayContext.bindWorkdayControls({ document, storage }),
-        true,
-    );
-
+    assert.equal(workdayContext.bindWorkdayControls({ document, storage }), true);
+    const toggle = document.elements.get("routeHomeByEnabled");
     const homeBy = document.elements.get("routeHomeByTime");
+
+    // Existing users retain the old ON default until they explicitly switch OFF.
+    assert.equal(toggle.checked, true);
     assert.equal(homeBy.value, "23:00");
     assert.equal(workdayContext.homeByRestrictionEnabled(document), true);
 
+    toggle.checked = false;
+    toggle.fire("change");
+    assert.equal(storage.getItem("fmr_home_by_enabled"), "false");
+    assert.equal(workdayContext.homeByRestrictionEnabled(document), false);
+    assert.equal(homeBy.disabled, true);
+    assert.equal(document.elements.get("routeHomeBySwitchState").textContent, "OFF");
+    assert.equal(routeHistory.readRouteHistory(storage).dayContext.homeByTime, "23:00");
+
+    const reopened = fakeWorkdayDocument();
+    assert.equal(workdayContext.bindWorkdayControls({ document: reopened, storage }), true);
+    assert.equal(reopened.elements.get("routeHomeByEnabled").checked, false);
+    assert.equal(reopened.elements.get("routeHomeByTime").disabled, true);
+    assert.equal(reopened.elements.get("routeHomeByTime").value, "23:00");
+    assert.equal(workdayContext.homeByRestrictionEnabled(reopened), false);
+
+    reopened.elements.get("routeHomeByEnabled").checked = true;
+    reopened.elements.get("routeHomeByEnabled").fire("change");
+    assert.equal(storage.getItem("fmr_home_by_enabled"), "true");
+    assert.equal(workdayContext.homeByRestrictionEnabled(reopened), true);
+    assert.equal(reopened.elements.get("routeHomeByTime").disabled, false);
+    assert.equal(routeHistory.readRouteHistory(storage).dayContext.homeByTime, "23:00");
+});
+
+test("clearing the time cannot silently turn off the Home By deadline", () => {
+    const storage = memoryStorage();
+    routeHistory.writeRouteHistory(storage, routeSnapshot(), new Set(["a"]));
+    const document = fakeWorkdayDocument();
+    workdayContext.bindWorkdayControls({ document, storage });
+
+    const homeBy = document.elements.get("routeHomeByTime");
     homeBy.value = "";
     homeBy.fire("change");
 
-    assert.equal(workdayContext.homeByRestrictionEnabled(document), false);
+    assert.equal(workdayContext.homeByRestrictionEnabled(document), true);
     assert.equal(routeHistory.readRouteHistory(storage).dayContext.homeByTime, "23:00");
     assert.match(
         document.elements.get("routeDayContextStatus").textContent,
-        /Home By limit off for Google Optimize/,
+        /Home by must be a valid local time/,
     );
-
-    homeBy.value = "22:30";
-    homeBy.fire("change");
-
-    assert.equal(workdayContext.homeByRestrictionEnabled(document), true);
-    assert.equal(routeHistory.readRouteHistory(storage).dayContext.homeByTime, "22:30");
 });
 
 test("no-limit Google preparation omits the hard timing window but keeps exact route work and service duration", async () => {

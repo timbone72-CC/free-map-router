@@ -392,6 +392,70 @@ li {
     border-radius: 10px;
 }
 
+.homeByHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.homeBySwitch {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.homeBySwitch input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+}
+
+.homeBySwitchTrack {
+    position: relative;
+    display: inline-block;
+    flex: none;
+    width: 40px;
+    height: 23px;
+    border-radius: 15px;
+    background: #9ca3af;
+    transition: background 0.15s ease;
+}
+
+.homeBySwitchTrack::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 17px;
+    height: 17px;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform 0.15s ease;
+}
+
+.homeBySwitch input:checked + .homeBySwitchTrack {
+    background: #16744e;
+}
+
+.homeBySwitch input:checked + .homeBySwitchTrack::after {
+    transform: translateX(17px);
+}
+
+.homeBySwitch input:focus-visible + .homeBySwitchTrack {
+    outline: 3px solid #2463ca;
+    outline-offset: 2px;
+}
+
+.homeByControl input[type="time"]:disabled {
+    opacity: 0.55;
+}
+
 .plannerDaySummary {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));

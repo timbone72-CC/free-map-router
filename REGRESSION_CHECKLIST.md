@@ -286,14 +286,15 @@ changes that can affect the Google schedule.
 - [ ] Whole-app backup version 5 preserves a valid per-Day Google schedule and
       restore returns it only when it remains structurally valid for the saved
       Google route; Basic schedule remains null.
-- [ ] Clearing the visible **Home by** field leaves the last valid saved Home By
-      unchanged and runs Google Optimize through the existing untimed request
-      path while preserving exact stops and service durations.
-- [ ] Untimed/Home-By-off optimization does not fabricate or persist a timed
-      Home-By-safe schedule, and re-entering a valid Home By restores the timed
-      behavior.
-- [ ] Changing between Home-By-enabled and Home-By-off mode while Google is
-      calculating fails stale rather than applying a result from the wrong mode.
+- [ ] Switching **Home By OFF** keeps the last valid time, persists OFF through
+      reload, and uses the untimed Google Optimize request with exact stops and
+      service durations; changing the time field does not toggle the setting.
+- [ ] Switching **Home By ON** restores the saved time and timed Google Optimize
+      behavior. Existing users with no switch preference retain ON until they
+      explicitly switch OFF.
+- [ ] Untimed/Home-By-OFF optimization never fabricates or persists a timed
+      Home-By-safe schedule, and switching between ON/OFF during Google
+      calculation fails stale without applying the wrong-mode result.
 - [ ] Phase 2H-B changes never rewrite saved address text, manually verified
       pins, workbook Order IDs / `Source_ID`s, manual `Gig_ID`s, workbook handoff
       files, route-order return schema, Drive file names, or Drive permissions.

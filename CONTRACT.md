@@ -365,11 +365,15 @@ versions of one job route, and opens the selected version in Google Maps.
     changes remove schedule confidence without deleting route order. Valid
     schedule state survives ordinary route-history writes and is preserved by
     backup version 5 when its Route Plan Day and route identity remain valid.
-43. Clearing the visible **Home by** field is a temporary operator-controlled
-    Google Optimize mode. It does not erase the last valid saved Home By. The
-    untimed request preserves exact stops and service durations but does not
-    fabricate or persist a Home-By-safe schedule. Re-entering a valid Home By
-    restores the timed behavior.
+43. The operator-controlled **Home By ON/OFF switch** controls whether Google
+    Optimize enforces the saved Home By return deadline. OFF remains OFF across
+    app reloads in the same browser until explicitly turned ON; it does not
+    erase the last valid saved Home By time or alter stored route history.
+    The switch defaults to ON if the operator has never chosen a setting,
+    preserving established timed behavior. OFF uses the existing untimed
+    request with exact stops and service durations and does not fabricate
+    or persist a Home-By-safe schedule. Turning ON restores the timed behavior.
+    Clearing the time field alone never turns this switch OFF.
 44. Whole-app backup version 5 preserves route-history v7 Route Plan identity,
     ordered Days, per-Day Workday context, existing planning data, pending
     workbook route, and valid per-Day Google schedule state. Valid backup
@@ -532,8 +536,8 @@ Tests must continue to protect:
   finish remains a soft post-result warning;
 - backup version 5 preserving a valid per-Day Google schedule through ordinary
   route-history writes and restore;
-- temporary visible Home By opt-out preserving the last saved Home By, exact
-  stops and service durations, and not fabricating timed schedule confidence;
+- persistent Home By OFF switch preserving the saved time, exact stops and
+  service durations, without fabricating timed schedule confidence;
 - version-1 backup compatibility and version-2 gig preservation; and
 - the five-page dropdown menu with only one selected page visible.
 
