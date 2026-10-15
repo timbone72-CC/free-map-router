@@ -101,6 +101,8 @@ function fakeWorkdayDocument() {
         "routeDepartureTime",
         "routePreferredFinishTime",
         "routeHomeByTime",
+        "routeHomeByEnabled",
+        "routeHomeBySwitchState",
         "routeDayContextStatus",
     ];
     const elements = new Map(ids.map((id) => [id, fakeElement()]));
@@ -369,7 +371,7 @@ test("editing workday controls saves timing without changing route order or opti
     );
 });
 
-test("Build Route keeps exactly the four Phase 2H-A controls and loads Route Plan before route history and Workday before app.js", () => {
+test("Build Route retains its four timing inputs, adds the Home By switch, and loads Workday before app.js", () => {
     const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
 
     for (const id of [
@@ -377,6 +379,7 @@ test("Build Route keeps exactly the four Phase 2H-A controls and loads Route Pla
         "routeDepartureTime",
         "routePreferredFinishTime",
         "routeHomeByTime",
+        "routeHomeByEnabled",
     ]) {
         const matches = html.match(new RegExp(`id="${id}"`, "g")) || [];
         assert.equal(matches.length, 1, `${id} must exist exactly once`);
@@ -389,7 +392,7 @@ test("Build Route keeps exactly the four Phase 2H-A controls and loads Route Pla
 
     const routePlanIndex = html.indexOf("route-plan.js?v=1.0.0");
     const routeHistoryIndex = html.indexOf("route-history.js?v=7.0.0");
-    const workdayIndex = html.indexOf("workday-context.js?v=1.0.0");
+    const workdayIndex = html.indexOf("workday-context.js?v=1.0.1");
     const appMatch = html.match(/app\.js\?v=\d+\.\d+\.\d+/);
     assert.ok(routePlanIndex >= 0, "Route Plan script must be loaded");
     assert.ok(routeHistoryIndex >= 0, "Route history script must be loaded");
