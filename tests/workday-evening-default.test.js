@@ -44,6 +44,8 @@ function fakeDocument() {
         "routeDepartureTime",
         "routePreferredFinishTime",
         "routeHomeByTime",
+        "routeHomeByEnabled",
+        "routeHomeBySwitchState",
         "routeDayContextStatus",
     ];
     const elements = new Map(ids.map((id) => [id, fakeElement()]));
