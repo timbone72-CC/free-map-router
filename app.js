@@ -872,7 +872,11 @@ function renderJobsList() {
         });
 
         const label = document.createElement("span");
-        label.textContent = `${row.sources.join(" · ")} — ${formatJobLine(job)}`;
+        label.textContent = formatJobLine(job);
+
+        const sourceLabel = document.createElement("span");
+        sourceLabel.className = "addressSourceLabel";
+        sourceLabel.textContent = `${row.sources.join(" · ")} — `;
 
         const editBtn = document.createElement("button");
         editBtn.textContent = "Edit";
@@ -902,6 +906,7 @@ function renderJobsList() {
 
         li.appendChild(checkbox);
         li.appendChild(document.createTextNode(" "));
+        li.appendChild(sourceLabel);
         li.appendChild(label);
         li.appendChild(document.createTextNode(" "));
         li.appendChild(editBtn);
