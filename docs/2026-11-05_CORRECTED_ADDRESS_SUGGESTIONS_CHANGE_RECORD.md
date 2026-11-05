@@ -71,5 +71,18 @@ Basic routes, pending route, print output, and backups are protected.
   through repository rollback procedure. No data rollback is needed because
   the fix only reads saved records.
 
-Status: implementation and code review on a separate branch; not verified or
-published until CI and merge/deployment checks complete.
+## Release closeout (2026-11-05)
+- Implementation merged via PR #118:
+  https://github.com/timbone72-CC/free-map-router/pull/118
+- Published `main` merge commit:
+  `49601c85e548eb8ab9cc42a7cc64f5f991bfa6e5`.
+- GitHub's "Verify Contract and App" workflow on that merge commit passed
+  (run 42094128823; full regression suite and JavaScript syntax).
+- GitHub Pages build and deployment passed on the same commit
+  (run 42094127465).
+- Post-deployment physical phone test: **not yet reported**. The operator has
+  not confirmed whether the observed stale suggestion came from the app's
+  datalist versus Android keyboard/browser autofill. Do not claim this fix
+  resolves all device-side suggestions until that distinction is tested.
+- Source, aliases, stored stops, routes, backups, and Drive records were not
+  migrated or deleted. This fix only changes the suggestion presentation.
