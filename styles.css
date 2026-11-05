@@ -169,6 +169,38 @@ textarea {
     background: #f7f7f7;
 }
 
+.addressFilters {
+    margin: 8px 0 14px;
+    padding: 12px;
+    border: 1px solid #e3e3e3;
+    border-radius: 10px;
+    background: #fcfcfc;
+}
+
+.addressFilterRow {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 10px;
+}
+
+.addressFilters label {
+    display: block;
+    margin-bottom: 0;
+}
+
+.addressFilters input,
+.addressFilters select {
+    margin: 5px 0 8px;
+}
+
+#addressFilterCount {
+    margin: 3px 0 0;
+}
+
+#jobList li {
+    overflow-wrap: anywhere;
+}
+
 .addressViewChoice {
     position: absolute;
     width: 1px;

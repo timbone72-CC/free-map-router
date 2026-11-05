@@ -37,6 +37,10 @@ if (!globalThis.FMRAddressCorrections) {
     throw new Error("Free Map Router address corrections failed to load.");
 }
 
+if (!globalThis.FMRAddressFilters) {
+    throw new Error("Free Map Router address filters failed to load.");
+}
+
 if (!globalThis.FMRRouteHistory) {
     throw new Error("Free Map Router route history failed to load.");
 }
@@ -473,6 +477,11 @@ const els = {
 
     // lists
     jobList: document.getElementById("jobList"),
+    addressSearch: document.getElementById("addressSearch"),
+    addressSourceFilter: document.getElementById("addressSourceFilter"),
+    addressTownFilter: document.getElementById("addressTownFilter"),
+    addressCountyFilter: document.getElementById("addressCountyFilter"),
+    addressFilterCount: document.getElementById("addressFilterCount"),
     routeList: document.getElementById("routeList"),
     routeChoice: document.getElementById("routeChoice"),
     checkWorkbookRoute: document.getElementById("checkWorkbookRoute"),
@@ -671,8 +680,60 @@ function ensureSelectionControls() {
 // ============================================================================
 // SECTION 8 — Rendering
 // ============================================================================
+function updateAddressFilterOptions(select, options, allLabel) {
+    if (!select) return;
+    const previous = select.value || "All";
+    const choices = options.map((value) => ({
+        value,
+        label: value === "All" ? allLabel : value,
+    }));
+    const current = Array.from(select.options).map((option) => option.value);
+    if (
+        choices.length !== current.length ||
+        choices.some((choice, index) => choice.value !== current[index])
+    ) {
+        select.replaceChildren();
+        for (const choice of choices) {
+            const option = document.createElement("option");
+            option.value = choice.value;
+            option.textContent = choice.label;
+            select.appendChild(option);
+        }
+    }
+    select.value = choices.some((choice) => choice.value === previous)
+        ? previous
+        : "All";
+}
+
+function getFilteredAddressRows() {
+    const filters = globalThis.FMRAddressFilters;
+    const rows = filters.describeStops(jobs, readGigs(localStorage, savedJobIds()));
+    const options = filters.availableFilters(rows);
+    updateAddressFilterOptions(
+        els.addressSourceFilter,
+        options.sources,
+        "All companies / sources",
+    );
+    updateAddressFilterOptions(
+        els.addressTownFilter,
+        ["All", ...options.towns],
+        "All towns",
+    );
+    updateAddressFilterOptions(
+        els.addressCountyFilter,
+        ["All", ...options.counties],
+        "All counties",
+    );
+    return filters.filterRows(rows, {
+        query: els.addressSearch?.value || "",
+        source: els.addressSourceFilter?.value || "All",
+        town: els.addressTownFilter?.value || "All",
+        county: els.addressCountyFilter?.value || "All",
+    });
+}
+
 function getFilteredJobs() {
-    return jobs;
+    return getFilteredAddressRows().map((row) => row.stop);
 }
 
 function formatJobLine(job) {
@@ -776,16 +837,23 @@ function renderJobsList() {
     if (!list) return;
     list.innerHTML = "";
 
-    const filtered = getFilteredJobs();
+    const filtered = getFilteredAddressRows();
+    if (els.addressFilterCount) {
+        els.addressFilterCount.textContent =
+            `Showing ${filtered.length} of ${jobs.length} saved addresses.`;
+    }
 
     if (filtered.length === 0) {
         const li = document.createElement("li");
-        li.textContent = "No addresses yet.";
+        li.textContent = jobs.length
+            ? "No matching addresses. Change the search or filters."
+            : "No addresses yet.";
         list.appendChild(li);
         return;
     }
 
-    for (const job of filtered) {
+    for (const row of filtered) {
+        const job = row.stop;
         const li = document.createElement("li");
 
         const checked = routeIds.includes(job.id);
@@ -805,6 +873,10 @@ function renderJobsList() {
 
         const label = document.createElement("span");
         label.textContent = formatJobLine(job);
+
+        const sourceLabel = document.createElement("span");
+        sourceLabel.className = "addressSourceLabel";
+        sourceLabel.textContent = `${row.sources.join(" · ")} — `;
 
         const editBtn = document.createElement("button");
         editBtn.textContent = "Edit";
@@ -834,6 +906,7 @@ function renderJobsList() {
 
         li.appendChild(checkbox);
         li.appendChild(document.createTextNode(" "));
+        li.appendChild(sourceLabel);
         li.appendChild(label);
         li.appendChild(document.createTextNode(" "));
         li.appendChild(editBtn);
@@ -1129,6 +1202,18 @@ if (els.startNewRoute) {
                 `New route started with ${routeIds.length} job${routeIds.length === 1 ? "" : "s"}. Google Route selected; both versions are Not Optimized.`;
         }
     });
+}
+
+for (const filter of [
+    els.addressSearch,
+    els.addressSourceFilter,
+    els.addressTownFilter,
+    els.addressCountyFilter,
+]) {
+    filter?.addEventListener(
+        filter === els.addressSearch ? "input" : "change",
+        renderJobsList,
+    );
 }
 
 // ============================================================================
