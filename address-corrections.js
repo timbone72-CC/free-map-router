@@ -209,10 +209,57 @@
             };
         }
 
+        // Suggestions are a read-only view: never erase workbook match aliases.
+        function savedAddressSuggestions(stops, query = "", maxResults = 8) {
+            const entries = (Array.isArray(stops) ? stops : [])
+                .map((stop) => {
+                    const address = normalizeAddress(stop?.address);
+                    return {
+                        address,
+                        key: addressKey(address),
+                        aliases: Array.isArray(stop?.addressAliases)
+                            ? stop.addressAliases.map(normalizeAddress).filter(Boolean)
+                            : [],
+                    };
+                })
+                .filter((entry) => entry.key);
+
+            const superseded = new Set();
+            for (const entry of entries) {
+                for (const alias of entry.aliases) {
+                    const aliasKey = addressKey(alias);
+                    if (aliasKey && aliasKey !== entry.key) {
+                        superseded.add(aliasKey);
+                    }
+                }
+            }
+
+            const search = normalizeAddress(query).toLowerCase();
+            const seen = new Set();
+            const results = [];
+            const cap = Number.isInteger(maxResults) && maxResults > 0
+                ? maxResults
+                : 8;
+            for (const entry of entries) {
+                if (superseded.has(entry.key) || seen.has(entry.key)) continue;
+                if (
+                    search &&
+                    ![entry.address, ...entry.aliases].some((value) =>
+                        value.toLowerCase().includes(search),
+                    )
+                ) continue;
+                seen.add(entry.key);
+                results.push(entry.address);
+                if (results.length >= cap) break;
+            }
+            return results;
+        }
+
         return Object.freeze({
             CORRECTIONS_APP,
             CORRECTIONS_VERSION,
             applyCorrectionsToInbox,
+            savedAddressSuggestions,
             createCorrectionRecord,
             mergeCorrectionRecords,
             parseCorrectionRecord,
