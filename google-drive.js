@@ -25,6 +25,29 @@
     let tokenClient = null;
     let accessToken = "";
     let tokenExpiresAt = 0;
+    let pendingTokenRequest = null;
+    const DRIVE_CONNECTION_HINT_KEY = "free-map-router-drive-connected";
+
+    // Remember only successful folder access, never an OAuth credential.
+    function hasVerifiedDriveConnection() {
+        try {
+            return globalThis.localStorage?.getItem(DRIVE_CONNECTION_HINT_KEY) === "1";
+        } catch {
+            return false;
+        }
+    }
+
+    function rememberVerifiedDriveConnection(verified) {
+        try {
+            if (verified) {
+                globalThis.localStorage?.setItem(DRIVE_CONNECTION_HINT_KEY, "1");
+            } else {
+                globalThis.localStorage?.removeItem(DRIVE_CONNECTION_HINT_KEY);
+            }
+        } catch {
+            // Storage can be blocked; the explicit account chooser still works.
+        }
+    }
 
     function authorizationHeaders(token) {
         return { Authorization: `Bearer ${token}` };
@@ -39,6 +62,7 @@
         if (token && token === accessToken) {
             accessToken = "";
             tokenExpiresAt = 0;
+            rememberVerifiedDriveConnection(false);
         }
     }
 
@@ -77,6 +101,7 @@
         ) {
             throw workbookDriveAccountError(token);
         }
+        rememberVerifiedDriveConnection(true);
         return folder;
     }
 
@@ -599,6 +624,8 @@
         if (accessToken && Date.now() < tokenExpiresAt) {
             return Promise.resolve(accessToken);
         }
+        // Two Drive actions must not open competing Google account pickers.
+        if (pendingTokenRequest) return pendingTokenRequest;
 
         const oauth = globalThis.google?.accounts?.oauth2;
         if (!oauth) {
@@ -607,7 +634,10 @@
             );
         }
 
-        return new Promise((resolve, reject) => {
+        // A verified folder read allows Google to reuse the prior grant after
+        // a reload. If renewal fails, the next user action gets the chooser.
+        const prompt = hasVerifiedDriveConnection() ? "" : "select_account";
+        const request = new Promise((resolve, reject) => {
             if (!tokenClient) {
                 tokenClient = oauth.initTokenClient({
                     client_id: CLIENT_ID,
@@ -618,6 +648,7 @@
 
             tokenClient.callback = (response) => {
                 if (response?.error || !response?.access_token) {
+                    if (!prompt) rememberVerifiedDriveConnection(false);
                     reject(
                         new Error(
                             response?.error_description ||
@@ -631,10 +662,17 @@
                 tokenExpiresAt = Date.now() + Math.max(0, lifetime - 60) * 1000;
                 resolve(accessToken);
             };
-            tokenClient.requestAccessToken({
-                prompt: accessToken ? "" : "select_account",
-            });
+            try {
+                tokenClient.requestAccessToken({ prompt });
+            } catch (error) {
+                if (!prompt) rememberVerifiedDriveConnection(false);
+                reject(error);
+            }
         });
+        pendingTokenRequest = request.finally(() => {
+            pendingTokenRequest = null;
+        });
+        return pendingTokenRequest;
     }
 
     function currentDriveToken() {

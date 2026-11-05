@@ -591,3 +591,122 @@ test("wrong Drive account fails closed, clears the cached token, and fresh autho
         delete globalThis.google;
     }
 });
+
+const fs = require("node:fs");
+const vm = require("node:vm");
+
+function freshDriveAuthorization(google, localStorage) {
+    const context = { google, localStorage };
+    const source = fs.readFileSync(require.resolve("../google-drive.js"), "utf8");
+    vm.runInNewContext(source, context);
+    return context.FMRGoogleDrive;
+}
+
+test("verified Drive sign-in is reused after a page reload, not stored as a token", async () => {
+    const values = new Map();
+    const localStorage = {
+        getItem: (key) => values.get(key) || null,
+        setItem: (key, value) => values.set(key, value),
+        removeItem: (key) => values.delete(key),
+    };
+    const prompts = [];
+    const client = {
+        callback: () => {},
+        requestAccessToken({ prompt }) {
+            prompts.push(prompt);
+            this.callback({
+                access_token: "drive-token-" + prompts.length,
+                expires_in: 3600,
+            });
+        },
+    };
+    const google = { accounts: { oauth2: { initTokenClient: () => client } } };
+
+    const original = freshDriveAuthorization(google, localStorage);
+    const originalToken = await original.requestDriveToken();
+    assert.equal(prompts[0], "select_account");
+    assert.equal(values.size, 0, "first consent alone must not establish access");
+
+    await original.requireWorkbookRouteFolder(originalToken, async () => ({
+        ok: true,
+        json: async () => ({
+            id: original.WORKBOOK_FOLDER_ID,
+            name: original.DRIVE_FOLDER_NAME,
+            mimeType: "application/vnd.google-apps.folder",
+            trashed: false,
+        }),
+    }));
+    assert.deepEqual([...values.values()], ["1"], "only a non-secret success hint is retained");
+
+    const reloaded = freshDriveAuthorization(google, localStorage);
+    const reloadedToken = await reloaded.requestDriveToken();
+    assert.equal(prompts[1], "", "Google can reuse an existing grant");
+    assert.notEqual(reloadedToken, originalToken);
+
+    await assert.rejects(
+        reloaded.requireWorkbookRouteFolder(reloadedToken, async () => ({
+            ok: false,
+            status: 403,
+        })),
+        (error) => error.code === reloaded.WORKBOOK_DRIVE_ACCOUNT_ERROR_CODE,
+    );
+    assert.equal(values.size, 0, "wrong-account access clears the reuse hint");
+    await reloaded.requestDriveToken();
+    assert.equal(prompts[2], "select_account", "the chooser returns after rejection");
+});
+
+test("simultaneous Drive operations share one Google authorization request", async () => {
+    const prompts = [];
+    const client = {
+        callback: () => {},
+        requestAccessToken({ prompt }) {
+            prompts.push(prompt);
+        },
+    };
+    const drive = freshDriveAuthorization(
+        { accounts: { oauth2: { initTokenClient: () => client } } },
+        { getItem: () => null },
+    );
+
+    const first = drive.requestDriveToken();
+    const second = drive.requestDriveToken();
+    assert.strictEqual(first, second);
+    assert.deepEqual(prompts, ["select_account"]);
+
+    client.callback({ access_token: "shared-token", expires_in: 3600 });
+    assert.deepEqual(await Promise.all([first, second]), [
+        "shared-token",
+        "shared-token",
+    ]);
+    assert.equal(drive.currentDriveToken(), "shared-token");
+});
+
+test("silent Google renewal failure returns to explicit account selection", async () => {
+    const values = new Map([["free-map-router-drive-connected", "1"]]);
+    const localStorage = {
+        getItem: (key) => values.get(key) || null,
+        setItem: (key, value) => values.set(key, value),
+        removeItem: (key) => values.delete(key),
+    };
+    const prompts = [];
+    const client = {
+        callback: () => {},
+        requestAccessToken({ prompt }) {
+            prompts.push(prompt);
+            this.callback(
+                prompt === ""
+                    ? { error: "interaction_required" }
+                    : { access_token: "explicit-token", expires_in: 3600 },
+            );
+        },
+    };
+    const drive = freshDriveAuthorization(
+        { accounts: { oauth2: { initTokenClient: () => client } } },
+        localStorage,
+    );
+
+    await assert.rejects(drive.requestDriveToken(), /not approved/);
+    assert.equal(values.size, 0);
+    assert.equal(await drive.requestDriveToken(), "explicit-token");
+    assert.deepEqual(prompts, ["", "select_account"]);
+});
