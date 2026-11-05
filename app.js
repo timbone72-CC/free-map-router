@@ -94,6 +94,7 @@ const {
     createCorrectionRecord,
     mergeCorrectionRecords,
     parseCorrectionRecord,
+    savedAddressSuggestions,
 } = globalThis.FMRAddressCorrections;
 const {
     completeActivePlanStop,
@@ -1223,27 +1224,14 @@ function refreshAddressSuggestions() {
     const dl = els.addressSuggestions;
     if (!dl) return;
 
-    const q = (els.address?.value || "").trim().toLowerCase();
-
-    const pool = [];
-    const seen = new Set();
-
-    for (const job of jobs) {
-        const a = (job.address || "").trim();
-        if (!a) continue;
-        const key = a.toLowerCase();
-        if (seen.has(key)) continue;
-        seen.add(key);
-        pool.push(a);
-    }
-
-    const filtered = q ? pool.filter((a) => a.toLowerCase().includes(q)) : pool;
-    const cap = filtered.slice(0, 8);
-
-    dl.innerHTML = "";
-    for (const a of cap) {
+    const suggestions = savedAddressSuggestions(
+        jobs,
+        els.address?.value || "",
+    );
+    dl.replaceChildren();
+    for (const address of suggestions) {
         const opt = document.createElement("option");
-        opt.value = a;
+        opt.value = address;
         dl.appendChild(opt);
     }
 }
