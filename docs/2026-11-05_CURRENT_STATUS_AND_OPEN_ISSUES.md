@@ -8,9 +8,13 @@ handoff are changed. No workbook/router integration impact.
 
 Baseline reviewed: `main` at
 `0802de87e2c9c11ccfc46819ecefc23b763ed82a` (merged PR #116).
-The two November 5 runtime changes have their own detailed records:
+The three November 5 runtime changes have their own detailed records:
 - `docs/2026-11-05_DRIVE_SIGNIN_REUSE_CHANGE_RECORD.md`
 - `docs/2026-11-05_SAVED_ADDRESS_FILTERS_CHANGE_RECORD.md`
+- `docs/2026-11-05_CORRECTED_ADDRESS_SUGGESTIONS_CHANGE_RECORD.md`
+
+This document began as the checkpoint after PR #116. The final release
+status below incorporates PR #118, merged and deployed later that day.
 
 ## Changes completed and verified
 
@@ -47,28 +51,28 @@ The two November 5 runtime changes have their own detailed records:
   a positive basic smoke check, not a completed multi-device regression.
 - Reference: https://github.com/timbone72-CC/free-map-router/pull/116
 
-## Open issues — not fixed by these pull requests
+## Stale-address correction follow-up and remaining issues
 
-### 1. Stale or uncorrected addresses in Create Address suggestions
-**Next isolated issue.** The operator reports that after correcting an
-address, its former/incorrect spelling can still appear as an address
-suggestion. Desired result: show the corrected, usable address rather than
-an obsolete suggestion, while still accepting future raw workbook imports.
+### 1. Corrected address suggestions — code fix deployed; phone test pending
+The operator reported old/uncorrected addresses still appearing as suggestions
+after a saved address was corrected. PR #118 adds an alias-aware, read-only
+filter to `address-corrections.js` and the existing Add/Edit datalist renderer.
+When a saved address is explicitly marked as an obsolete alias of another
+current saved address, only the corrected address is suggested; searching
+the old wording can still offer that corrected address.
 
-Current code observation: `app.js::refreshAddressSuggestions()` populates the
-saved-only suggestion list from `jobs[].address`, de-duplicates exact
-case-insensitive strings, and caps visible suggestions at eight. It does
-**not** directly include `addressAliases` or iterate the permanent Drive
-address-corrections record. Therefore the **underlying reason is not yet
-confirmed**; a remaining saved stop/duplicate or a separate browser suggestion
-source must be distinguished before changing data or filtering rules.
+- PR: https://github.com/timbone72-CC/free-map-router/pull/118
+- Merged `main` commit: `49601c85e548eb8ab9cc42a7cc64f5f991bfa6e5`
+- Full CI / JavaScript verification: **passed** (run 42094128823)
+- GitHub Pages publication: **passed** (run 42094127465)
+- Physical phone check: **not yet reported**; no claim that every old
+  suggestion on the actual device is fixed.
 
-Protection requirement: an old address may be a required **hidden alias**
-used to match a future GIS/DCFS workbook export to the corrected stop.
-Do **not** delete corrections, aliases, Order IDs, saved stops, or the Drive
-correction record just to remove an obsolete *visible suggestion*. Inspect
-the exact read-only source and reproduce first; then make a separate,
-focused fix with tests, review, and normal publish checks.
+The app's suggestion list reads only corrections/aliases already present in
+local saved stops. Android browser or keyboard autofill is a separate possible
+source of unwanted suggestions and remains unverified. Hidden aliases,
+GIS/DCFS source identity, stop IDs, workbook Order IDs, pins, route history,
+Drive correction record, and backups were **not** deleted or migrated.
 
 ### 2. Entering a new company name when adding/editing an address
 The operator requested a source/company field with GIS, DCFS, and custom
@@ -87,16 +91,17 @@ with the read-only filters. Keep separate from the stale-suggestions fix.
   hidden original-address aliases, pinned coordinates, workbook Order IDs,
   manual gigs, route selections, Google/Basic route history, Home, backups,
   and existing Google Drive permissions and files.
-- No migration, deletion, broad deduplication, automatic Drive backup,
-  or change to the InspectorADE workbook integration is authorized here.
-- Next: inspect the **visible suggestion** path in read-only mode, verify the
-  source of stale entries and reproduction, then implement/test only that
-  behavior on a separate development branch. The next fix has **not** been
-  implemented or deployed at this checkpoint.
+- PR #118 was merged and deployed; no migration, deletion, broad deduplication,
+  automatic Drive backup, or InspectorADE workbook integration change occurred.
+- The next verification for PR #118 is an operator test on the phone to
+  distinguish the app datalist from Android/browser autocomplete.
+- Any company-name entry feature or county metadata changes require their
+  own scoped work; they are **not** part of the suggestion fix.
 
 ## Record verification
-This note was prepared from both merged pull requests, their existing change
-records, the current `app.js` suggestion function, the address correction
-contract/records, GitHub CI and Pages results, and the operator's reported
-live observations. Documentation-only diff and governance review are required;
-no runtime test is implied by a docs-only commit.
+This note was prepared from merged PRs #115, #116, and #118, the individual
+change records, the current `app.js` suggestion code and corrections module,
+the address correction contract, GitHub CI and Pages results, and the
+operator's reported live observations. This is a documentation-only closeout;
+the PR #118 runtime CI and publication checks are recorded above, not
+re-executed by this documentation update.
