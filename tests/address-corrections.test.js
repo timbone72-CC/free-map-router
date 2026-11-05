@@ -5,6 +5,7 @@ const assert = require("node:assert/strict");
 
 const {
     applyCorrectionsToInbox,
+    savedAddressSuggestions,
     createCorrectionRecord,
     mergeCorrectionRecords,
     parseCorrectionRecord,
@@ -137,4 +138,61 @@ test("permanent correction changes only an exact raw workbook address", () => {
         corrected.addresses[1].address,
         "RR1 BOX 3241, Elk City, OK 73644",
     );
+});
+
+test("current corrected address replaces a separately saved stale alias only in suggestions", () => {
+    const saved = [
+        { id: "old", address: RR_ADDRESS, source: "DCFS" },
+        {
+            id: "corrected",
+            address: STREET_ADDRESS,
+            addressAliases: [RR_ADDRESS],
+            source: "DCFS",
+        },
+        { id: "other", address: "17 W Elm St, Clinton, OK 73601" },
+    ];
+    const before = JSON.stringify(saved);
+
+    assert.deepEqual(savedAddressSuggestions(saved), [
+        STREET_ADDRESS,
+        "17 W Elm St, Clinton, OK 73601",
+    ]);
+    assert.deepEqual(savedAddressSuggestions(saved, "RR1 BOX"), [STREET_ADDRESS]);
+    assert.deepEqual(savedAddressSuggestions(saved, "elk city"), [STREET_ADDRESS]);
+    assert.deepEqual(savedAddressSuggestions(saved, "RR1 BOX", 1), [STREET_ADDRESS]);
+    assert.equal(JSON.stringify(saved), before);
+    assert.deepEqual(saved[1].addressAliases, [RR_ADDRESS]);
+});
+
+test("suggestions stay deduplicated, offline, bounded and do not suppress unrelated saved addresses", () => {
+    const unrelated = "RR1 BOX 3241, Elk City, OK 73644";
+    const saved = [
+        { address: STREET_ADDRESS, addressAliases: [RR_ADDRESS] },
+        { address: "11202 N 2020 RD, Elk City, OK 73644" },
+        { address: unrelated },
+        { address: "19 Oak St, Clinton, OK 73601" },
+    ];
+    assert.deepEqual(savedAddressSuggestions(saved, "elk city"), [
+        STREET_ADDRESS,
+        unrelated,
+    ]);
+    assert.deepEqual(savedAddressSuggestions(saved, "", 1), [STREET_ADDRESS]);
+    assert.deepEqual(savedAddressSuggestions(saved, "no match"), []);
+    assert.deepEqual(savedAddressSuggestions(null), []);
+});
+
+test("address suggestion UI uses correction-aware helper without editing saved stops", () => {
+    const fs = require("node:fs");
+    const path = require("node:path");
+    const app = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
+    const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
+    const begin = app.indexOf("function refreshAddressSuggestions() {");
+    const end = app.indexOf("\n// ============================================================================", begin);
+    const method = app.slice(begin, end);
+    assert.ok(begin >= 0 && end > begin);
+    assert.match(method, /savedAddressSuggestions\(\s*jobs,/);
+    assert.match(method, /dl\.replaceChildren\(\)/);
+    assert.doesNotMatch(method, /writeStops|writeJobs|localStorage|addressAliases\s*=/);
+    assert.match(html, /address-corrections\.js\?v=1\.0\.1/);
+    assert.match(html, /app\.js\?v=3\.34\.3/);
 });
