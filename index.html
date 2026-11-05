@@ -4,7 +4,7 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Free Map Router</title>
-        <link rel="stylesheet" href="styles.css?v=1.2.1" />
+        <link rel="stylesheet" href="styles.css?v=1.2.2" />
         <link
             rel="stylesheet"
             href="vendor/leaflet.css?v=1.9.4"
@@ -350,6 +350,33 @@
 
                 <div class="addressViewPane" data-address-view="saved-addresses">
                     <h3>Saved Addresses</h3>
+                    <div class="addressFilters" role="search" aria-label="Filter saved addresses">
+                        <label for="addressSearch">
+                            Search
+                            <input id="addressSearch" type="search" placeholder="Street, town, company or notes" autocomplete="off" />
+                        </label>
+                        <div class="addressFilterRow">
+                            <label for="addressSourceFilter">
+                                Company / source
+                                <select id="addressSourceFilter">
+                                    <option value="All">All companies / sources</option>
+                                </select>
+                            </label>
+                            <label for="addressTownFilter">
+                                Town
+                                <select id="addressTownFilter">
+                                    <option value="All">All towns</option>
+                                </select>
+                            </label>
+                            <label for="addressCountyFilter">
+                                County
+                                <select id="addressCountyFilter">
+                                    <option value="All">All counties</option>
+                                </select>
+                            </label>
+                        </div>
+                        <p id="addressFilterCount" class="tiny muted" aria-live="polite"></p>
+                    </div>
                     <ul id="jobList"></ul>
                 </div>
             </div>
@@ -725,6 +752,7 @@
         <script src="backup.js?v=5.0.0"></script>
         <script src="inbox.js?v=1.6.0"></script>
         <script src="address-corrections.js?v=1.0.0"></script>
+        <script src="address-filters.js?v=1.0.0"></script>
         <script src="https://accounts.google.com/gsi/client" async></script>
         <script src="google-drive.js?v=1.9.1"></script>
         <script src="manual-work-drive.js?v=1.0.0"></script>
@@ -741,7 +769,7 @@
         <script src="route-work-controls.js?v=1.0.0"></script>
         <script src="planner-model.js?v=1.0.0"></script>
         <script src="route-plan-controls.js?v=1.0.0"></script>
-        <script src="app.js?v=3.34.1"></script>
+        <script src="app.js?v=3.34.2"></script>
         <script src="google-route-browser.js?v=1.9.0"></script>
         <script src="garmin-export-ui.js?v=1.1.0"></script>
     </body>
