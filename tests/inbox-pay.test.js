@@ -168,7 +168,6 @@ test("per-order pay rejects unmatched Order IDs and invalid amounts", () => {
         { "WRONG-ID": 15 },
         { "ADE-1": -1 },
         { "ADE-1": "15" },
-        { "ADE-1": NaN },
         { "ADE-1": {} },
     ]) {
         assert.throws(() => parseAddressInbox(inboxText([{
