@@ -171,6 +171,11 @@
             const inspectorAdeCount = routeOrderApi.workbookOrderIdCount(routeOrder);
             const gigCount = routeOrderApi.manualGigIdCount(routeOrder);
             const totalWorkItems = inspectorAdeCount + gigCount;
+            const physicalStops = Array.isArray(routeOrder.stops) ? routeOrder.stops : [];
+            const addressOnlyCount = physicalStops.filter((stop) =>
+                (stop.orderIds || []).length === 0 &&
+                (stop.gigIds || []).length === 0,
+            ).length;
             const routeName =
                 routeOrder.routeSlot === "basic" ? "Basic Route" : "Google Route";
             const dayNumber = routeOrder.routePlan?.dayNumber;
@@ -179,7 +184,9 @@
                 `${routeName} Day ${dayNumber} of ${dayCount} sent: ` +
                 `${inspectorAdeCount} ${plural(inspectorAdeCount, "InspectorADE job")}, ` +
                 `${gigCount} ${plural(gigCount, "manual gig")}, ` +
-                `${totalWorkItems} total ${plural(totalWorkItems, "work item")}.`
+                `${totalWorkItems} total ${plural(totalWorkItems, "work item")}; ` +
+                `${physicalStops.length} physical ${plural(physicalStops.length, "stop")} ` +
+                `(${addressOnlyCount} address-only).`
             );
         }
 
