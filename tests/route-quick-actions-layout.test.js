@@ -24,7 +24,7 @@ test("the entire Route tools dropdown appears directly after route selection, be
     assert.ok(routeHeader >= 0 && routeHeader < open && open < plan);
     assert.match(content, /<summary>Route tools &amp; maintenance<\/summary>/);
     assert.doesNotMatch(html, /class="plannerQuickActions"/);
-    assert.doesNotMatch(content.split("</details>")[0], /<details/);
+    assert.doesNotMatch(content.slice(content.indexOf(">") + 1), /<details/);
 });
 
 test("all route tools retain their original unique IDs inside the same dropdown", () => {
