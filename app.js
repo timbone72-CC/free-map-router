@@ -3112,10 +3112,30 @@ function renderPlannerRouteCards(model) {
     list.appendChild(finish);
 }
 
+function positionCurrentCompletionControl() {
+    const button = els.completeAndNavigateNext;
+    if (!button) return;
+    const firstCard = document.querySelector("#routeList > li.plannerStopCard");
+    const currentActions =
+        firstCard?.dataset.stopId === routeIds[0]
+            ? firstCard.querySelector(".plannerCardActions")
+            : null;
+    const mapOnlyOnPhone =
+        plannerViewMode === "map" &&
+        globalThis.matchMedia?.("(max-width: 760px)")?.matches === true;
+    if (!mapOnlyOnPhone && currentActions) {
+        currentActions.prepend(button);
+    } else {
+        document.querySelector("#routePage .plannerExecutionActions")
+            ?.appendChild(button);
+    }
+}
+
 function renderPlannerPresentation() {
     const { model, plannerError } = activePlannerModel();
     renderPlannerDaySummary(model, plannerError);
     renderPlannerRouteCards(model);
+    positionCurrentCompletionControl();
     renderPlannerMap(model);
     return model;
 }
@@ -3132,6 +3152,7 @@ function setPlannerView(mode) {
             button.dataset.plannerView === plannerViewMode ? "true" : "false",
         );
     }
+    positionCurrentCompletionControl();
     if (plannerViewMode === "map") {
         const { model } = activePlannerModel();
         renderPlannerMap(model);
