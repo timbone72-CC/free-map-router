@@ -2984,6 +2984,15 @@ function plannerCard(card, index, timeZone) {
         renderJobsList();
     });
     actions.append(upBtn, downBtn, removeBtn);
+    // Reuse the existing completion control only on the current first stop.
+    // Reparenting preserves its original Done & Navigate Next event handler.
+    if (
+        index === 0 &&
+        card.stopId === routeIds[0] &&
+        els.completeAndNavigateNext
+    ) {
+        actions.prepend(els.completeAndNavigateNext);
+    }
     li.appendChild(actions);
     li.addEventListener("click", (event) => {
         if (event.target?.closest?.("button")) return;
