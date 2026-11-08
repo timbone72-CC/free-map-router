@@ -14,6 +14,7 @@ class FakeNode {
     constructor(tag) {
         this.tag = tag;
         this.children = [];
+        this.dataset = {};
         this.parent = null;
         this.listeners = {};
         this.classList = { add() {} };
