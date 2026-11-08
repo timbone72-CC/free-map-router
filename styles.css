@@ -417,20 +417,10 @@ li {
     margin-bottom: 0;
 }
 
-/* Keep daily route handoff actions close to the route selector. */
-.plannerQuickActions {
-    margin: 10px 0 12px;
-}
-.plannerQuickActions > .btnRow {
-    gap: 8px;
-    margin: 0;
-}
-.plannerQuickActions #routeMapLinks[hidden],
-.plannerQuickActions #workbookRouteOrderStatus:empty {
-    display: none;
-}
-.plannerQuickActions #workbookRouteOrderStatus:not(:empty) {
-    margin: 8px 0 0;
+/* Compact the moved tools dropdown when closed, keep regular controls on open. */
+.plannerContext > .plannerUtilities {
+    margin: 8px 0 12px;
+    padding: 10px 12px;
 }
 
 .plannerWorkday {
