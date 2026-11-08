@@ -785,6 +785,7 @@
                 optimizationStatus: snapshot.optimizationStatus,
                 orderIdsByStopId: snapshot.orderIdsByStopId,
                 workbookPayByStopId: snapshot.workbookPayByStopId,
+                workbookPayByOrderId: snapshot.workbookPayByOrderId,
                 gigIdsByStopId: snapshot.gigIdsByStopId,
                 gigManagedStopIds: snapshot.gigManagedStopIds,
             });
@@ -1358,6 +1359,8 @@
                     orderIdsByStopId: existing?.orderIdsByStopId,
                     workbookPayByStopId:
                         existing?.workbookPayByStopId,
+                    workbookPayByOrderId:
+                        existing?.workbookPayByOrderId,
                     gigIdsByStopId: existing?.gigIdsByStopId,
                     gigManagedStopIds: existing?.gigManagedStopIds,
                     schedule: null,
@@ -1499,6 +1502,7 @@
                     routeIds,
                     orderIdsByStopId,
                     workbookPayByStopId,
+                    workbookPayByOrderId: snapshot.workbookPayByOrderId,
                     gigIdsByStopId,
                     gigManagedStopIds: routeIds.filter(
                         (stopId) => managedState[stopId] === true,
@@ -1745,6 +1749,8 @@
                                 existing?.orderIdsByStopId || {},
                             workbookPayByStopId:
                                 existing?.workbookPayByStopId || {},
+                            workbookPayByOrderId:
+                                existing?.workbookPayByOrderId || {},
                             gigIdsByStopId,
                             gigManagedStopIds: Array.from(managed),
                             schedule: null,
