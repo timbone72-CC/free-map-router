@@ -766,6 +766,15 @@
             bridge.setRouteStatus(String(message || ""));
         }
 
+        function setOptimizationStatus(message) {
+            const value = String(message || "");
+            if (typeof bridge.setOptimizerFeedback === "function") {
+                bridge.setOptimizerFeedback(value);
+            } else {
+                setStatus(value);
+            }
+        }
+
         function showSignInControl(show) {
             signInContainer.hidden = !show;
         }
@@ -905,12 +914,12 @@
         optimizeButton.disabled = true;
         optimizeButton.addEventListener("click", async () => {
             if (!idToken) {
-                setStatus("Sign in with the company Google account first.");
+                setOptimizationStatus("Sign in with the company Google account first.");
                 return;
             }
 
             optimizeButton.disabled = true;
-            setStatus("Preparing work times and selected addresses for Google…");
+            setOptimizationStatus("Preparing work times and selected addresses for Google…");
 
             try {
                 const workdayContext = runtimeRoot?.FMRWorkdayContext;
@@ -922,7 +931,7 @@
                     root: runtimeRoot,
                     enforceHomeBy,
                 });
-                setStatus(
+                setOptimizationStatus(
                     enforceHomeBy
                         ? "Google is calculating the traffic-aware workday…"
                         : "Google is calculating the traffic-aware route with the Home By limit off…",
@@ -966,7 +975,7 @@
                 }
 
                 const metrics = formatMetrics(result.response);
-                setStatus(
+                setOptimizationStatus(
                     `Google road route applied to ${routeIds.length} stops.` +
                         (metrics ? ` ${metrics}.` : "") +
                         scheduleOutcome +
@@ -975,7 +984,7 @@
                             : " Home By limit off."),
                 );
             } catch (error) {
-                setStatus(error?.message || "Google road optimization failed.");
+                setOptimizationStatus(error?.message || "Google road optimization failed.");
                 if (error?.statusCode === 401 || error?.statusCode === 403) {
                     rejectGoogleIdentity(error);
                 }

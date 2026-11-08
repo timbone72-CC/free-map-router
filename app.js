@@ -500,6 +500,7 @@ const els = {
     ),
     startNewRoute: document.getElementById("startNewRoute"),
     routeStatus: document.getElementById("routeStatus"),
+    routeOptimizeFeedback: document.getElementById("routeOptimizeFeedback"),
     routeMapLinks: document.getElementById("routeMapLinks"),
     clearRoute: document.getElementById("clearRoute"),
     startRouteNavigation: document.getElementById("startRouteNavigation"),
@@ -1578,9 +1579,21 @@ async function prepareMissingRouteCoordinates(
         .filter(Boolean);
 }
 
+function writeOptimizationFeedback(message) {
+    const value = String(message || "");
+    if (els.routeOptimizeFeedback) {
+        els.routeOptimizeFeedback.textContent = value;
+    }
+    if (els.routeStatus) {
+        els.routeStatus.textContent = value;
+    }
+}
+
 async function optimizeSelectedRoute() {
+    writeOptimizationFeedback("Preparing Basic Route…");
     const basicRouteIds = routeHistory.basic?.routeIds.slice() || [];
     if (basicRouteIds.length < 2) {
+        writeOptimizationFeedback("Select at least 2 addresses to optimize.");
         alert("Select at least 2 addresses to optimize.");
         return;
     }
@@ -1590,6 +1603,7 @@ async function optimizeSelectedRoute() {
         .filter(Boolean);
 
     if (home?.latitude == null || home?.longitude == null) {
+        writeOptimizationFeedback("Verify the Home location before optimizing the route.");
         alert("Verify the Home location before optimizing the route.");
         showPage("home");
         return;
@@ -1600,8 +1614,10 @@ async function optimizeSelectedRoute() {
     );
 
     if (missingCoords.length > 0) {
+        writeOptimizationFeedback("Finding missing stop locations for Basic Route…");
         const apiKey = readGeoapifyKey(localStorage);
         if (!apiKey) {
+            writeOptimizationFeedback("Save the Geoapify key in Settings first.");
             alert("Save the Geoapify key in Settings first.");
             showPage("settings");
             return;
@@ -1617,16 +1633,16 @@ async function optimizeSelectedRoute() {
         } catch (error) {
             writeJobs(jobs);
             renderAll();
-            if (els.routeStatus) {
-                els.routeStatus.textContent =
-                    error?.message || "A location could not be prepared.";
-            }
+            writeOptimizationFeedback(
+                error?.message || "A location could not be prepared.",
+            );
             return;
         } finally {
             els.optimizeRoute.disabled = false;
         }
     }
 
+    writeOptimizationFeedback("Optimizing Basic Route…");
     const ordered = optimizeRoundTripOrder(home, selected);
     const optimizedBasicRouteIds = ordered.map((j) => j.id);
     persistRouteSlot(
@@ -1639,15 +1655,14 @@ async function optimizeSelectedRoute() {
     renderRouteList();
     renderJobsList();
     renderRouteChoice();
-    if (els.routeStatus) {
-        const sections = buildGoogleMapsRouteSections(home, ordered);
-        const mapsReady =
-            sections.length > 1
-                ? ` ${sections.length} numbered Google Maps sections are ready below.`
-                : "";
-        els.routeStatus.textContent =
-            `Basic Route optimized with ${selected.length} address${selected.length === 1 ? "" : "es"} and selected. Google Route was kept.${mapsReady}`;
-    }
+    const sections = buildGoogleMapsRouteSections(home, ordered);
+    const mapsReady =
+        sections.length > 1
+            ? ` ${sections.length} numbered Google Maps sections are ready below.`
+            : "";
+    writeOptimizationFeedback(
+        `Basic Route optimized with ${selected.length} address${selected.length === 1 ? "" : "es"} and selected. Google Route was kept.${mapsReady}`,
+    );
 }
 
 function exportToGoogleMaps() {
@@ -2498,6 +2513,10 @@ globalThis.FMRRouteBridge = Object.freeze({
         if (els.routeStatus) {
             els.routeStatus.textContent = String(message || "");
         }
+    },
+
+    setOptimizerFeedback(message) {
+        writeOptimizationFeedback(message);
     },
 });
 

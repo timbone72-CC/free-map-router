@@ -402,6 +402,25 @@
 
                 <details class="plannerUtilities">
                     <summary>Route tools &amp; maintenance</summary>
+                    <div class="plannerOptimizeControls" aria-label="Route optimization">
+                        <p class="tiny"><strong>Optimize your route</strong></p>
+                        <div class="btnRow">
+                            <button id="optimizeRoute" type="button" class="btn btnSmall">
+                                Optimize Basic Route
+                            </button>
+                            <button
+                                id="googleOptimizeRoute"
+                                type="button"
+                                class="btn btnSmall"
+                                disabled
+                            >
+                                Optimize Google Route
+                            </button>
+                        </div>
+                        <p id="routeOptimizeFeedback" class="tiny muted" role="status" aria-live="polite" aria-atomic="true">
+                            Optimization progress and results appear here.
+                        </p>
+                    </div>
                     <div class="btnRow">
                         <button id="exportRoute" type="button" class="btn btnSmall">
                             Open in Google Maps
@@ -461,6 +480,11 @@
                         without deleting the other kind of work or the saved addresses.
                     </p>
                 </details>
+                <div id="googleRouteSignIn" class="googleRouteSignIn"></div>
+                <p id="googleRouteAuthStatus" class="tiny muted">
+                    Google road optimization requires the approved company Google
+                    account.
+                </p>
 
                 <div id="routePlanControls" class="panel">
                     <div class="inlineHeader">
@@ -576,24 +600,6 @@
 
             <section class="plannerActionSection" aria-labelledby="routeActionsHeading">
                 <h3 id="routeActionsHeading">Route Actions</h3>
-                <div class="btnRow">
-                    <button id="optimizeRoute" type="button" class="btn btnSmall">
-                        Optimize Basic Route
-                    </button>
-                    <button
-                        id="googleOptimizeRoute"
-                        type="button"
-                        class="btn btnSmall"
-                        disabled
-                    >
-                        Optimize Google Route
-                    </button>
-                </div>
-                <div id="googleRouteSignIn" class="googleRouteSignIn"></div>
-                <p id="googleRouteAuthStatus" class="tiny muted">
-                    Google road optimization requires the approved company Google
-                    account.
-                </p>
                 <div class="btnRow plannerExecutionActions">
                     <button
                         id="startRouteNavigation"
@@ -770,8 +776,8 @@
         <script src="route-work-controls.js?v=1.0.0"></script>
         <script src="planner-model.js?v=1.0.0"></script>
         <script src="route-plan-controls.js?v=1.0.0"></script>
-        <script src="app.js?v=3.34.3"></script>
-        <script src="google-route-browser.js?v=1.9.0"></script>
+        <script src="app.js?v=3.34.4"></script>
+        <script src="google-route-browser.js?v=1.9.1"></script>
         <script src="garmin-export-ui.js?v=1.1.0"></script>
     </body>
 </html>
