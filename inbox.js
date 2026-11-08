@@ -76,6 +76,33 @@
             };
         }
 
+        function normalizePayByOrderId(raw, orderIds) {
+            if (raw === undefined) return {};
+            if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+                throw new Error("The workbook inbox has invalid per-order pay.");
+            }
+            const result = {};
+            for (const [orderId, amount] of Object.entries(raw)) {
+                if (!orderIds.includes(orderId) || !orderId || orderId === "__proto__") {
+                    throw new Error("The workbook inbox has an unmatched pay Order ID.");
+                }
+                if (amount === null) {
+                    Object.defineProperty(result, orderId, {
+                        value: null, enumerable: true, writable: true, configurable: true,
+                    });
+                    continue;
+                }
+                if (typeof amount !== "number" || !Number.isFinite(amount) || amount < 0) {
+                    throw new Error("The workbook inbox has invalid per-order pay.");
+                }
+                Object.defineProperty(result, orderId, {
+                    value: Math.round((amount + Number.EPSILON) * 100) / 100,
+                    enumerable: true, writable: true, configurable: true,
+                });
+            }
+            return result;
+        }
+
         function mergeExpectedPay(left, right) {
             if (!left && !right) return null;
             if (!left) return { ...right };
@@ -125,6 +152,7 @@
                 const stop = {
                     ...normalizedStop,
                     orderIds: normalizeOrderIds(raw?.orderIds),
+                    payByOrderId: normalizePayByOrderId(raw?.payByOrderId, normalizeOrderIds(raw?.orderIds)),
                     ...(pay || {}),
                 };
 
@@ -168,6 +196,7 @@
                 result[index] = {
                     ...merged,
                     orderIds,
+                    payByOrderId: { ...(existing.payByOrderId || {}), ...(stop.payByOrderId || {}) },
                     originalAddresses,
                     originalAddressKeys,
                     ...(combinedPay || {}),
@@ -324,6 +353,7 @@
                     ...aliasOwner,
                     source: incoming.source || aliasOwner.source,
                     orderIds: incoming.orderIds.slice(),
+                    payByOrderId: { ...(incoming.payByOrderId || {}) },
                     originalAddresses: [
                         ...(incoming.originalAddresses || []),
                     ],
@@ -343,6 +373,7 @@
             const routeIds = [];
             const orderIdsByStopId = {};
             const workbookPayByStopId = {};
+            const workbookPayByOrderId = {};
             const selected = new Set();
 
             for (const stop of resolvedIncomingStops) {
@@ -360,6 +391,14 @@
                     orderIdsByStopId[id] = combinedOrderIds;
                 }
 
+                for (const [orderId, amount] of Object.entries(stop.payByOrderId || {})) {
+                    if (Object.hasOwn(workbookPayByOrderId, orderId) && workbookPayByOrderId[orderId] !== amount) {
+                        throw new Error("Conflicting expected pay for the same workbook Order ID.");
+                    }
+                    Object.defineProperty(workbookPayByOrderId, orderId, {
+                        value: amount, enumerable: true, writable: true, configurable: true,
+                    });
+                }
                 const pay = normalizedExpectedPay(stop);
                 if (pay) {
                     workbookPayByStopId[id] = mergeExpectedPay(
@@ -374,6 +413,7 @@
                 routeIds,
                 orderIdsByStopId,
                 workbookPayByStopId,
+                workbookPayByOrderId,
                 importedCount: routeIds.length,
             };
         }
