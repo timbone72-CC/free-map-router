@@ -137,6 +137,37 @@
         return result;
     }
 
+    // Date metadata is scoped to exact workbook Order IDs in this snapshot.
+    // Older snapshots without dates remain valid, and removed work loses its date.
+    function normalizedWorkbookDueDates(value, orderIdsByStopId) {
+        const representedIds = new Set(
+            Object.values(orderIdsByStopId).flat(),
+        );
+        const dates = {};
+        const source =
+            value && typeof value === "object" && !Array.isArray(value)
+                ? value
+                : {};
+        for (const [orderId, rawDate] of Object.entries(source)) {
+            if (!representedIds.has(orderId)) continue;
+            try {
+                const dueDate = normalizedCalendarDate(
+                    rawDate,
+                    "Workbook work-order due date",
+                );
+                Object.defineProperty(dates, orderId, {
+                    value: dueDate,
+                    enumerable: true,
+                    configurable: true,
+                    writable: true,
+                });
+            } catch {
+                // Damaged optional metadata must not invalidate a saved route.
+            }
+        }
+        return dates;
+    }
+
     function normalizedWorkbookPayMap(value, routeIds) {
         const source = value && typeof value === "object" ? value : {};
         const result = {};
@@ -239,6 +270,11 @@
             ? normalizedTimestamp(value.sourceUpdatedAt, "Route source timestamp")
             : null;
         if (routeIds.length === 0 && !sourceUpdatedAt) return null;
+        const orderIdsByStopId = normalizedStringMap(
+            value.orderIdsByStopId,
+            routeIds,
+            "Workbook Order ID",
+        );
         return {
             routeIds,
             sourceUpdatedAt,
@@ -246,10 +282,10 @@
                 routeIds.length === 0
                     ? "not_optimized"
                     : normalizedOptimizationStatus(value.optimizationStatus),
-            orderIdsByStopId: normalizedStringMap(
-                value.orderIdsByStopId,
-                routeIds,
-                "Workbook Order ID",
+            orderIdsByStopId,
+            workbookDueDatesByOrderId: normalizedWorkbookDueDates(
+                value.workbookDueDatesByOrderId,
+                orderIdsByStopId,
             ),
             workbookPayByStopId: normalizedWorkbookPayMap(
                 value.workbookPayByStopId,
