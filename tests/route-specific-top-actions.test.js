@@ -18,13 +18,18 @@ function sectionBetween(start, end) {
     return html.slice(a, b);
 }
 
-test("shared driving actions sit below route selector and above Route Tools", () => {
+test("shared driving actions sit immediately above Today's Route, below the summary", () => {
     const header = html.indexOf('class="inlineHeader plannerRouteHeader"');
-    const driving = html.indexOf('<section class="plannerActionSection"');
     const tools = html.indexOf('<details class="plannerUtilities">');
-    const surface = html.indexOf('class="plannerSurface"');
+    const summary = html.indexOf('id="plannerSummaryDetails"');
+    const driving = html.indexOf('<section class="plannerActionSection"');
+    const surface = html.indexOf('<section class="plannerSurface"');
+    const drivingClose = html.indexOf("</section>", driving);
 
-    assert.ok(header >= 0 && header < driving && driving < tools && tools < surface);
+    assert.ok(header >= 0 && header < tools && tools < summary);
+    assert.ok(summary < driving && driving < drivingClose && drivingClose < surface);
+    assert.equal(html.slice(drivingClose + "</section>".length, surface).trim(), "",
+        "driving controls must appear directly above Today's Route");
     const controls = sectionBetween('<section class="plannerActionSection"', "</section>");
     for (const id of [
         "startRouteNavigation",
