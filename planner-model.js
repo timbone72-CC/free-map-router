@@ -368,6 +368,12 @@
                 ? input.workItemDetails
                 : {};
 
+        const workbookDueDates =
+            routeSnapshot.workbookDueDatesByOrderId &&
+            typeof routeSnapshot.workbookDueDatesByOrderId === "object"
+                ? routeSnapshot.workbookDueDatesByOrderId
+                : {};
+
         let schedule = copiedCurrentSchedule(
             slot,
             routeSnapshot,
@@ -387,6 +393,10 @@
                 ...primitiveWorkItemDetail(
                     workItemDetails[workItemKey(item.kind, item.workItemId)],
                 ),
+                ...(item.kind === "workbook" &&
+                Object.hasOwn(workbookDueDates, item.workItemId)
+                    ? { dueDate: workbookDueDates[item.workItemId] }
+                    : {}),
             }));
 
             return {
