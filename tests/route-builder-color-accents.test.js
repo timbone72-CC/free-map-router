@@ -48,7 +48,7 @@ test("Route Builder has distinct colors for sections, optimizers, and visible pr
     assert.match(accents, /#routePage #routeOptimizeFeedback\s*\{[^}]*background:/s);
     assert.match(accents, /#routePage #optimizeRoute\s*\{[^}]*color:\s*#fff/s);
     assert.match(accents, /#routePage #googleOptimizeRoute\s*\{[^}]*color:\s*#fff/s);
-    assert.match(html, /styles\.css\?v=1\.2\.6/);
+    assert.match(html, /styles\.css\?v=1\.2\.7/);
     assert.match(html, /id="routePage"/);
     assert.match(html, /id="routeOptimizeFeedback"/);
 });
