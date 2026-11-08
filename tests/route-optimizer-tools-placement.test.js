@@ -52,7 +52,7 @@ test("general route status remains outside the dropdown for non-optimization act
 
 test("Basic optimization updates the new live feedback and previous route status", () => {
     assert.match(app, /routeOptimizeFeedback: document\.getElementById\("routeOptimizeFeedback"\)/);
-    assert.match(app, /function writeOptimizationFeedback\(message\)/);
+    assert.match(app, /function writeOptimizationFeedback\(message, slot = activeRouteSlot\)/);
     assert.match(app, /els\.routeOptimizeFeedback\.textContent = value;/);
     assert.match(app, /els\.routeStatus\.textContent = value;/);
     const basic = app.slice(app.indexOf("async function optimizeSelectedRoute()"), app.indexOf("function exportToGoogleMaps()"));
