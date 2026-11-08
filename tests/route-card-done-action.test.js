@@ -104,6 +104,38 @@ test("no Done button on any non-current stop, even if supplied as first card", (
     assert.equal(done.parent, null);
 });
 
+test("same Done control stays accessible on mobile Map as well as the current List card", () => {
+    const { sandbox, done, onDone } = setup();
+    const first = sandbox.makeCard({ stopId: "first" }, 0, "UTC");
+    const actions = cardActions(first);
+    first.querySelector = (selector) => selector === ".plannerCardActions" ? actions : null;
+    const topDrivingActions = new FakeNode("div");
+    sandbox.document.querySelector = (selector) => {
+        if (selector === "#routeList > li.plannerStopCard") return first;
+        if (selector === "#routePage .plannerExecutionActions") return topDrivingActions;
+        return null;
+    };
+    sandbox.matchMedia = () => ({ matches: true });
+    const begin = app.indexOf("function positionCurrentCompletionControl()");
+    const end = app.indexOf("function renderPlannerPresentation()", begin);
+    assert.ok(begin >= 0 && end > begin, "view-based completion placement exists");
+    vm.runInNewContext(app.slice(begin, end) + "\nthis.positionDone = positionCurrentCompletionControl;", sandbox);
+
+    sandbox.plannerViewMode = "list";
+    sandbox.positionDone();
+    assert.equal(done.parent, actions, "List mode puts Done inside first card");
+    sandbox.plannerViewMode = "map";
+    sandbox.positionDone();
+    assert.equal(done.parent, topDrivingActions, "Map mode keeps Done visible above route");
+    sandbox.plannerViewMode = "list";
+    sandbox.positionDone();
+    assert.equal(done.parent, actions, "returning to List restores the same Done button");
+    assert.equal(done.listeners.click, onDone, "no second completion handler was created");
+
+    assert.match(app, /renderPlannerRouteCards\(model\);\s*positionCurrentCompletionControl\(\);/);
+    assert.match(app, /function setPlannerView\(mode\)[\s\S]*?positionCurrentCompletionControl\(\);/);
+});
+
 test("the existing global Done control and completion function remain unchanged", () => {
     assert.equal(html.split('id="completeAndNavigateNext"').length - 1, 1);
     assert.match(app, /els\.completeAndNavigateNext\.addEventListener\(\s*"click",\s*completeCurrentStopAndNavigate,\s*\);/);
