@@ -828,6 +828,27 @@ li {
     }
 }
 
+/* Route-specific tools: keep shared navigation near the selected route. */
+#routePage .plannerContext > .plannerActionSection {
+    margin: 10px 0 12px;
+    background: #f6fbf9;
+}
+
+#routePage .plannerContext > .plannerActionSection h3 {
+    margin: 0 0 8px;
+    color: #174f48;
+}
+
+#routePage[data-active-route="google"] #optimizeRoute {
+    display: none;
+}
+
+#routePage[data-active-route="basic"] #googleOptimizeRoute,
+#routePage[data-active-route="basic"] #googleRouteSignIn,
+#routePage[data-active-route="basic"] #googleRouteAuthStatus {
+    display: none;
+}
+
 /* Route Builder color accents: presentation only; other pages keep their existing theme. */
 #routePage {
     border-color: #c9dae8;

@@ -334,6 +334,7 @@ let routeHistory = readRouteHistory(
     new Set(jobs.map((job) => job.id)),
 );
 let activeRouteSlot = "google";
+const optimizerFeedbackByRoute = { google: "", basic: "" };
 let routeIds = routeHistory.google?.routeIds.slice() || [];
 let editingJobId = null;
 let formPinStatus = "unverified";
@@ -485,6 +486,7 @@ const els = {
     addressFilterCount: document.getElementById("addressFilterCount"),
     routeList: document.getElementById("routeList"),
     routeChoice: document.getElementById("routeChoice"),
+    routePage: document.getElementById("routePage"),
     checkWorkbookRoute: document.getElementById("checkWorkbookRoute"),
     routeOptimizationStatus: document.getElementById(
         "routeOptimizationStatus",
@@ -1074,6 +1076,14 @@ function confirmRouteSwitchIfNeeded(requested) {
 function renderRouteChoice() {
     if (!els.routeChoice) return;
     els.routeChoice.value = activeRouteSlot;
+    if (els.routePage) {
+        els.routePage.dataset.activeRoute = activeRouteSlot;
+    }
+    if (els.routeOptimizeFeedback) {
+        els.routeOptimizeFeedback.textContent =
+            optimizerFeedbackByRoute[activeRouteSlot] ||
+            "Optimization progress and results appear here.";
+    }
     const googleOption = els.routeChoice.querySelector(
         'option[value="google"]',
     );
@@ -1579,8 +1589,11 @@ async function prepareMissingRouteCoordinates(
         .filter(Boolean);
 }
 
-function writeOptimizationFeedback(message) {
+function writeOptimizationFeedback(message, slot = activeRouteSlot) {
+    const targetSlot = slot === "basic" ? "basic" : "google";
     const value = String(message || "");
+    optimizerFeedbackByRoute[targetSlot] = value;
+    if (targetSlot !== activeRouteSlot) return;
     if (els.routeOptimizeFeedback) {
         els.routeOptimizeFeedback.textContent = value;
     }
@@ -2516,7 +2529,7 @@ globalThis.FMRRouteBridge = Object.freeze({
     },
 
     setOptimizerFeedback(message) {
-        writeOptimizationFeedback(message);
+        writeOptimizationFeedback(message, "google");
     },
 });
 
