@@ -22,20 +22,22 @@ test("both optimizers and Google sign-in live near the top inside route tools", 
     const tools = routeTools();
     const optimizer = tools.indexOf('id="optimizeRoute"');
     const google = tools.indexOf('id="googleOptimizeRoute"');
-    const signIn = tools.indexOf('id="googleRouteSignIn"');
-    const auth = tools.indexOf('id="googleRouteAuthStatus"');
     const progress = tools.indexOf('id="routeOptimizeFeedback"');
     const otherTools = tools.indexOf('id="exportRoute"');
 
     assert.ok(optimizer > 0 && google > optimizer);
-    assert.ok(signIn > google && auth > signIn && progress > auth);
-    assert.ok(otherTools > progress, "optimizer feedback appears before maintenance tools");
+    assert.ok(progress > google && otherTools > progress,
+        "optimizer feedback appears immediately before maintenance tools");
     for (const id of [
         "optimizeRoute", "googleOptimizeRoute", "googleRouteSignIn",
         "googleRouteAuthStatus", "routeOptimizeFeedback",
     ]) {
         assert.equal(html.split('id="' + id + '"').length - 1, 1, id + " stays unique");
     }
+    assert.ok(html.indexOf('id="googleRouteSignIn"') > html.indexOf("</details>"));
+    assert.ok(html.indexOf('id="googleRouteSignIn"') < html.indexOf('id="routePlanControls"'));
+    assert.doesNotMatch(tools, /id="googleRouteSignIn"/,
+        "sign-in remains renderable even when dropdown is closed");
     assert.match(tools, /id="routeOptimizeFeedback"[^>]*role="status"[^>]*aria-live="polite"/);
     assert.ok(html.indexOf('id="routePlanControls"') > html.indexOf('<details class="plannerUtilities">'));
 });
