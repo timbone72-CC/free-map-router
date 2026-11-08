@@ -41,7 +41,8 @@ test("shared driving actions sit below route selector and above Route Tools", ()
 });
 
 test("both optimizers retain unique IDs; only selected route is shown", () => {
-    assert.match(html, /id="routePage"[^>]*data-active-route="google"/);
+    assert.match(html, /id="routePage" class="section appPage" data-page="route" hidden/);
+    assert.match(app, /els\.routePage\.dataset\.activeRoute = activeRouteSlot;/);
     const tools = sectionBetween('<details class="plannerUtilities">', "</details>");
     for (const id of ["optimizeRoute", "googleOptimizeRoute", "routeOptimizeFeedback"]) {
         assert.match(tools, new RegExp('id="' + id + '"'));
