@@ -33,7 +33,7 @@ function savedStops() {
         { id: "s1", address: "100 First St" },
         { id: "s2", address: "200 Second St" },
         { id: "s3", address: "300 Manual St" },
-        { id: "s4", address: "400 App Only St" },
+        { id: "s4", address: "12261 US-283, Sayre, OK" },
     ];
 }
 
@@ -99,7 +99,7 @@ function buildFor(history, slot = "google", now = "2026-09-09T13:00:00.000Z") {
     });
 }
 
-test("real multi-day Route Plan emits only the active Day with exact v2 metadata and visible numbering gaps", () => {
+test("real multi-day Route Plan returns the complete active Day including an address-only Sayre stop", () => {
     const history = multiDayHistory();
     const routeOrder = buildFor(history);
 
@@ -127,12 +127,18 @@ test("real multi-day Route Plan emits only the active Day with exact v2 metadata
             orderIds: ["ORDER-A", "ORDER-B"],
         },
         {
+            stopNumber: 2,
+            address: "12261 US-283, Sayre, OK",
+            orderIds: [],
+        },
+        {
             stopNumber: 3,
             address: "300 Manual St",
             orderIds: [],
             gigIds: ["GIG-1"],
         },
     ]);
+    assert.equal(routeOrder.stops.length, 3);
     assert.equal(workbookOrderIdCount(routeOrder), 2);
     assert.equal(manualGigIdCount(routeOrder), 1);
     assert.equal(JSON.stringify(routeOrder).includes("ORDER-C"), false);
@@ -190,11 +196,54 @@ test("active-Day Basic return uses the Basic snapshot order and status", () => {
             gigIds: ["GIG-1"],
         },
         {
+            stopNumber: 2,
+            address: "12261 US-283, Sayre, OK",
+            orderIds: [],
+        },
+        {
             stopNumber: 3,
             address: "100 First St",
             orderIds: ["ORDER-A", "ORDER-B"],
         },
     ]);
+});
+
+test("a route made only of standalone addresses returns physical stops without invented work identities", () => {
+    const history = RouteHistory.normalizeRouteHistory({
+        version: 6,
+        dayContext: dayContext(),
+        google: { routeIds: ["s4"] },
+        basic: { routeIds: ["s4"] },
+    }, new Set(savedStops().map((stop) => stop.id)));
+    const routeOrder = buildActiveDayWorkbookRouteOrder({
+        routeSlot: "google",
+        routeHistory: history,
+        routeStops: [{ id: "s4", address: "12261 US-283, Sayre, OK" }],
+        now: "2026-09-09T13:00:00.000Z",
+    });
+    assert.equal(routeOrder.sourceUpdatedAt, null);
+    assert.deepEqual(routeOrder.stops, [{
+        stopNumber: 1,
+        address: "12261 US-283, Sayre, OK",
+        orderIds: [],
+    }]);
+    assert.equal(workbookOrderIdCount(routeOrder), 0);
+    assert.equal(manualGigIdCount(routeOrder), 0);
+});
+
+test("an active-Day stop with a missing saved address fails before sending the handoff", () => {
+    const history = multiDayHistory();
+    const current = stopsFor(history.google.routeIds);
+    current[1].address = "";
+    assert.throws(
+        () => buildActiveDayWorkbookRouteOrder({
+            routeSlot: "google",
+            routeHistory: history,
+            routeStops: current,
+            now: "2026-09-09T13:00:00.000Z",
+        }),
+        /has no saved address/,
+    );
 });
 
 test("active-Day producer refuses omitted, reordered, or inactive displayed stops before creating an artifact", () => {
@@ -366,7 +415,9 @@ test("actual Send control path writes the same-send gig handoff before the activ
                 return "drive-token";
             },
             async saveRouteOrderToDrive(token, routeOrder) {
-                writes.push({ kind: "route", token, routeOrder });
+                // Match google-drive.js serialization, without touching Drive.
+                const contents = JSON.stringify(routeOrder, null, 2);
+                writes.push({ kind: "route", token, routeOrder, contents });
             },
         },
         gigHandoffApi: {
@@ -420,13 +471,21 @@ test("actual Send control path writes the same-send gig handoff before the activ
     assert.deepEqual(writes[0].handoff.gigs.map((gig) => gig.gigId), ["GIG-1"]);
     assert.equal(writes[1].routeOrder.routeOrderVersion, 2);
     assert.equal(writes[1].routeOrder.routePlan.dayNumber, 1);
+    const returnedArtifact = JSON.parse(writes[1].contents);
+    assert.equal(returnedArtifact.routeScope, "active_day");
+    assert.deepEqual(returnedArtifact.stops, [
+        { stopNumber: 1, address: "100 First St", orderIds: ["ORDER-A", "ORDER-B"] },
+        { stopNumber: 2, address: "12261 US-283, Sayre, OK", orderIds: [] },
+        { stopNumber: 3, address: "300 Manual St", orderIds: [], gigIds: ["GIG-1"] },
+    ]);
     assert.match(status.textContent, /2 InspectorADE jobs/);
     assert.match(status.textContent, /1 manual gig/);
     assert.match(status.textContent, /3 total work items/);
+    assert.match(status.textContent, /3 physical stops \(1 address-only\)/);
 
     const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
-    const routeOrderIndex = html.indexOf("route-order.js?v=1.2.0");
-    const routeOrderUiIndex = html.indexOf("route-order-ui.js?v=1.2.0");
+    const routeOrderIndex = html.indexOf("route-order.js?v=1.2.1");
+    const routeOrderUiIndex = html.indexOf("route-order-ui.js?v=1.2.1");
     const appIndex = html.indexOf("app.js?v=3.34.3");
     assert.ok(routeOrderIndex >= 0);
     assert.ok(routeOrderUiIndex > routeOrderIndex);

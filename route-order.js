@@ -213,7 +213,14 @@
                 const gigIds = Array.isArray(snapshot.gigIdsByStopId?.[stopId])
                     ? snapshot.gigIdsByStopId[stopId].slice()
                     : [];
-                if (orderIds.length === 0 && gigIds.length === 0) return;
+                // An address-only physical stop still belongs in the printed
+                // active Day. It must never be given an invented work identity.
+                const address = text(stop?.address);
+                if (!address) {
+                    throw new Error(
+                        `Active-Day route stop ${index + 1} has no saved address. Refresh Build Route and try again.`,
+                    );
+                }
 
                 for (const orderId of orderIds) {
                     if (usedOrderIds.has(orderId)) {
@@ -234,7 +241,7 @@
 
                 const returnedStop = {
                     stopNumber: index + 1,
-                    address: text(stop?.address),
+                    address,
                     orderIds,
                 };
                 if (gigIds.length > 0) returnedStop.gigIds = gigIds;
@@ -242,9 +249,7 @@
             });
 
             if (stops.length === 0) {
-                throw new Error(
-                    "This active Day has no workbook jobs or manual gigs to send.",
-                );
+                throw new Error("This active Day has no physical stops to send.");
             }
             return stops;
         }

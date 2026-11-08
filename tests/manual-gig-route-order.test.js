@@ -102,7 +102,7 @@ test("real workbook-start route state reaches the route-order artifact with the 
 });
 
 test("the live page cache-busts the Phase 2J route-order module", () => {
-    assert.match(indexHtml, /route-order\.js\?v=1\.2\.0/);
+    assert.match(indexHtml, /route-order\.js\?v=1\.2\.1/);
     assert.doesNotMatch(indexHtml, /route-order\.js\?v=1\.1\.0/);
 });
 

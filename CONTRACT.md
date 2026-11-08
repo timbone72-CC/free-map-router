@@ -257,15 +257,16 @@ versions of one job route, and opens the selected version in Google Maps.
     across reloads and backups. Up or Down after optimization marks only that
     selected route as manually changed; Start New Route creates both route
     versions as not optimized before any included manual-gig stops are reapplied.
-21. The route-order return uses the visible stop positions, including any gaps
-    caused by app-only stops, and sends every real workbook Order ID plus every
-    routed manual `Gig_ID` attached to each physical stop. It never guesses an
-    Order ID or Gig ID from address text. A returned stop may contain workbook
-    work, manual-gig work, or both. The button stops with a clear message when
-    the displayed route contains neither kind of work, when one Order ID
-    identifies more than one physical stop, or when one Gig ID identifies more
-    than one physical stop. A manual-gig-only return may omit workbook source
-    time because there is no workbook inbox snapshot to identify.
+21. The active-Day version-2 route-order return includes **every physical stop
+    in the displayed Google or Basic route** in its visible order, including
+    standalone address-only stops with no workbook Order ID or manual `Gig_ID`.
+    Every real Order ID and routed Gig ID remains attached to its own physical
+    stop; neither is invented from address text. A standalone address-only stop
+    is printable route context, not a new workbook job, manual gig, or work
+    item. The legacy version-1 return still requires real work identities and
+    keeps its original behavior. The send refuses missing stop addresses,
+    repeated Order IDs/Gig IDs across stops, or stale active-Day source data.
+    An active-Day route without workbook work may omit workbook source time.
 22. Correcting or de-duplicating a workbook-linked stop preserves its Order IDs
     in the pending, Google, and Basic snapshots. When an existing duplicate is
     merged, every affected snapshot is remapped to the retained workbook stop
