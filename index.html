@@ -4,7 +4,7 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Free Map Router</title>
-        <link rel="stylesheet" href="styles.css?v=1.2.2" />
+        <link rel="stylesheet" href="styles.css?v=1.2.3" />
         <link
             rel="stylesheet"
             href="vendor/leaflet.css?v=1.9.4"
@@ -400,6 +400,31 @@
                     </p>
                 </div>
 
+                <div class="plannerQuickActions" role="group" aria-label="Quick route actions">
+                    <div class="btnRow">
+                        <button id="exportRoute" type="button" class="btn btnSmall">
+                            Open in Google Maps
+                        </button>
+                        <button
+                            id="sendRouteOrder"
+                            type="button"
+                            class="btn btnSmall"
+                            disabled
+                        >
+                            Send Route Order to Workbook
+                        </button>
+                        <button
+                            id="checkWorkbookRoute"
+                            type="button"
+                            class="btn btnSmall"
+                        >
+                            Check Workbook Route
+                        </button>
+                    </div>
+                    <div id="routeMapLinks" class="btnRow" hidden></div>
+                    <p id="workbookRouteOrderStatus" class="tiny muted"></p>
+                </div>
+
                 <div id="routePlanControls" class="panel">
                     <div class="inlineHeader">
                         <h3>Multi-Day Plan</h3>
@@ -566,27 +591,9 @@
             <details class="plannerUtilities">
                 <summary>Route tools &amp; maintenance</summary>
                 <div class="btnRow">
-                    <button
-                        id="checkWorkbookRoute"
-                        type="button"
-                        class="btn btnSmall"
-                    >
-                        Check Workbook Route
-                    </button>
                     <button id="clearRoute" type="button" class="btn btnSmall">
                         Clear Route
                     </button>
-                    <button id="exportRoute" type="button" class="btn btnSmall">
-                        Open in Google Maps
-                    </button>
-                        <button
-                            id="sendRouteOrder"
-                            type="button"
-                            class="btn btnSmall"
-                            disabled
-                        >
-                            Send Route Order to Workbook
-                        </button>
                     <button
                         id="downloadGarminGpx"
                         type="button"
@@ -595,8 +602,6 @@
                         Download Garmin GPX
                     </button>
                 </div>
-                <div id="routeMapLinks" class="btnRow" hidden></div>
-                <p id="workbookRouteOrderStatus" class="tiny muted"></p>
                 <div class="btnRow">
                     <button
                         id="clearInspectorAdeJobs"
