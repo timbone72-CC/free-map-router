@@ -458,6 +458,21 @@
             return result;
         }
 
+        function normalizedWorkbookPayByOrderId(value, orderIdsByStopId) {
+            const result = {};
+            if (!value || typeof value !== "object" || Array.isArray(value)) return result;
+            const allowed = new Set(Object.values(orderIdsByStopId || {}).flat());
+            for (const [orderId, amount] of Object.entries(value)) {
+                if (!allowed.has(orderId) || orderId === "__proto__") continue;
+                if (amount !== null &&
+                    (typeof amount !== "number" || !Number.isFinite(amount) || amount < 0)) continue;
+                Object.defineProperty(result, orderId, {
+                    value: amount, enumerable: true, writable: true, configurable: true,
+                });
+            }
+            return result;
+        }
+
         function normalizeRouteSnapshot(
             value,
             validIds = null,
@@ -486,6 +501,10 @@
                 workbookPayByStopId: normalizedWorkbookPayByStopId(
                     value.workbookPayByStopId,
                     routeIds,
+                ),
+                workbookPayByOrderId: normalizedWorkbookPayByOrderId(
+                    value.workbookPayByOrderId,
+                    normalizedOrderIdsByStopId(value.orderIdsByStopId, routeIds),
                 ),
                 gigIdsByStopId: normalizedGigIdsByStopId(
                     value.gigIdsByStopId,
@@ -1842,6 +1861,7 @@
             validIds = null,
             orderIdsByStopId = null,
             workbookPayByStopId = null,
+            workbookPayByOrderId = null,
         ) {
             const normalized = normalizeRouteHistory(history, validIds);
             const result = workbookRouteRelation(
@@ -1858,6 +1878,7 @@
                     optimizationStatus: "not_optimized",
                     orderIdsByStopId,
                     workbookPayByStopId,
+                    workbookPayByOrderId,
                 },
                 validIds,
                 false,
