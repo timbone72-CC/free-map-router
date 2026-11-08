@@ -66,8 +66,12 @@ physical-stop identity.
 
 The manual return file remains named **Free Map Router Route Order.json**. Each
 returned physical stop contains its visible stop number and address plus optional
-exact `orderIds` and optional exact `gigIds`. At least one of those identifier
-arrays must contain work for the returned stop. Address text is audit/print
+exact `orderIds` and optional exact `gigIds`. In legacy version 1, at least
+one identifier array must contain real work; app-only stops stay excluded.
+In active-Day version 2, **every displayed physical stop** is returned in its
+original route order, including an address-only stop with both identity arrays
+empty. That stop is print-only context; it never creates a `Job_Log` or
+`Gig_Log` row or invented work identity. Address text is audit/print
 context only; the workbook matches InspectorADE jobs by exact Order ID and
 manual gigs by exact `Gig_Log.Gig_ID`. A shared physical stop may contain both
 types of work without merging their identities.
