@@ -51,5 +51,5 @@ test("the summary drawer is visible as one compact colored control, with readabl
     }
     assert.match(css, /@media \(max-width: 760px\)\s*\{\s*\.plannerDaySummary\s*\{\s*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
     assert.match(css, /@media \(max-width: 480px\)\s*\{\s*\.plannerDaySummary\s*\{\s*grid-template-columns: 1fr/);
-    assert.match(html, /styles\.css\?v=1\.2\.7/);
+    assert.match(html, /styles\.css\?v=1\.2\.8/);
 });
