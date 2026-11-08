@@ -928,3 +928,70 @@ li {
 #routePage .plannerStopCard:focus-visible {
     border-color: #2c6f9d;
 }
+
+/* Compact, accessible summary drawer; same planner values render when opened. */
+#routePage .plannerSummaryDetails {
+    border: 1px solid #b9d5e5;
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 2px 6px rgba(25, 66, 98, 0.06);
+}
+
+#routePage .plannerSummaryDetails > summary {
+    cursor: pointer;
+    padding: 12px 14px;
+    border-radius: 9px;
+    background: #e5f2fb;
+    color: #174e74;
+    font-weight: 700;
+}
+
+#routePage .plannerSummaryDetails > summary .tiny {
+    font-weight: 400;
+}
+
+#routePage .plannerSummaryDetails > summary:focus-visible {
+    outline: 3px solid #2c6f9d;
+    outline-offset: -3px;
+}
+
+#routePage .plannerSummaryDetails[open] > summary {
+    border-bottom: 1px solid #bdd5e7;
+    border-radius: 9px 9px 0 0;
+}
+
+#routePage .plannerSummaryDetails .plannerDaySummary {
+    padding: 2px 10px 0;
+}
+
+#routePage .plannerSummaryDetails #routePaySummary {
+    padding: 0 12px 10px;
+}
+
+#routePage .plannerSummaryItem {
+    border-color: #c9dce9;
+    border-left: 4px solid #397da9;
+    background: #f7fbff;
+    box-shadow: 0 2px 5px rgba(25, 66, 98, 0.06);
+}
+
+#routePage .plannerSummaryItem:nth-child(3) {
+    border-left-color: #16766a;
+    background: #eff9f6;
+}
+
+#routePage .plannerSummaryItem:nth-child(4) {
+    border-left-color: #a86b24;
+    background: #fff9ee;
+}
+
+#routePage .plannerSummaryLabel {
+    color: #435f74;
+    opacity: 1;
+}
+
+#routePage .plannerSummaryValue {
+    color: #153e5e;
+    font-weight: 700;
+    font-size: 17px;
+}
