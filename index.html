@@ -4,7 +4,7 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Free Map Router</title>
-        <link rel="stylesheet" href="styles.css?v=1.2.6" />
+        <link rel="stylesheet" href="styles.css?v=1.2.7" />
         <link
             rel="stylesheet"
             href="vendor/leaflet.css?v=1.9.4"
@@ -558,10 +558,13 @@
                     <p id="routeDayContextStatus" class="tiny muted"></p>
                 </div>
 
-                <div id="plannerDaySummary" class="plannerDaySummary" aria-live="polite"></div>
-                <p id="routePaySummary" class="tiny">
-                    Google Route expected pay: no InspectorADE or manual gig pay attached.
-                </p>
+                <details class="plannerSummaryDetails" id="plannerSummaryDetails">
+                    <summary>Route summary <span class="tiny muted">— stops, work, pay &amp; timing</span></summary>
+                    <div id="plannerDaySummary" class="plannerDaySummary" aria-live="polite"></div>
+                    <p id="routePaySummary" class="tiny">
+                        Google Route expected pay: no InspectorADE or manual gig pay attached.
+                    </p>
+                </details>
             </div>
 
             <section class="plannerSurface" aria-labelledby="plannerHeading">
