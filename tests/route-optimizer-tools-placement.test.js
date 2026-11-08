@@ -63,7 +63,7 @@ test("Basic optimization updates the new live feedback and previous route status
 });
 
 test("Google optimizer uses the dedicated progress bridge without hijacking inbox status", () => {
-    assert.match(app, /setOptimizerFeedback\(message\)\s*\{\s*writeOptimizationFeedback\(message\);/);
+    assert.match(app, /setOptimizerFeedback\(message\)\s*\{\s*writeOptimizationFeedback\(message, "google"\);/);
     assert.match(googleBrowser, /function setOptimizationStatus\(message\)/);
     assert.match(googleBrowser, /bridge\.setOptimizerFeedback\(value\)/);
     const optimize = googleBrowser.slice(
