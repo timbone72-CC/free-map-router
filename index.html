@@ -4,7 +4,7 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Free Map Router</title>
-        <link rel="stylesheet" href="styles.css?v=1.2.3" />
+        <link rel="stylesheet" href="styles.css?v=1.2.4" />
         <link
             rel="stylesheet"
             href="vendor/leaflet.css?v=1.9.4"
@@ -400,7 +400,8 @@
                     </p>
                 </div>
 
-                <div class="plannerQuickActions" role="group" aria-label="Quick route actions">
+                <details class="plannerUtilities">
+                    <summary>Route tools &amp; maintenance</summary>
                     <div class="btnRow">
                         <button id="exportRoute" type="button" class="btn btnSmall">
                             Open in Google Maps
@@ -420,10 +421,40 @@
                         >
                             Check Workbook Route
                         </button>
+                        <button id="clearRoute" type="button" class="btn btnSmall">
+                            Clear Route
+                        </button>
+                        <button
+                            id="downloadGarminGpx"
+                            type="button"
+                            class="btn btnSmall"
+                        >
+                            Download Garmin GPX
+                        </button>
                     </div>
                     <div id="routeMapLinks" class="btnRow" hidden></div>
                     <p id="workbookRouteOrderStatus" class="tiny muted"></p>
-                </div>
+                    <div class="btnRow">
+                        <button
+                            id="clearInspectorAdeJobs"
+                            type="button"
+                            class="btn btnSmall"
+                        >
+                            Clear InspectorADE Jobs
+                        </button>
+                        <button
+                            id="clearManualGigWork"
+                            type="button"
+                            class="btn btnSmall"
+                        >
+                            Clear Manual Gig Work
+                        </button>
+                    </div>
+                    <p class="tiny muted">
+                        These clear one kind of route work from both saved route versions
+                        without deleting the other kind of work or the saved addresses.
+                    </p>
+                </details>
 
                 <div id="routePlanControls" class="panel">
                     <div class="inlineHeader">
@@ -588,41 +619,7 @@
                 </p>
             </section>
 
-            <details class="plannerUtilities">
-                <summary>Route tools &amp; maintenance</summary>
-                <div class="btnRow">
-                    <button id="clearRoute" type="button" class="btn btnSmall">
-                        Clear Route
-                    </button>
-                    <button
-                        id="downloadGarminGpx"
-                        type="button"
-                        class="btn btnSmall"
-                    >
-                        Download Garmin GPX
-                    </button>
-                </div>
-                <div class="btnRow">
-                    <button
-                        id="clearInspectorAdeJobs"
-                        type="button"
-                        class="btn btnSmall"
-                    >
-                        Clear InspectorADE Jobs
-                    </button>
-                    <button
-                        id="clearManualGigWork"
-                        type="button"
-                        class="btn btnSmall"
-                    >
-                        Clear Manual Gig Work
-                    </button>
-                </div>
-                <p class="tiny muted">
-                    These clear one kind of route work from both saved route versions
-                    without deleting the other kind of work or the saved addresses.
-                </p>
-            </details>
+
         </section>
 
         <section class="section appPage" data-page="settings" hidden>
