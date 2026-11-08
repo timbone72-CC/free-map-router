@@ -731,6 +731,26 @@ li {
     flex: 1 1 260px;
 }
 
+/* Compact only Build Route actions, without changing other pages or button behavior. */
+#routePage .btn {
+    width: auto;
+    max-width: 100%;
+    min-height: 36px;
+    padding: 6px 9px;
+    font-size: 0.9rem;
+    line-height: 1.2;
+    white-space: normal;
+}
+
+#routePage .btnRow {
+    gap: 6px;
+    margin: 4px 0 6px;
+}
+
+#routePage .plannerExecutionActions > .btn {
+    flex: 0 1 auto;
+}
+
 .plannerUtilities summary {
     cursor: pointer;
     font-weight: bold;
