@@ -257,3 +257,16 @@ test("schedule service total must agree with derived route service", () => {
     assert.equal(model.timingConfidence.status, "google_unavailable");
     assert.equal(model.daySummary.travelDurationSeconds, null);
 });
+
+test("planner shows individual workbook pay, unknown separately from zero, and keeps gig pay", () => {
+    const input = fixture();
+    input.routeSnapshot = structuredClone(input.routeSnapshot);
+    input.routeSnapshot.workbookPayByOrderId = { "ORD-1": 18, "ORD-2": null };
+    const model = buildPlannerModel(input);
+    const jobs = model.stopCards[0].workItems;
+    assert.equal(jobs[0].expectedPay, 18);
+    assert.equal(jobs[1].expectedPay, null);
+    input.routeSnapshot.workbookPayByOrderId["ORD-2"] = 0;
+    const updated = buildPlannerModel(input);
+    assert.equal(updated.stopCards[0].workItems[1].expectedPay, 0);
+});
