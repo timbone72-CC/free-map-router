@@ -193,8 +193,9 @@ changes.
       route with no manual gigs preserves the route-order-only write path.
 - [ ] A route containing only manual gigs can still return those exact Gig IDs
       without inventing workbook Order IDs or requiring workbook source time.
-- [ ] App-only stops with neither workbook nor gig work are not returned and are
-      not assigned invented identifiers.
+- [ ] Active-Day version-2 route returns every displayed physical stop, including
+      address-only stops, in exact visible order with no invented work identity.
+      Legacy version-1 route return still excludes app-only stops.
 - [ ] Multiple workbook jobs at one physical stop receive the same stop number.
 - [ ] Multiple manual gigs at one physical stop also receive one physical stop
       number rather than duplicate driving stops.
