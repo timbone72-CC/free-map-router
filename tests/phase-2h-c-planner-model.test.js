@@ -148,6 +148,30 @@ test("shared physical stop yields one card with two exact work rows", () => {
     assert.equal(model.stopCards[0].source, "GIS");
 });
 
+test("two workbook jobs at one physical address show independent due dates", () => {
+    const input = fixture();
+    input.routeSnapshot.workbookDueDatesByOrderId = {
+        "ORD-1": "2026-11-12",
+        "ORD-2": "2026-11-14",
+        "STALE-3": "2026-11-20",
+    };
+    const model = buildPlannerModel(input);
+    const row1 = model.stopCards[0].workItems[0];
+    const row2 = model.stopCards[0].workItems[1];
+    assert.equal(row1.workItemId, "ORD-1");
+    assert.equal(row1.dueDate, "2026-11-12");
+    assert.equal(row2.workItemId, "ORD-2");
+    assert.equal(row2.dueDate, "2026-11-14");
+    assert.equal(model.stopCards[1].workItems[0].dueDate, "2026-09-10");
+    assert.equal(model.daySummary.physicalStopCount, 2);
+});
+
+test("old workbook routes without metadata show no invented due dates", () => {
+    const model = buildPlannerModel(fixture());
+    assert.equal(model.stopCards[0].workItems[0].dueDate, undefined);
+    assert.equal(model.stopCards[0].workItems[1].dueDate, undefined);
+});
+
 test("day summary counts exact work separately from physical stops", () => {
     const model = buildPlannerModel(fixture());
     assert.equal(model.daySummary.workItemCount, 3);

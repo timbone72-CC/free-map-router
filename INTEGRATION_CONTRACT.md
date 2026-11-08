@@ -64,6 +64,16 @@ Manual gigs likewise retain immutable `Gig_ID` values in the selected Day route
 snapshot's `gigIdsByStopId`; those IDs are route/work-item identity, not
 physical-stop identity.
 
+The existing version-1 Address Inbox may also include optional
+`addresses[].dueDates: [{ "orderId": "exact Source_ID", "dueDate": "YYYY-MM-DD" }]`.
+Each date must belong to one exact `orderIds` entry for that physical stop. It is
+not an address-level deadline, route constraint, manual-gig due date, or new job
+identity. The app rejects invalid/conflicting metadata before route staging and
+retains valid dates in the exact pending/Google/Basic Route Plan snapshot. The
+existing per-work-order card shows `Due YYYY-MM-DD`; no date is invented when
+older inboxes omit the field. Date metadata is not exported in the route-order
+return, and does not write to workbook data or alter route optimization.
+
 The manual return file remains named **Free Map Router Route Order.json**. Each
 returned physical stop contains its visible stop number and address plus optional
 exact `orderIds` and optional exact `gigIds`. In legacy version 1, at least

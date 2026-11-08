@@ -225,6 +225,40 @@ test("building a multi-day replacement preserves exact work pool and creates sel
     );
 });
 
+test("multi-day rebuild retains each workbook due date on the correct Day", () => {
+    const plan = oneDayPlan();
+    for (const slot of ["google", "basic"]) {
+        plan.days[0][slot].workbookDueDatesByOrderId = {
+            "ORDER-A": "2026-11-12",
+            "ORDER-B": "2026-11-14",
+            "ORDER-C": "2026-11-15",
+        };
+    }
+    const next = RoutePlanDays.planFromAssignments({
+        plan,
+        dayContexts: RoutePlanDays.buildDayContexts(dayContext(), 2),
+        assignmentByStopId: {
+            s1: "2026-09-08",
+            s2: "2026-09-09",
+            s3: "2026-09-08",
+            s4: "2026-09-09",
+        },
+        activeRouteDate: "2026-09-08",
+        replaceIdentity: true,
+        identitySeed: "workbook-dates-preservation",
+        now: "2026-09-08T13:00:00.000Z",
+    });
+    for (const slot of ["google", "basic"]) {
+        assert.deepEqual(next.days[0][slot].workbookDueDatesByOrderId, {
+            "ORDER-A": "2026-11-12",
+            "ORDER-B": "2026-11-14",
+        });
+        assert.deepEqual(next.days[1][slot].workbookDueDatesByOrderId, {
+            "ORDER-C": "2026-11-15",
+        });
+    }
+});
+
 test("manual move moves all exact work at one physical stop together and lock uses existing planning metadata", () => {
     const plan = oneDayPlan();
     const contexts = RoutePlanDays.buildDayContexts(dayContext(), 2);
@@ -399,8 +433,8 @@ test("2I-C Build Route controls are bounded, load before app.js, and contain no 
     ]) {
         assert.equal((html.match(new RegExp(`id="${id}"`, "g")) || []).length, 1);
     }
-    assert.ok(html.indexOf("route-plan-days.js?v=1.0.0") < html.indexOf("route-history.js?v=7.0.0"));
-    assert.ok(html.indexOf("route-plan-controls.js?v=1.0.0") < html.indexOf("app.js?v=3.34.3"));
+    assert.ok(html.indexOf("route-plan-days.js?v=1.0.1") < html.indexOf("route-history.js?v=7.0.1"));
+    assert.ok(html.indexOf("route-plan-controls.js?v=1.0.0") < html.indexOf("app.js?v=3.34.4"));
     assert.doesNotMatch(controls, /fetch\s*\(/);
     assert.doesNotMatch(controls, /FMRGoogleRouteBrowser/);
     assert.doesNotMatch(pure, /fetch\s*\(/);

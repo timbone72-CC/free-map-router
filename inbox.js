@@ -114,6 +114,60 @@
             return { addresses, keys };
         }
 
+        // Optional producer dates belong to exact workbook Order IDs, not addresses.
+        // Reject ambiguous or invalid metadata before staging any route changes.
+        function mergeDueDates(left, right) {
+            const byOrderId = new Map();
+            for (const item of [...(left || []), ...(right || [])]) {
+                const existing = byOrderId.get(item.orderId);
+                if (existing && existing !== item.dueDate) {
+                    throw new Error(
+                        "The workbook inbox contains conflicting due dates for one Order ID.",
+                    );
+                }
+                byOrderId.set(item.orderId, item.dueDate);
+            }
+            return Array.from(byOrderId, ([orderId, dueDate]) => ({
+                orderId,
+                dueDate,
+            }));
+        }
+
+        function normalizedDueDates(raw, orderIds) {
+            if (raw === undefined) return [];
+            if (!Array.isArray(raw)) {
+                throw new Error("Workbook due dates must be an array.");
+            }
+            const validIds = new Set(orderIds);
+            const entries = [];
+            for (const item of raw) {
+                const orderId = String(item?.orderId ?? "").trim();
+                const dueDate = String(item?.dueDate ?? "").trim();
+                if (!validIds.has(orderId) || !orderId) {
+                    throw new Error(
+                        "Workbook due date is missing a matching exact Order ID.",
+                    );
+                }
+                const parts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dueDate);
+                if (!parts) {
+                    throw new Error("Workbook due date must use YYYY-MM-DD.");
+                }
+                const year = Number(parts[1]);
+                const month = Number(parts[2]);
+                const day = Number(parts[3]);
+                const parsed = new Date(Date.UTC(year, month - 1, day));
+                if (
+                    parsed.getUTCFullYear() !== year ||
+                    parsed.getUTCMonth() !== month - 1 ||
+                    parsed.getUTCDate() !== day
+                ) {
+                    throw new Error("Workbook due date is not a valid calendar date.");
+                }
+                entries.push({ orderId, dueDate });
+            }
+            return mergeDueDates([], entries);
+        }
+
         function normalizeInboxAddresses(entries) {
             const result = [];
             const indexByAddress = new Map();
@@ -122,9 +176,12 @@
                 const normalizedStop = normalizeStop(raw);
                 if (!normalizedStop) continue;
                 const pay = normalizedExpectedPay(raw);
+                const inboundOrderIds = normalizeOrderIds(raw?.orderIds);
+                const dueDates = normalizedDueDates(raw?.dueDates, inboundOrderIds);
                 const stop = {
                     ...normalizedStop,
-                    orderIds: normalizeOrderIds(raw?.orderIds),
+                    orderIds: inboundOrderIds,
+                    ...(dueDates.length ? { dueDates } : {}),
                     ...(pay || {}),
                 };
 
@@ -165,9 +222,14 @@
                     normalizedExpectedPay(existing),
                     pay,
                 );
+                const combinedDueDates = mergeDueDates(
+                    existing.dueDates,
+                    stop.dueDates,
+                );
                 result[index] = {
                     ...merged,
                     orderIds,
+                    ...(combinedDueDates.length ? { dueDates: combinedDueDates } : {}),
                     originalAddresses,
                     originalAddressKeys,
                     ...(combinedPay || {}),
@@ -324,6 +386,9 @@
                     ...aliasOwner,
                     source: incoming.source || aliasOwner.source,
                     orderIds: incoming.orderIds.slice(),
+                    ...(incoming.dueDates?.length
+                        ? { dueDates: incoming.dueDates.map((item) => ({ ...item })) }
+                        : {}),
                     originalAddresses: [
                         ...(incoming.originalAddresses || []),
                     ],
@@ -343,6 +408,7 @@
             const routeIds = [];
             const orderIdsByStopId = {};
             const workbookPayByStopId = {};
+            const workbookDueDatesByOrderId = {};
             const selected = new Set();
 
             for (const stop of resolvedIncomingStops) {
@@ -359,6 +425,15 @@
                     }
                     orderIdsByStopId[id] = combinedOrderIds;
                 }
+                for (const entry of stop.dueDates || []) {
+                    const existing = workbookDueDatesByOrderId[entry.orderId];
+                    if (existing && existing !== entry.dueDate) {
+                        throw new Error(
+                            "The workbook inbox contains conflicting due dates for one Order ID.",
+                        );
+                    }
+                    workbookDueDatesByOrderId[entry.orderId] = entry.dueDate;
+                }
 
                 const pay = normalizedExpectedPay(stop);
                 if (pay) {
@@ -374,6 +449,7 @@
                 routeIds,
                 orderIdsByStopId,
                 workbookPayByStopId,
+                workbookDueDatesByOrderId,
                 importedCount: routeIds.length,
             };
         }

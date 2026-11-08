@@ -598,9 +598,11 @@ Tests must continue to protect:
    already has a valid manual Day assignment it may remain there; otherwise it
    stays visibly unassigned until the operator supplies enough information or
    moves it manually.
-6. Only actual due-date data may influence Day priority. Current governed
-   workbook inbox data has no workbook due-date field, so Phase 2I-C does not
-   fabricate one. Valid manual-gig due dates may be used.
+6. Only actual due-date data may influence Day priority; it must never be
+   fabricated. Manual-gig due dates retain their established behavior. The
+   optional InspectorADE inbox `dueDates` records are exact Source_ID-linked
+   metadata for *display only* in this change and do not alter Day priority,
+   stop order, optimization, or assignment automatically.
 7. Saved display coordinates may influence deterministic local geography
    ordering. Missing coordinates do not delete, hide, or fabricate work, and no
    request-only geocoding coordinate becomes saved planner truth.

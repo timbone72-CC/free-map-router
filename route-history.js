@@ -419,6 +419,39 @@
             return result;
         }
 
+        function normalizedWorkbookDueDates(value, orderIdsByStopId) {
+            const allowedIds = new Set(
+                Object.values(orderIdsByStopId).flat(),
+            );
+            const result = {};
+            const source =
+                value && typeof value === "object" && !Array.isArray(value)
+                    ? value
+                    : {};
+            for (const [orderId, rawDate] of Object.entries(source)) {
+                if (!allowedIds.has(orderId)) continue;
+                const date = String(rawDate ?? "").trim();
+                const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+                if (!match) continue;
+                const year = Number(match[1]);
+                const month = Number(match[2]);
+                const day = Number(match[3]);
+                const valid = new Date(Date.UTC(year, month - 1, day));
+                if (
+                    valid.getUTCFullYear() !== year ||
+                    valid.getUTCMonth() !== month - 1 ||
+                    valid.getUTCDate() !== day
+                ) continue;
+                Object.defineProperty(result, orderId, {
+                    value: date,
+                    enumerable: true,
+                    configurable: true,
+                    writable: true,
+                });
+            }
+            return result;
+        }
+
         function normalizedGigIdsByStopId(value, routeIds) {
             const result = {};
             const source =
@@ -469,6 +502,10 @@
                 value.sourceUpdatedAt,
             );
             if (routeIds.length === 0 && !sourceUpdatedAt) return null;
+            const orderIdsByStopId = normalizedOrderIdsByStopId(
+                value.orderIdsByStopId,
+                routeIds,
+            );
 
             return {
                 routeIds,
@@ -479,9 +516,10 @@
                         : normalizedOptimizationStatus(
                               value.optimizationStatus,
                           ),
-                orderIdsByStopId: normalizedOrderIdsByStopId(
-                    value.orderIdsByStopId,
-                    routeIds,
+                orderIdsByStopId,
+                workbookDueDatesByOrderId: normalizedWorkbookDueDates(
+                    value.workbookDueDatesByOrderId,
+                    orderIdsByStopId,
                 ),
                 workbookPayByStopId: normalizedWorkbookPayByStopId(
                     value.workbookPayByStopId,
@@ -1337,6 +1375,8 @@
                     optimizationStatus:
                         existing?.optimizationStatus || "not_optimized",
                     orderIdsByStopId: existing?.orderIdsByStopId,
+                    workbookDueDatesByOrderId:
+                        existing?.workbookDueDatesByOrderId,
                     workbookPayByStopId:
                         existing?.workbookPayByStopId,
                     gigIdsByStopId: existing?.gigIdsByStopId,
@@ -1724,6 +1764,8 @@
                             optimizationStatus,
                             orderIdsByStopId:
                                 existing?.orderIdsByStopId || {},
+                            workbookDueDatesByOrderId:
+                                existing?.workbookDueDatesByOrderId || {},
                             workbookPayByStopId:
                                 existing?.workbookPayByStopId || {},
                             gigIdsByStopId,
@@ -1842,6 +1884,7 @@
             validIds = null,
             orderIdsByStopId = null,
             workbookPayByStopId = null,
+            workbookDueDatesByOrderId = null,
         ) {
             const normalized = normalizeRouteHistory(history, validIds);
             const result = workbookRouteRelation(
@@ -1858,6 +1901,7 @@
                     optimizationStatus: "not_optimized",
                     orderIdsByStopId,
                     workbookPayByStopId,
+                    workbookDueDatesByOrderId,
                 },
                 validIds,
                 false,
