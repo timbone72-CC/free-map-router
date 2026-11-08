@@ -105,7 +105,7 @@ test("no Done button on any non-current stop, even if supplied as first card", (
 
 test("the existing global Done control and completion function remain unchanged", () => {
     assert.equal(html.split('id="completeAndNavigateNext"').length - 1, 1);
-    assert.match(app, /els\.completeAndNavigateNext\.addEventListener\("click", completeCurrentStopAndNavigate\)/);
+    assert.match(app, /els\.completeAndNavigateNext\.addEventListener\(\s*"click",\s*completeCurrentStopAndNavigate,\s*\);/);
     const begin = app.indexOf("function completeCurrentStopAndNavigate()");
     const end = app.indexOf("function startCurrentStopNavigation()", begin);
     const completion = app.slice(begin, end);
