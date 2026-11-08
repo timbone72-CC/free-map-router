@@ -231,6 +231,21 @@
         return OPTIMIZATION_STATUSES.has(status) ? status : "not_optimized";
     }
 
+    function normalizedPayByOrderId(value, orderIdsByStopId) {
+        const result = {};
+        if (!value || typeof value !== "object" || Array.isArray(value)) return result;
+        const allowed = new Set(Object.values(orderIdsByStopId || {}).flat());
+        for (const [id, amount] of Object.entries(value)) {
+            if (!allowed.has(id) || id === "__proto__") continue;
+            if (amount !== null &&
+                (typeof amount !== "number" || !Number.isFinite(amount) || amount < 0)) continue;
+            Object.defineProperty(result, id, {
+                value: amount, enumerable: true, writable: true, configurable: true,
+            });
+        }
+        return result;
+    }
+
     function normalizeRouteSnapshot(value, options = {}) {
         if (value === null || value === undefined) return null;
         if (typeof value !== "object") throw new Error("Route snapshot must be an object.");
@@ -254,6 +269,10 @@
             workbookPayByStopId: normalizedWorkbookPayMap(
                 value.workbookPayByStopId,
                 routeIds,
+            ),
+            workbookPayByOrderId: normalizedPayByOrderId(
+                value.workbookPayByOrderId,
+                normalizedStringMap(value.orderIdsByStopId, routeIds, "Workbook Order ID"),
             ),
             gigIdsByStopId: normalizedStringMap(
                 value.gigIdsByStopId,
