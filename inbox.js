@@ -176,11 +176,11 @@
                 const normalizedStop = normalizeStop(raw);
                 if (!normalizedStop) continue;
                 const pay = normalizedExpectedPay(raw);
-                const orderIds = normalizeOrderIds(raw?.orderIds);
-                const dueDates = normalizedDueDates(raw?.dueDates, orderIds);
+                const inboundOrderIds = normalizeOrderIds(raw?.orderIds);
+                const dueDates = normalizedDueDates(raw?.dueDates, inboundOrderIds);
                 const stop = {
                     ...normalizedStop,
-                    orderIds,
+                    orderIds: inboundOrderIds,
                     ...(dueDates.length ? { dueDates } : {}),
                     ...(pay || {}),
                 };
