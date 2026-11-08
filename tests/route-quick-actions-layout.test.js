@@ -9,43 +9,45 @@ const root = path.resolve(__dirname, "..");
 const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const css = fs.readFileSync(path.join(root, "styles.css"), "utf8");
 
-test("the three approved route actions appear together before the large plan controls", () => {
-    const header = html.indexOf('class="inlineHeader plannerRouteHeader"');
-    const quick = html.indexOf('class="plannerQuickActions"');
-    const plan = html.indexOf('id="routePlanControls"');
-    const maintenance = html.indexOf('class="plannerUtilities"');
+function routeTools() {
+    const open = html.indexOf('<details class="plannerUtilities">');
+    const close = html.indexOf("</details>", open);
+    assert.ok(open >= 0 && close > open, "Route tools dropdown must exist");
+    assert.equal(html.split('<details class="plannerUtilities">').length - 1, 1);
+    return { open, content: html.slice(open, close + "</details>".length) };
+}
 
-    assert.ok(header >= 0 && header < quick && quick < plan && plan < maintenance);
-    const section = html.slice(quick, plan);
-    for (const id of ["exportRoute", "sendRouteOrder", "checkWorkbookRoute"]) {
-        assert.ok(section.includes(`id="${id}"`), `${id} is not in Quick Actions`);
-        assert.equal(html.split(`id="${id}"`).length - 1, 1, `${id} must stay unique`);
-    }
-    assert.match(section, /Open in Google Maps/);
-    assert.match(section, /Send Route Order to Workbook/);
-    assert.match(section, /Check Workbook Route/);
-    assert.match(section, /id="sendRouteOrder"[^>]*disabled/s);
+test("the entire Route tools dropdown appears directly after route selection, before planning", () => {
+    const routeHeader = html.indexOf('class="inlineHeader plannerRouteHeader"');
+    const plan = html.indexOf('id="routePlanControls"');
+    const { open, content } = routeTools();
+    assert.ok(routeHeader >= 0 && routeHeader < open && open < plan);
+    assert.match(content, /<summary>Route tools &amp; maintenance<\/summary>/);
+    assert.doesNotMatch(html, /class="plannerQuickActions"/);
+    assert.doesNotMatch(content.split("</details>")[0], /<details/);
 });
 
-test("map links and workbook send status stay beside their top action controls", () => {
-    const quick = html.indexOf('class="plannerQuickActions"');
-    const plan = html.indexOf('id="routePlanControls"');
-    const section = html.slice(quick, plan);
-    for (const id of ["routeMapLinks", "workbookRouteOrderStatus"]) {
-        assert.ok(section.includes(`id="${id}"`), `${id} must be near its action`);
-        assert.equal(html.split(`id="${id}"`).length - 1, 1);
+test("all route tools retain their original unique IDs inside the same dropdown", () => {
+    const { content } = routeTools();
+    const ids = [
+        "exportRoute", "sendRouteOrder", "checkWorkbookRoute",
+        "clearRoute", "downloadGarminGpx",
+        "clearInspectorAdeJobs", "clearManualGigWork",
+        "routeMapLinks", "workbookRouteOrderStatus",
+    ];
+    for (const id of ids) {
+        assert.match(content, new RegExp('id="' + id + '"'));
+        assert.equal(html.split('id="' + id + '"').length - 1, 1, id + " must remain unique");
     }
-    assert.ok(css.includes(".plannerQuickActions > .btnRow"));
-    assert.match(html, /styles\.css\?v=1\.2\.3/);
+    assert.match(content, /id="sendRouteOrder"[^>]*disabled/s);
+    assert.match(content, /id="routeMapLinks" class="btnRow" hidden/);
+    assert.ok(content.indexOf('id="sendRouteOrder"') < content.indexOf('id="workbookRouteOrderStatus"'));
+    assert.ok(content.indexOf('id="exportRoute"') < content.indexOf('id="routeMapLinks"'));
+    assert.match(content, /<\/details>$/);
 });
 
-test("secondary maintenance controls remain in the expandable maintenance group", () => {
-    const maintenance = html.slice(html.indexOf('<details class="plannerUtilities">'));
-    assert.match(maintenance, /id="clearRoute"/);
-    assert.match(maintenance, /id="downloadGarminGpx"/);
-    assert.match(maintenance, /id="clearInspectorAdeJobs"/);
-    assert.match(maintenance, /id="clearManualGigWork"/);
-    assert.doesNotMatch(maintenance, /id="exportRoute"/);
-    assert.doesNotMatch(maintenance, /id="sendRouteOrder"/);
-    assert.doesNotMatch(maintenance, /id="checkWorkbookRoute"/);
+test("the moved dropdown remains compact and no unused Quick Actions CSS remains", () => {
+    assert.match(css, /\.plannerContext > \.plannerUtilities\s*\{/);
+    assert.doesNotMatch(css, /\.plannerQuickActions/);
+    assert.match(html, /styles\.css\?v=1\.2\.4/);
 });
