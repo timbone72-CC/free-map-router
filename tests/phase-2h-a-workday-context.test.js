@@ -385,8 +385,8 @@ test("Build Route retains its four timing inputs, adds the Home By switch, and l
         assert.equal(matches.length, 1, `${id} must exist exactly once`);
     }
     assert.match(html, /id="routeDayContextStatus"/);
-    assert.match(html, /route-plan\.js\?v=1\.0\.0/);
-    assert.match(html, /route-history\.js\?v=7\.0\.0/);
+    assert.match(html, /route-plan\.js\?v=1\.0\.1/);
+    assert.match(html, /route-history\.js\?v=7\.0\.1/);
     assert.match(html, /workday-context\.js\?v=1\.0\.1/);
     assert.match(html, /backup\.js\?v=5\.0\.0/);
 
