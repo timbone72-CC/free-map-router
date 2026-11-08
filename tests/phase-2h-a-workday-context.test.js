@@ -390,8 +390,8 @@ test("Build Route retains its four timing inputs, adds the Home By switch, and l
     assert.match(html, /workday-context\.js\?v=1\.0\.1/);
     assert.match(html, /backup\.js\?v=5\.0\.0/);
 
-    const routePlanIndex = html.indexOf("route-plan.js?v=1.0.0");
-    const routeHistoryIndex = html.indexOf("route-history.js?v=7.0.0");
+    const routePlanIndex = html.indexOf("route-plan.js?v=1.0.1");
+    const routeHistoryIndex = html.indexOf("route-history.js?v=7.0.1");
     const workdayIndex = html.indexOf("workday-context.js?v=1.0.1");
     const appMatch = html.match(/app\.js\?v=\d+\.\d+\.\d+/);
     assert.ok(routePlanIndex >= 0, "Route Plan script must be loaded");
