@@ -402,6 +402,30 @@
 
                 <details class="plannerUtilities">
                     <summary>Route tools &amp; maintenance</summary>
+                    <div class="plannerOptimizeControls" aria-label="Route optimization">
+                        <p class="tiny"><strong>Optimize your route</strong></p>
+                    <div class="btnRow">
+                        <button id="optimizeRoute" type="button" class="btn btnSmall">
+                            Optimize Basic Route
+                        </button>
+                        <button
+                            id="googleOptimizeRoute"
+                            type="button"
+                            class="btn btnSmall"
+                            disabled
+                        >
+                            Optimize Google Route
+                        </button>
+                    </div>
+                    <div id="googleRouteSignIn" class="googleRouteSignIn"></div>
+                    <p id="googleRouteAuthStatus" class="tiny muted">
+                        Google road optimization requires the approved company Google
+                        account.
+                    </p>
+                        <p id="routeOptimizeFeedback" class="tiny muted" role="status" aria-live="polite" aria-atomic="true">
+                            Optimization progress and results appear here.
+                        </p>
+                    </div>
                     <div class="btnRow">
                         <button id="exportRoute" type="button" class="btn btnSmall">
                             Open in Google Maps
@@ -576,24 +600,6 @@
 
             <section class="plannerActionSection" aria-labelledby="routeActionsHeading">
                 <h3 id="routeActionsHeading">Route Actions</h3>
-                <div class="btnRow">
-                    <button id="optimizeRoute" type="button" class="btn btnSmall">
-                        Optimize Basic Route
-                    </button>
-                    <button
-                        id="googleOptimizeRoute"
-                        type="button"
-                        class="btn btnSmall"
-                        disabled
-                    >
-                        Optimize Google Route
-                    </button>
-                </div>
-                <div id="googleRouteSignIn" class="googleRouteSignIn"></div>
-                <p id="googleRouteAuthStatus" class="tiny muted">
-                    Google road optimization requires the approved company Google
-                    account.
-                </p>
                 <div class="btnRow plannerExecutionActions">
                     <button
                         id="startRouteNavigation"
