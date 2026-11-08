@@ -18,13 +18,18 @@ function sectionBetween(start, end) {
     return html.slice(a, b);
 }
 
-test("shared driving actions sit below route selector and above Route Tools", () => {
+test("shared driving actions sit immediately above Today's Route, below the summary", () => {
     const header = html.indexOf('class="inlineHeader plannerRouteHeader"');
-    const driving = html.indexOf('<section class="plannerActionSection"');
     const tools = html.indexOf('<details class="plannerUtilities">');
-    const surface = html.indexOf('class="plannerSurface"');
+    const summary = html.indexOf('id="plannerSummaryDetails"');
+    const driving = html.indexOf('<section class="plannerActionSection"');
+    const surface = html.indexOf('<section class="plannerSurface"');
+    const drivingClose = html.indexOf("</section>", driving);
 
-    assert.ok(header >= 0 && header < driving && driving < tools && tools < surface);
+    assert.ok(header >= 0 && header < tools && tools < summary);
+    assert.ok(summary < driving && driving < drivingClose && drivingClose < surface);
+    assert.equal(html.slice(drivingClose + "</section>".length, surface).trim(), "",
+        "driving controls must appear directly above Today's Route");
     const controls = sectionBetween('<section class="plannerActionSection"', "</section>");
     for (const id of [
         "startRouteNavigation",
@@ -53,7 +58,7 @@ test("both optimizers retain unique IDs; only selected route is shown", () => {
     assert.match(css, /#routePage\[data-active-route="basic"\] #googleRouteSignIn,/);
     assert.match(css, /#routePage\[data-active-route="basic"\] #googleRouteAuthStatus\s*\{\s*display:\s*none;/);
     assert.match(html, /styles\.css\?v=1\.2\.8/);
-    assert.match(html, /app\.js\?v=3\.34\.5/);
+    assert.match(html, /app\.js\?v=3\.34\.6/);
 });
 
 test("renderRouteChoice updates route-specific controls without touching route state", () => {
