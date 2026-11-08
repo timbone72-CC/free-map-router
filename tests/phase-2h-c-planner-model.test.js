@@ -168,8 +168,8 @@ test("two workbook jobs at one physical address show independent due dates", () 
 
 test("old workbook routes without metadata show no invented due dates", () => {
     const model = buildPlannerModel(fixture());
-    assert.equal(model.stopCards[0].workItems[0].dueDate, null);
-    assert.equal(model.stopCards[0].workItems[1].dueDate, null);
+    assert.equal(model.stopCards[0].workItems[0].dueDate, undefined);
+    assert.equal(model.stopCards[0].workItems[1].dueDate, undefined);
 });
 
 test("day summary counts exact work separately from physical stops", () => {
