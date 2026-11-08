@@ -34,6 +34,7 @@ test("all route tools retain their original unique IDs inside the same dropdown"
         "clearRoute", "downloadGarminGpx",
         "clearInspectorAdeJobs", "clearManualGigWork",
         "routeMapLinks", "workbookRouteOrderStatus",
+        "newRouteAvailable", "newRouteAvailableStatus", "startNewRoute",
     ];
     for (const id of ids) {
         assert.match(content, new RegExp('id="' + id + '"'));
@@ -50,4 +51,20 @@ test("the moved dropdown remains compact and no unused Quick Actions CSS remains
     assert.match(css, /\.plannerContext > \.plannerUtilities\s*\{/);
     assert.doesNotMatch(css, /\.plannerQuickActions/);
     assert.match(html, /styles\.css\?v=1\.2\.4/);
+});
+
+test("Start New Route keeps the original pending-only display and confirmation logic", () => {
+    const { content } = routeTools();
+    assert.match(content, /id="newRouteAvailable" class="plannerNotice" hidden/);
+    assert.match(content, /id="newRouteAvailableStatus"/);
+    assert.match(content, /id="startNewRoute" type="button" class="btn btnSmall"/);
+    assert.ok(content.indexOf('id="checkWorkbookRoute"') < content.indexOf('id="startNewRoute"'));
+
+    const appJs = fs.readFileSync(path.join(root, "app.js"), "utf8");
+    assert.match(appJs, /const hasPending = Boolean\(pending\?\.routeIds\.length\);/);
+    assert.match(appJs, /els\.newRouteAvailable\.hidden = !hasPending;/);
+    assert.match(appJs, /els\.startNewRoute\.disabled = !hasPending;/);
+    assert.match(appJs, /const pendingCount = routeHistory\.pending\?\.routeIds\.length \|\| 0;/);
+    assert.match(appJs, /if \(pendingCount === 0\) return;/);
+    assert.match(appJs, /confirm\([\s\S]*?This replaces the active Route Plan/);
 });
