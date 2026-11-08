@@ -827,3 +827,104 @@ li {
         grid-template-columns: auto minmax(0, 1fr);
     }
 }
+
+/* Route Builder color accents: presentation only; other pages keep their existing theme. */
+#routePage {
+    border-color: #c9dae8;
+    background: #f7fbff;
+}
+
+#routePage > h2,
+#routePage .plannerSurfaceHeader h3 {
+    color: #204c70;
+}
+
+#routePage .plannerContext {
+    border-color: #bdd5e7;
+    background: #f1f7fd;
+    box-shadow: inset 0 4px #2c6f9d;
+}
+
+#routePage .plannerSurface {
+    border-color: #c5d9e8;
+    background: #fff;
+    box-shadow: inset 0 4px #2c6f9d;
+}
+
+#routePage .plannerActionSection {
+    border-color: #c7dfd7;
+    background: #f7fbf9;
+    box-shadow: inset 0 4px #16766a;
+}
+
+#routePage .plannerUtilities {
+    border-color: #bcd5e7;
+    background: #edf5fc;
+}
+
+#routePage .plannerUtilities > summary {
+    color: #184d72;
+}
+
+#routePage .plannerOptimizeControls {
+    background: #e9f5f4;
+    box-shadow: inset 4px 0 #16766a;
+}
+
+#routePage #optimizeRoute {
+    background: #235a86;
+    border-color: #1b496d;
+    color: #fff;
+    font-weight: 600;
+}
+
+#routePage #googleOptimizeRoute {
+    background: #126d63;
+    border-color: #0c574f;
+    color: #fff;
+    font-weight: 600;
+}
+
+#routePage #optimizeRoute:hover:not(:disabled) {
+    background: #174668;
+}
+
+#routePage #googleOptimizeRoute:hover:not(:disabled) {
+    background: #0a554d;
+}
+
+#routePage #googleOptimizeRoute:disabled {
+    background: #dde5e8;
+    border-color: #c4d0d6;
+    color: #4c5b63;
+}
+
+#routePage #routeOptimizeFeedback {
+    border: 1px solid #b9d5e5;
+    border-radius: 8px;
+    background: #eaf4fb;
+    color: #174563;
+    padding: 8px 10px;
+}
+
+#routePage #routeOptimizationStatus {
+    color: #204c70;
+    font-weight: 600;
+}
+
+#routePage .plannerSummaryItem,
+#routePage .plannerWorkday {
+    border-color: #d1e2ee;
+    background: #fff;
+}
+
+#routePage .plannerStopNumber {
+    border-color: #bad6e7;
+    background: #e8f3fa;
+    color: #204c70;
+}
+
+#routePage .plannerStopCard.isFocused,
+#routePage .plannerStopCard:focus-visible {
+    border-color: #2c6f9d;
+}
