@@ -111,6 +111,59 @@ test("workbook Order IDs stay with the pending route and both started variants",
     });
 });
 
+test("workbook due dates follow exact Order IDs through pending, reload, and both route slots", () => {
+    const storage = memoryStorage();
+    const validIds = new Set(["n1", "n2", "g1", "g2", "b1", "b2"]);
+    const staged = stageWorkbookRoute(
+        namedRoutes(),
+        ["n1", "n2"],
+        "2026-11-08T17:00:00.000Z",
+        validIds,
+        { n1: ["GIS-A", "DCFS-B"], n2: ["GIS-C"] },
+        null,
+        {
+            "GIS-A": "2026-11-12",
+            "DCFS-B": "2026-11-14",
+            "GIS-C": "2026-11-15",
+            "UNRELATED": "2026-11-20",
+        },
+    );
+    assert.equal(staged.result, "newer");
+    assert.deepEqual(staged.history.pending.workbookDueDatesByOrderId, {
+        "GIS-A": "2026-11-12",
+        "DCFS-B": "2026-11-14",
+        "GIS-C": "2026-11-15",
+    });
+
+    writeRouteHistory(storage, staged.history, validIds);
+    const restored = readRouteHistory(storage, validIds);
+    assert.equal(restored.pending.workbookDueDatesByOrderId["DCFS-B"], "2026-11-14");
+
+    const started = startPendingRoute(restored, validIds);
+    assert.equal(started.result, "started");
+    writeRouteHistory(storage, started.history, validIds);
+    const live = readRouteHistory(storage, validIds);
+    assert.deepEqual(live.google.workbookDueDatesByOrderId, {
+        "GIS-A": "2026-11-12",
+        "DCFS-B": "2026-11-14",
+        "GIS-C": "2026-11-15",
+    });
+    assert.deepEqual(live.basic.workbookDueDatesByOrderId, live.google.workbookDueDatesByOrderId);
+
+    const reduced = replaceRoute(live, "google", ["n2"], validIds);
+    assert.deepEqual(reduced.google.workbookDueDatesByOrderId, {
+        "GIS-C": "2026-11-15",
+    });
+    assert.equal(reduced.basic.workbookDueDatesByOrderId["GIS-A"], "2026-11-12");
+
+    const remapped = remapRouteStopIds(live, { n1: "n2" }, validIds);
+    assert.deepEqual(remapped.google.workbookDueDatesByOrderId, {
+        "GIS-A": "2026-11-12",
+        "DCFS-B": "2026-11-14",
+        "GIS-C": "2026-11-15",
+    });
+});
+
 test("merging an old corrected duplicate remaps every route and keeps workbook IDs", () => {
     const history = {
         google: {
