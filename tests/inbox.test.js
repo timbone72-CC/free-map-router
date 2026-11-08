@@ -60,6 +60,99 @@ test("workbook Order IDs stay attached to their physical route stop", () => {
     assert.equal(Object.hasOwn(result.stops[0], "orderIds"), false);
 });
 
+test("distinct workbook due dates survive deduplication at one physical address", () => {
+    const inbox = parseAddressInbox(
+        inboxText([
+            {
+                address: "300 Third St, Elk City, OK 73644",
+                source: "GIS",
+                orderIds: ["GIS-301", "DCFS-302"],
+                dueDates: [
+                    { orderId: "GIS-301", dueDate: "2026-11-12" },
+                    { orderId: "DCFS-302", dueDate: "2026-11-14" },
+                ],
+            },
+            {
+                address: "300 Third St, Elk City, OK 73644",
+                orderIds: ["GIS-303", "GIS-301"],
+                dueDates: [
+                    { orderId: "GIS-303", dueDate: "2026-11-15" },
+                    { orderId: "GIS-301", dueDate: "2026-11-12" },
+                ],
+            },
+        ]),
+    );
+    const result = applyAddressInbox([], inbox);
+    const stopId = result.routeIds[0];
+
+    assert.equal(result.routeIds.length, 1);
+    assert.deepEqual(result.orderIdsByStopId[stopId], [
+        "GIS-301", "DCFS-302", "GIS-303",
+    ]);
+    assert.deepEqual(result.workbookDueDatesByOrderId, {
+        "GIS-301": "2026-11-12",
+        "DCFS-302": "2026-11-14",
+        "GIS-303": "2026-11-15",
+    });
+    assert.equal(Object.hasOwn(result.stops[0], "dueDates"), false);
+});
+
+test("a corrected saved address retains the original work-order due date", () => {
+    const saved = [{
+        id: "corrected-bishop",
+        address: "10550 SE Bishop Rd, Lawton, OK 73501",
+        addressAliases: ["2702 SE Bishop Rd, Lawton, OK 73501"],
+        source: "GIS",
+    }];
+    const inbox = parseAddressInbox(inboxText([{
+        address: "2702 SE Bishop Rd, Lawton, OK 73501",
+        orderIds: ["GIS-BISHOP"],
+        dueDates: [{ orderId: "GIS-BISHOP", dueDate: "2026-11-17" }],
+    }]));
+    const imported = applyAddressInbox(saved, inbox);
+    assert.deepEqual(imported.routeIds, ["corrected-bishop"]);
+    assert.deepEqual(imported.workbookDueDatesByOrderId, {
+        "GIS-BISHOP": "2026-11-17",
+    });
+    assert.equal(imported.stops[0].address, "10550 SE Bishop Rd, Lawton, OK 73501");
+});
+
+test("legacy workbook inboxes remain valid without due-date metadata", () => {
+    const imported = applyAddressInbox([], parseAddressInbox(inboxText([
+        { address: "1 Main St", orderIds: ["OLD-1"] },
+    ])));
+    assert.deepEqual(imported.workbookDueDatesByOrderId, {});
+});
+
+test("invalid, ambiguous or unrelated due-date metadata is refused", () => {
+    for (const dueDates of [
+        "2026-11-12",
+        [{ orderId: "UNRELATED", dueDate: "2026-11-12" }],
+        [{ orderId: "GIS-1", dueDate: "2026-02-30" }],
+        [{ orderId: "GIS-1", dueDate: "11/12/2026" }],
+        [
+            { orderId: "GIS-1", dueDate: "2026-11-12" },
+            { orderId: "GIS-1", dueDate: "2026-11-13" },
+        ],
+    ]) {
+        assert.throws(() => parseAddressInbox(inboxText([{
+            address: "1 Main St", orderIds: ["GIS-1"], dueDates,
+        }])));
+    }
+    assert.throws(() => parseAddressInbox(inboxText([
+        {
+            address: "1 Main St",
+            orderIds: ["GIS-1"],
+            dueDates: [{ orderId: "GIS-1", dueDate: "2026-11-12" }],
+        },
+        {
+            address: "1 Main St",
+            orderIds: ["GIS-1"],
+            dueDates: [{ orderId: "GIS-1", dueDate: "2026-11-13" }],
+        },
+    ])));
+});
+
 test("inbox status shows export time, source, job count, and import result", () => {
     const inbox = parseAddressInbox(
         inboxText([
