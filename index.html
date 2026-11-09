@@ -4,7 +4,7 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Free Map Router</title>
-        <link rel="stylesheet" href="styles.css?v=1.2.8" />
+        <link rel="stylesheet" href="styles.css?v=1.2.9" />
         <link
             rel="stylesheet"
             href="vendor/leaflet.css?v=1.9.4"
@@ -526,7 +526,7 @@
 
                 <div id="workdayControls" class="panel plannerWorkday">
                     <h3>Workday</h3>
-                    <div class="row2">
+                    <div class="workdayFields">
                         <label>
                             Route date
                             <input type="date" id="routeDate" />
@@ -535,8 +535,6 @@
                             Departure
                             <input type="time" id="routeDepartureTime" step="60" />
                         </label>
-                    </div>
-                    <div class="row2">
                         <label>
                             Preferred field-work finish
                             <input
@@ -584,11 +582,9 @@
                         Done &amp; Navigate Next
                     </button>
                 </div>
-                <p class="tiny muted">
-                    Tap Start Navigation to drive to the first stop without removing
-                    it. After finishing that stop, tap Done &amp; Navigate Next to
-                    remove it from this route and drive to the next stop. After the
-                    last stop, it navigates Home.
+                <p class="tiny muted routeNavigationHint">
+                    Start Navigation opens the first stop. Done &amp; Navigate Next
+                    completes it and opens the next stop (or Home) in Google Maps.
                 </p>
                 <p id="routeStatus" class="tiny muted">
                     Select addresses, then optimize the route.
