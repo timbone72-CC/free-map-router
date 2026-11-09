@@ -4,7 +4,7 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Free Map Router</title>
-        <link rel="stylesheet" href="styles.css?v=1.2.11" />
+        <link rel="stylesheet" href="styles.css?v=1.2.12" />
         <link
             rel="stylesheet"
             href="vendor/leaflet.css?v=1.9.4"
@@ -404,86 +404,95 @@
 
                 <details class="plannerUtilities">
                     <summary>Route tools &amp; maintenance</summary>
-                    <div class="plannerOptimizeControls" aria-label="Route optimization">
-                        <p class="tiny"><strong>Optimize your route</strong></p>
-                        <div class="btnRow">
-                            <button id="optimizeRoute" type="button" class="btn btnSmall">
-                                Optimize Basic Route
-                            </button>
-                            <button
-                                id="googleOptimizeRoute"
-                                type="button"
-                                class="btn btnSmall"
-                                disabled
-                            >
-                                Optimize Google Route
-                            </button>
+                    <div class="plannerToolsGrid">
+                        <div class="plannerToolGroup plannerToolPrimary">
+                            <div class="plannerOptimizeControls" aria-label="Route optimization">
+                                <p class="tiny"><strong>Optimize your route</strong></p>
+                                <div class="btnRow">
+                                    <button id="optimizeRoute" type="button" class="btn btnSmall">
+                                        Optimize Basic Route
+                                    </button>
+                                    <button
+                                        id="googleOptimizeRoute"
+                                        type="button"
+                                        class="btn btnSmall"
+                                        disabled
+                                    >
+                                        Optimize Google Route
+                                    </button>
+                                </div>
+                                <p id="routeOptimizeFeedback" class="tiny muted" role="status" aria-live="polite" aria-atomic="true">
+                                    Optimization progress and results appear here.
+                                </p>
+                            </div>
+                            <div class="btnRow">
+                                <button id="exportRoute" type="button" class="btn btnSmall">
+                                    Open in Google Maps
+                                </button>
+                                <button
+                                    id="sendRouteOrder"
+                                    type="button"
+                                    class="btn btnSmall"
+                                    disabled
+                                >
+                                    Send Route Order to Workbook
+                                </button>
+                                <button
+                                    id="checkWorkbookRoute"
+                                    type="button"
+                                    class="btn btnSmall"
+                                >
+                                    Check Workbook Route
+                                </button>
+                            </div>
+                            <p id="workbookRouteCheckStatus" class="tiny muted" role="status" aria-live="polite">
+                                Check Workbook Route loads new jobs and saved address corrections.
+                            </p>
+                            <div id="newRouteAvailable" class="plannerNotice" hidden>
+                                <p id="newRouteAvailableStatus" class="tiny"></p>
+                                <button id="startNewRoute" type="button" class="btn btnSmall">
+                                    Start New Route
+                                </button>
+                            </div>
+                            <div id="routeMapLinks" class="btnRow" hidden></div>
+                            <p id="workbookRouteOrderStatus" class="tiny muted"></p>
                         </div>
-                        <p id="routeOptimizeFeedback" class="tiny muted" role="status" aria-live="polite" aria-atomic="true">
-                            Optimization progress and results appear here.
-                        </p>
+                        <div class="plannerToolGroup plannerToolSecondary">
+                            <h4>Downloads &amp; cleanup</h4>
+                            <div class="btnRow">
+                                <button
+                                    id="downloadGarminGpx"
+                                    type="button"
+                                    class="btn btnSmall"
+                                >
+                                    Download Garmin GPX
+                                </button>
+                                <button id="clearRoute" type="button" class="btn btnSmall">
+                                    Clear Route
+                                </button>
+                            </div>
+                            <div class="btnRow">
+                                <button
+                                    id="clearInspectorAdeJobs"
+                                    type="button"
+                                    class="btn btnSmall"
+                                >
+                                    Clear InspectorADE Jobs
+                                </button>
+                                <button
+                                    id="clearManualGigWork"
+                                    type="button"
+                                    class="btn btnSmall"
+                                >
+                                    Clear Manual Gig Work
+                                </button>
+                            </div>
+                            <p class="tiny muted">
+                                Clear only that type of work from both saved routes.
+                                Saved addresses are kept.
+                            </p>
+                        </div>
                     </div>
-                    <div class="btnRow">
-                        <button id="exportRoute" type="button" class="btn btnSmall">
-                            Open in Google Maps
-                        </button>
-                        <button
-                            id="sendRouteOrder"
-                            type="button"
-                            class="btn btnSmall"
-                            disabled
-                        >
-                            Send Route Order to Workbook
-                        </button>
-                        <button
-                            id="checkWorkbookRoute"
-                            type="button"
-                            class="btn btnSmall"
-                        >
-                            Check Workbook Route
-                        </button>
-                        <button id="clearRoute" type="button" class="btn btnSmall">
-                            Clear Route
-                        </button>
-                        <button
-                            id="downloadGarminGpx"
-                            type="button"
-                            class="btn btnSmall"
-                        >
-                            Download Garmin GPX
-                        </button>
-                    </div>
-                    <p id="workbookRouteCheckStatus" class="tiny muted" role="status" aria-live="polite">
-                        Check Workbook Route loads new jobs and saved address corrections.
-                    </p>
-                    <div id="newRouteAvailable" class="plannerNotice" hidden>
-                        <p id="newRouteAvailableStatus" class="tiny"></p>
-                        <button id="startNewRoute" type="button" class="btn btnSmall">
-                            Start New Route
-                        </button>
-                    </div>
-                    <div id="routeMapLinks" class="btnRow" hidden></div>
-                    <p id="workbookRouteOrderStatus" class="tiny muted"></p>
-                    <div class="btnRow">
-                        <button
-                            id="clearInspectorAdeJobs"
-                            type="button"
-                            class="btn btnSmall"
-                        >
-                            Clear InspectorADE Jobs
-                        </button>
-                        <button
-                            id="clearManualGigWork"
-                            type="button"
-                            class="btn btnSmall"
-                        >
-                            Clear Manual Gig Work
-                        </button>
-                    </div>
-                    <p class="tiny muted">
-                        These clear one kind of route work from both saved route versions
-                        without deleting the other kind of work or the saved addresses.
-                    </p>
                 </details>
                 <div id="googleRouteSignIn" class="googleRouteSignIn"></div>
                 <p id="googleRouteAuthStatus" class="tiny muted">
