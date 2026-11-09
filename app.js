@@ -488,6 +488,7 @@ const els = {
     routeChoice: document.getElementById("routeChoice"),
     routePage: document.getElementById("routePage"),
     checkWorkbookRoute: document.getElementById("checkWorkbookRoute"),
+    workbookRouteCheckStatus: document.getElementById("workbookRouteCheckStatus"),
     routeOptimizationStatus: document.getElementById(
         "routeOptimizationStatus",
     ),
@@ -2183,8 +2184,9 @@ async function checkWorkbookRouteFromDrive() {
     if (!els.checkWorkbookRoute || els.checkWorkbookRoute.disabled) return null;
 
     els.checkWorkbookRoute.disabled = true;
-    if (els.routeStatus) {
-        els.routeStatus.textContent = "Checking Google Drive for the workbook route…";
+    const checkStatus = els.workbookRouteCheckStatus || els.routeStatus;
+    if (checkStatus) {
+        checkStatus.textContent = "Checking Google Drive for the workbook route…";
     }
 
     try {
@@ -2194,24 +2196,24 @@ async function checkWorkbookRouteFromDrive() {
             { allowStaleConfirmation: true },
         );
 
-        if (els.routeStatus) {
+        if (checkStatus) {
             if (result === "newer" || result === "pending") {
-                els.routeStatus.textContent =
+                checkStatus.textContent =
                     "New Route Available — tap Start New Route.";
             } else if (result === "older") {
-                els.routeStatus.textContent = "Older workbook route ignored.";
+                checkStatus.textContent = "Older workbook route ignored.";
             } else if (result === "empty") {
-                els.routeStatus.textContent = "Workbook route has no jobs.";
+                checkStatus.textContent = "Workbook route has no jobs.";
             } else if (result === "not-approved") {
-                els.routeStatus.textContent = "Workbook route was not loaded.";
+                checkStatus.textContent = "Workbook route was not loaded.";
             } else {
-                els.routeStatus.textContent = "Workbook route is up to date.";
+                checkStatus.textContent = "Workbook route is up to date.";
             }
         }
         return result;
     } catch (error) {
-        if (els.routeStatus) {
-            els.routeStatus.textContent =
+        if (checkStatus) {
+            checkStatus.textContent =
                 error?.message || "The workbook route could not be checked.";
         }
         return null;
@@ -3223,8 +3225,14 @@ globalThis.FMRRouteBridge = Object.freeze({
     setRouteStatus(message) {
         refreshPlannerRouteHistory();
         renderRouteList();
-        if (els.routeStatus) {
-            els.routeStatus.textContent = String(message || "");
+        const text = String(message || "");
+        if (
+            text.startsWith("Tap Check Workbook Route to connect Google Drive") &&
+            els.workbookRouteCheckStatus
+        ) {
+            els.workbookRouteCheckStatus.textContent = text;
+        } else if (els.routeStatus) {
+            els.routeStatus.textContent = text;
         }
     },
 });

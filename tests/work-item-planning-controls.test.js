@@ -194,7 +194,7 @@ test('complete route service summary formats the true derived total', () => {
 
 test('route work adapter loads the projection before the planning controls consumer', () => {
   assert.match(routeWorkControlsSource, /route-work-planning\.js\?v=1\.0\.0/);
-  assert.match(routeWorkControlsSource, /work-item-planning-controls\.js\?v=1\.1\.0/);
+  assert.match(routeWorkControlsSource, /work-item-planning-controls\.js\?v=1\.1\.1/);
   assert.match(routeWorkControlsSource, /script\.addEventListener\("load", loadPlanningControlsScript/);
   assert.match(routeWorkControlsSource, /if \(root\.FMRRouteWorkPlanning\)/);
 });

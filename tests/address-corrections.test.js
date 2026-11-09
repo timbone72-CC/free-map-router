@@ -194,5 +194,5 @@ test("address suggestion UI uses correction-aware helper without editing saved s
     assert.match(method, /dl\.replaceChildren\(\)/);
     assert.doesNotMatch(method, /writeStops|writeJobs|localStorage|addressAliases\s*=/);
     assert.match(html, /address-corrections\.js\?v=1\.0\.1/);
-    assert.match(html, /app\.js\?v=3\.34\.6/);
+    assert.match(html, /app\.js\?v=3\.34\.7/);
 });

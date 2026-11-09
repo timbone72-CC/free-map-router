@@ -31,7 +31,7 @@
             return;
         }
         const script = document.createElement("script");
-        script.src = "work-item-planning-controls.js?v=1.1.0";
+        script.src = "work-item-planning-controls.js?v=1.1.1";
         script.dataset.fmrWorkItemPlanningControls = "true";
         document.head?.appendChild(script);
     }

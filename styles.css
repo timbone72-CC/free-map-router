@@ -557,6 +557,86 @@ li {
     margin: 4px 0 0;
 }
 
+#routePage .plannerUtilities #workbookRouteCheckStatus {
+    margin: 4px 0 8px;
+    line-height: 1.3;
+}
+
+/* A compact summary replaces the oversized laptop work-item editor.
+   The existing editor remains available on expansion (and opens on phones). */
+#routePage #workItemPlanningPanel {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 680px;
+    margin: 8px 0;
+    padding: 0;
+    border-color: #d9e3e8;
+    background: #fff;
+}
+
+#routePage #workItemPlanningPanel > summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 12px;
+    cursor: pointer;
+    padding: 9px 12px;
+    font-size: 0.95rem;
+}
+
+#routePage #workItemPlanningPanel > summary:focus-visible {
+    outline: 3px solid #2463ca;
+    outline-offset: -3px;
+}
+
+#routePage #workItemPlanningPanel > summary .tiny {
+    font-weight: 400;
+}
+
+#routePage #workItemPlanningPanel .workItemPlanningBody {
+    padding: 0 12px 10px;
+}
+
+#routePage #workItemPlanningPanel .workItemPlanningHelp,
+#routePage #workItemPlanningPanel #workItemPlanningStatus {
+    margin: 5px 0;
+}
+
+#routePage #workItemPlanningPanel form label {
+    margin-bottom: 4px;
+}
+
+#routePage #workItemPlanningPanel select,
+#routePage #workItemPlanningPanel input[type="date"],
+#routePage #workItemPlanningPanel input[type="number"] {
+    margin: 4px 0 6px;
+    padding: 6px 8px;
+}
+
+#routePage #workItemPlanningPanel .workItemPlanningActions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+    margin: 5px 0;
+}
+
+#routePage #workItemPlanningPanel .workItemPlanningActions label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+}
+
+#routePage #workItemPlanningPanel #workItemPlanningLocked {
+    display: inline-block;
+    width: auto;
+    margin: 0;
+    padding: 0;
+}
+
+
+
 @media (max-width: 1100px) {
     #routePage .plannerSettingsGrid {
         grid-template-columns: minmax(0, 1fr);

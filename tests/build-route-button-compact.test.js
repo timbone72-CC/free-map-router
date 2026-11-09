@@ -29,7 +29,7 @@ test("compact button dimensions apply only to the Build Route page", () => {
     const navigation = cssRule("#routePage .plannerExecutionActions > .btn");
     assert.match(navigation, /flex:\s*0 1 auto\s*;/);
     assert.match(html, /id="routePage"/);
-    assert.match(html, /styles\.css\?v=1\.2\.9/);
+    assert.match(html, /styles\.css\?v=1\.2\.10/);
 });
 
 test("existing route actions, labels, and the full tools dropdown remain present", () => {
