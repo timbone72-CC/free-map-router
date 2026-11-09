@@ -573,12 +573,6 @@ li {
     }
 }
 
-@media (max-width: 540px) {
-    #routePage .workdayFields {
-        grid-template-columns: minmax(0, 1fr);
-    }
-}
-
 .homeByHeader {
     display: flex;
     align-items: center;
