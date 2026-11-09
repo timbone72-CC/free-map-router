@@ -36,8 +36,8 @@ test("Multi-Day Plan and Workday are the two children of one balanced layout wra
 test("Days remains a narrow numeric input and Workday retains all four original fields", () => {
     const day = rule("#routePage #routePlanDayCount");
     assert.match(day, /max-width:\s*94px/);
-    assert.match(rule("#routePage .plannerSettingsGrid"), /repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
-    assert.match(rule("#routePage .workdayFields"), /repeat\(4,\s*minmax\(0,\s*1fr\)\)/);
+    assert.match(rule("#routePage .plannerSettingsGrid"), /minmax\(0,\s*0\.8fr\)\s+minmax\(0,\s*1\.2fr\)/);
+    assert.match(rule("#routePage .workdayFields"), /repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
 
     for (const id of [
         "routePlanDayCount", "routePlanDaySelector", "routeDate",
@@ -48,6 +48,8 @@ test("Days remains a narrow numeric input and Workday retains all four original 
         assert.equal(html.split('id="' + id + '"').length - 1, 1, id + " must be unique");
     }
     assert.match(html, /styles\.css\?v=1\.2\.9/);
+    assert.match(css, /@media \(min-width: 1101px\)[\s\S]*?#routePage \.plannerContext[\s\S]*?max-width:\s*870px/);
+    assert.match(css, /#routePage \.plannerContext > \.plannerUtilities\s*\{\s*max-width:\s*760px/);
     assert.match(css, /@media \(max-width: 1100px\)[\s\S]*?\.plannerSettingsGrid\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\)/);
     assert.match(css, /@media \(max-width: 540px\)[\s\S]*?\.workdayFields\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\)/);
 });
