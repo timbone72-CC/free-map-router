@@ -488,74 +488,76 @@
                     account.
                 </p>
 
-                <div id="routePlanControls" class="panel">
-                    <div class="inlineHeader">
-                        <h3>Multi-Day Plan</h3>
-                        <label>
-                            Active Day
-                            <select id="routePlanDaySelector"></select>
-                        </label>
-                    </div>
-                    <div class="row2">
-                        <label>
-                            Days
-                            <input id="routePlanDayCount" type="number" min="1" step="1" value="1" />
-                        </label>
-                        <div class="btnRow">
-                            <button id="routePlanAutoDays" type="button" class="btn btnSmall">
-                                Suggest Days
-                            </button>
-                            <button id="routePlanBuildDays" type="button" class="btn btnSmall">
-                                Build / Replace Plan
-                            </button>
+                <div class="plannerSettingsGrid">
+                    <div id="routePlanControls" class="panel">
+                        <div class="inlineHeader">
+                            <h3>Multi-Day Plan</h3>
+                            <label>
+                                Active Day
+                                <select id="routePlanDaySelector"></select>
+                            </label>
                         </div>
-                    </div>
-                    <div class="btnRow">
-                        <button id="routePlanAssignDays" type="button" class="btn btnSmall">
-                            Reassign Unlocked Work
-                        </button>
-                    </div>
-                    <p id="routePlanStatus" class="tiny muted">
-                        One-day routes still work normally. Multi-day assignment is local and never calls Google automatically.
-                    </p>
-                    <details>
-                        <summary>Day assignments</summary>
-                        <div id="routePlanAssignmentList"></div>
-                    </details>
-                </div>
-
-                <div id="workdayControls" class="panel plannerWorkday">
-                    <h3>Workday</h3>
-                    <div class="workdayFields">
-                        <label>
-                            Route date
-                            <input type="date" id="routeDate" />
-                        </label>
-                        <label>
-                            Departure
-                            <input type="time" id="routeDepartureTime" step="60" />
-                        </label>
-                        <label>
-                            Preferred field-work finish
-                            <input
-                                type="time"
-                                id="routePreferredFinishTime"
-                                step="60"
-                            />
-                        </label>
-                        <div class="homeByControl">
-                            <div class="homeByHeader">
-                                <span>Home by</span>
-                                <label class="homeBySwitch">
-                                    <input type="checkbox" id="routeHomeByEnabled" role="switch" aria-label="Enforce Home By deadline" />
-                                    <span class="homeBySwitchTrack" aria-hidden="true"></span>
-                                    <span id="routeHomeBySwitchState">ON</span>
-                                </label>
+                        <div class="plannerDaySetup">
+                            <label>
+                                Days
+                                <input id="routePlanDayCount" type="number" min="1" step="1" value="1" />
+                            </label>
+                            <div class="btnRow">
+                                <button id="routePlanAutoDays" type="button" class="btn btnSmall">
+                                    Suggest Days
+                                </button>
+                                <button id="routePlanBuildDays" type="button" class="btn btnSmall">
+                                    Build / Replace Plan
+                                </button>
                             </div>
-                            <input type="time" id="routeHomeByTime" step="60" aria-label="Home by time" />
                         </div>
+                        <div class="btnRow">
+                            <button id="routePlanAssignDays" type="button" class="btn btnSmall">
+                                Reassign Unlocked Work
+                            </button>
+                        </div>
+                        <p id="routePlanStatus" class="tiny muted">
+                            One-day routes stay unchanged. Multi-day planning is saved locally.
+                        </p>
+                        <details>
+                            <summary>Day assignments</summary>
+                            <div id="routePlanAssignmentList"></div>
+                        </details>
                     </div>
-                    <p id="routeDayContextStatus" class="tiny muted"></p>
+
+                    <div id="workdayControls" class="panel plannerWorkday">
+                        <h3>Workday</h3>
+                        <div class="workdayFields">
+                            <label>
+                                Route date
+                                <input type="date" id="routeDate" />
+                            </label>
+                            <label>
+                                Departure
+                                <input type="time" id="routeDepartureTime" step="60" />
+                            </label>
+                            <label>
+                                Preferred field-work finish
+                                <input
+                                    type="time"
+                                    id="routePreferredFinishTime"
+                                    step="60"
+                                />
+                            </label>
+                            <div class="homeByControl">
+                                <div class="homeByHeader">
+                                    <span>Home by</span>
+                                    <label class="homeBySwitch">
+                                        <input type="checkbox" id="routeHomeByEnabled" role="switch" aria-label="Enforce Home By deadline" />
+                                        <span class="homeBySwitchTrack" aria-hidden="true"></span>
+                                        <span id="routeHomeBySwitchState">ON</span>
+                                    </label>
+                                </div>
+                                <input type="time" id="routeHomeByTime" step="60" aria-label="Home by time" />
+                            </div>
+                        </div>
+                        <p id="routeDayContextStatus" class="tiny muted"></p>
+                    </div>
                 </div>
 
                 <details class="plannerSummaryDetails" id="plannerSummaryDetails">
