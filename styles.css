@@ -430,6 +430,76 @@ li {
     border-radius: 10px;
 }
 
+/* Two compact planning panels share the desktop row; stack on narrower screens. */
+#routePage .plannerSettingsGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 12px;
+    margin: 8px 0 12px;
+}
+
+#routePage .plannerSettingsGrid > .panel {
+    min-width: 0;
+    margin: 0;
+    padding: 10px 12px;
+}
+
+#routePage #routePlanControls {
+    border: 1px solid #d1e2ee;
+    border-radius: 10px;
+    background: #fff;
+}
+
+#routePage #routePlanControls .inlineHeader {
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+#routePage #routePlanControls h3 {
+    margin: 0 0 8px;
+    font-size: 1.05rem;
+}
+
+#routePage #routePlanControls .inlineHeader > label {
+    flex: 0 1 190px;
+    min-width: 140px;
+}
+
+#routePage #routePlanControls .inlineHeader select {
+    margin: 4px 0;
+    padding: 6px;
+}
+
+#routePage .plannerDaySetup {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 8px;
+}
+
+#routePage .plannerDaySetup > label {
+    flex: 0 0 94px;
+}
+
+#routePage #routePlanDayCount {
+    width: 100%;
+    max-width: 94px;
+    margin: 4px 0 0;
+    padding: 6px 8px;
+}
+
+#routePage .plannerDaySetup > .btnRow {
+    flex: 1 1 260px;
+    margin: 0;
+}
+
+#routePage #routePlanStatus {
+    margin: 6px 0;
+    line-height: 1.3;
+}
+
 /* Build Route: four timing controls across on desktop, responsive on smaller screens. */
 #routePage .plannerWorkday {
     margin: 8px 0 10px;
@@ -445,7 +515,7 @@ li {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     align-items: end;
-    gap: 12px;
+    gap: 8px;
 }
 
 #routePage .workdayFields > label,
@@ -487,13 +557,29 @@ li {
     margin: 4px 0 0;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1420px) {
     #routePage .workdayFields {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
-@media (max-width: 620px) {
+@media (max-width: 1100px) {
+    #routePage .plannerSettingsGrid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    #routePage .workdayFields {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 760px) {
+    #routePage .workdayFields {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 540px) {
     #routePage .workdayFields {
         grid-template-columns: minmax(0, 1fr);
     }
