@@ -433,10 +433,10 @@ li {
 /* Two compact planning panels share the desktop row; stack on narrower screens. */
 #routePage .plannerSettingsGrid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
     align-items: stretch;
-    gap: 12px;
-    margin: 8px 0 12px;
+    gap: 10px;
+    margin: 8px 0 10px;
 }
 
 #routePage .plannerSettingsGrid > .panel {
@@ -513,7 +513,7 @@ li {
 
 #routePage .workdayFields {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: end;
     gap: 8px;
 }
@@ -555,12 +555,6 @@ li {
 
 #routePage .plannerActionSection #routeStatus {
     margin: 4px 0 0;
-}
-
-@media (max-width: 1420px) {
-    #routePage .workdayFields {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
 }
 
 @media (max-width: 1100px) {
@@ -980,6 +974,33 @@ li {
 
     .plannerStopHeader {
         grid-template-columns: auto minmax(0, 1fr);
+    }
+}
+
+/* Laptop layout: use the space for content, not stretched form controls. */
+@media (min-width: 1101px) {
+    #routePage .plannerContext,
+    #routePage .plannerActionSection {
+        box-sizing: border-box;
+        max-width: 870px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    #routePage .plannerRouteChoiceLabel {
+        flex: 0 1 300px;
+    }
+
+    #routePage .plannerContext > .plannerUtilities {
+        max-width: 760px;
+    }
+
+    #routePage .plannerSummaryDetails {
+        max-width: 760px;
+    }
+
+    #routePage .plannerContext {
+        padding: 12px;
     }
 }
 
