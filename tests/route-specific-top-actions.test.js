@@ -57,8 +57,8 @@ test("both optimizers retain unique IDs; only selected route is shown", () => {
     assert.match(css, /#routePage\[data-active-route="basic"\] #googleOptimizeRoute,/);
     assert.match(css, /#routePage\[data-active-route="basic"\] #googleRouteSignIn,/);
     assert.match(css, /#routePage\[data-active-route="basic"\] #googleRouteAuthStatus\s*\{\s*display:\s*none;/);
-    assert.match(html, /styles\.css\?v=1\.2\.9/);
-    assert.match(html, /app\.js\?v=3\.34\.6/);
+    assert.match(html, /styles\.css\?v=1\.2\.10/);
+    assert.match(html, /app\.js\?v=3\.34\.7/);
 });
 
 test("renderRouteChoice updates route-specific controls without touching route state", () => {
