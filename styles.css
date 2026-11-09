@@ -987,6 +987,19 @@ li {
         margin-right: auto;
     }
 
+    #routePage .plannerSurface {
+        box-sizing: border-box;
+        max-width: 920px;
+        margin-left: auto;
+        margin-right: auto;
+        padding: 12px;
+    }
+
+    #routePage .plannerMap,
+    #routePage .plannerListPane {
+        height: 410px;
+    }
+
     #routePage .plannerRouteChoiceLabel {
         flex: 0 1 300px;
     }
