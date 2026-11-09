@@ -47,12 +47,12 @@ test("Days remains a narrow numeric input and Workday retains all four original 
     ]) {
         assert.equal(html.split('id="' + id + '"').length - 1, 1, id + " must be unique");
     }
-    assert.match(html, /styles\.css\?v=1\.2\.10/);
+    assert.match(html, /styles\.css\?v=1\.2\.11/);
     assert.match(css, /@media \(min-width: 1101px\)[\s\S]*?#routePage \.plannerContext[\s\S]*?max-width:\s*870px/);
     assert.match(css, /#routePage \.plannerContext > \.plannerUtilities\s*\{\s*max-width:\s*760px/);
     assert.match(css, /#routePage \.plannerSurface\s*\{[\s\S]*?max-width:\s*920px/);
     assert.match(css, /#routePage \.plannerMap,[\s\S]*?#routePage \.plannerListPane\s*\{\s*height:\s*410px/);
-    assert.match(css, /@media \(max-width: 1100px\)[\s\S]*?\.plannerSettingsGrid\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\)/);
+    assert.match(css, /@media \(max-width: 1000px\)[\s\S]*?\.plannerSettingsGrid\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\)/);
     assert.match(css, /@media \(max-width: 760px\)[\s\S]*?\.workdayFields\s*\{\s*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
 });
 
