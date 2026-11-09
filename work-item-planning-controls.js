@@ -131,62 +131,60 @@
         const anchor = document.getElementById("routeStatus");
         if (!anchor?.parentElement) return null;
 
-        panel = document.createElement("div");
+        panel = document.createElement("details");
         panel.id = "workItemPlanningPanel";
         panel.className = "subSection";
+        // Keep the existing phone editor visible; desktop starts compact.
+        panel.open = !globalThis.matchMedia?.("(min-width: 1101px)")?.matches;
         panel.innerHTML = `
-            <div class="inlineHeader">
+            <summary class="workItemPlanningSummary">
                 <strong>Plan Work Item</strong>
                 <span id="workItemPlanningRouteSummary" class="tiny muted"></span>
+                <span id="workItemPlanningServiceSummary" class="tiny muted"></span>
+            </summary>
+            <div class="workItemPlanningBody">
+                <p class="tiny muted workItemPlanningHelp">
+                    Edit an exact Order ID or Gig ID. Blank service minutes use
+                    the default; enter a value only when needed.
+                </p>
+                <form id="workItemPlanningForm">
+                    <label>
+                        Work item
+                        <select id="workItemPlanningSelect"></select>
+                    </label>
+                    <div class="row2">
+                        <label>
+                            Service minutes
+                            <input
+                                id="workItemPlanningMinutes"
+                                type="number"
+                                min="0.1"
+                                step="0.1"
+                                inputmode="decimal"
+                                placeholder="Use default"
+                            />
+                        </label>
+                        <label>
+                            Assigned day
+                            <input id="workItemPlanningDate" type="date" />
+                        </label>
+                    </div>
+                    <div class="workItemPlanningActions">
+                        <label>
+                            <input id="workItemPlanningLocked" type="checkbox" />
+                            Lock to assigned day
+                        </label>
+                        <button
+                            id="saveWorkItemPlanning"
+                            type="submit"
+                            class="btn btnSmall"
+                        >
+                            Save Planning
+                        </button>
+                    </div>
+                </form>
+                <p id="workItemPlanningStatus" class="tiny muted"></p>
             </div>
-            <p id="workItemPlanningServiceSummary" class="tiny"></p>
-            <p class="tiny muted">
-                Planning belongs to the exact Order ID or Gig_ID, not the address.
-                Blank InspectorADE minutes use the current default. For a manual gig,
-                leave Service Minutes blank and save planning to choose the 5-minute
-                default, or enter an exact duration override.
-            </p>
-            <form id="workItemPlanningForm">
-                <label>
-                    Work item
-                    <select id="workItemPlanningSelect"></select>
-                </label>
-                <div class="row2">
-                    <label>
-                        Service minutes
-                        <input
-                            id="workItemPlanningMinutes"
-                            type="number"
-                            min="0.1"
-                            step="0.1"
-                            inputmode="decimal"
-                            placeholder="Use default"
-                        />
-                    </label>
-                    <label>
-                        Assigned day
-                        <input id="workItemPlanningDate" type="date" />
-                    </label>
-                </div>
-                <label style="display:flex;align-items:center;gap:6px;">
-                    <input
-                        id="workItemPlanningLocked"
-                        type="checkbox"
-                        style="display:inline-block;width:auto;margin:0;padding:0;"
-                    />
-                    Lock to assigned day
-                </label>
-                <div class="btnRow">
-                    <button
-                        id="saveWorkItemPlanning"
-                        type="submit"
-                        class="btn btnSmall"
-                    >
-                        Save Planning
-                    </button>
-                </div>
-            </form>
-            <p id="workItemPlanningStatus" class="tiny muted"></p>
         `;
         anchor.insertAdjacentElement("beforebegin", panel);
 
