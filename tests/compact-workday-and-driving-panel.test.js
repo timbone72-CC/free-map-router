@@ -50,6 +50,8 @@ test("Days remains a narrow numeric input and Workday retains all four original 
     assert.match(html, /styles\.css\?v=1\.2\.9/);
     assert.match(css, /@media \(min-width: 1101px\)[\s\S]*?#routePage \.plannerContext[\s\S]*?max-width:\s*870px/);
     assert.match(css, /#routePage \.plannerContext > \.plannerUtilities\s*\{\s*max-width:\s*760px/);
+    assert.match(css, /#routePage \.plannerSurface\s*\{[\s\S]*?max-width:\s*920px/);
+    assert.match(css, /#routePage \.plannerMap,[\s\S]*?#routePage \.plannerListPane\s*\{\s*height:\s*410px/);
     assert.match(css, /@media \(max-width: 1100px\)[\s\S]*?\.plannerSettingsGrid\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\)/);
     assert.match(css, /@media \(max-width: 540px\)[\s\S]*?\.workdayFields\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\)/);
 });
