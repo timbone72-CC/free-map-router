@@ -31,7 +31,7 @@ test("desktop Work Item panel collapses by default but phone editor stays open",
     assert.match(controls, /anchor\.insertAdjacentElement\("beforebegin", panel\)/);
     assert.match(css, /#routePage #workItemPlanningPanel\s*\{[\s\S]*?max-width:\s*680px/);
     assert.match(css, /#routePage #workItemPlanningPanel > summary:focus-visible/);
-    assert.match(html, /styles\.css\?v=1\.2\.10/);
+    assert.match(html, /styles\.css\?v=1\.2\.11/);
     assert.match(html, /app\.js\?v=3\.34\.7/);
     assert.match(html, /route-work-controls\.js\?v=1\.0\.1/);
     assert.match(loader, /work-item-planning-controls\.js\?v=1\.1\.1/);

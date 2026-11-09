@@ -637,13 +637,13 @@ li {
 
 
 
-@media (max-width: 1100px) {
+@media (max-width: 1000px) {
     #routePage .plannerSettingsGrid {
         grid-template-columns: minmax(0, 1fr);
     }
 
     #routePage .workdayFields {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
@@ -1088,6 +1088,62 @@ li {
 
     #routePage .plannerContext {
         padding: 12px;
+    }
+}
+
+/* Readable laptop layout at normal browser zoom. Keep the phone rules intact. */
+@media (min-width: 761px) {
+    #routePage {
+        font-size: 16px;
+        line-height: 1.45;
+    }
+
+    #routePage .tiny,
+    #routePage .plannerStopMeta,
+    #routePage .plannerWorkRow,
+    #routePage .plannerEndpoint,
+    #routePage .plannerSummaryLabel,
+    #routePage .homeBySwitch {
+        font-size: 15px;
+        line-height: 1.4;
+    }
+
+    #routePage .plannerStopId {
+        font-size: 14px;
+    }
+
+    #routePage .btn,
+    #routePage input:not([type="checkbox"]),
+    #routePage select {
+        font-size: 16px;
+    }
+
+    #routePage #routePlanControls h3,
+    #routePage .plannerWorkday h3,
+    #routePage .plannerActionSection h3 {
+        font-size: 20px;
+    }
+}
+
+@media (min-width: 1001px) {
+    /* This wider body applies only when Build Route is the selected page. */
+    body:has(#routePage:not([hidden])) {
+        max-width: min(1400px, 92vw);
+    }
+
+    #routePage .plannerContext,
+    #routePage .plannerSurface {
+        max-width: none;
+        margin-left: 0;
+        margin-right: 0;
+    }
+
+    #routePage .plannerSettingsGrid {
+        align-items: start;
+    }
+
+    #routePage .workdayFields {
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
     }
 }
 
