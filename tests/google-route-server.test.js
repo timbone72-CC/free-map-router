@@ -45,7 +45,6 @@ test("private server exposes a minimal health response", async () => {
         assert.deepEqual(await response.json(), {
             ok: true,
             service: "fmr-route-optimizer",
-            features: { avoidTolls: true },
         });
     });
 });

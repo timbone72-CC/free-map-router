@@ -129,7 +129,7 @@
         return manualPoint || address;
     }
 
-    function buildGoogleMapsDirectionsUrlFromPoints(points, options = {}) {
+    function buildGoogleMapsDirectionsUrlFromPoints(points) {
         const routePoints = points.map(routePoint);
         if (routePoints.some((point) => !point)) return "";
 
@@ -149,27 +149,26 @@
             url += `&waypoints=${waypoints}`;
         }
 
-        return options.avoidTolls === true ? `${url}&avoid=tolls` : url;
+        return url;
     }
 
-    function buildGoogleMapsDirectionsUrl(home, stops, options = {}) {
+    function buildGoogleMapsDirectionsUrl(home, stops) {
         const points = [home, ...(Array.isArray(stops) ? stops : []), home];
-        return buildGoogleMapsDirectionsUrlFromPoints(points, options);
+        return buildGoogleMapsDirectionsUrlFromPoints(points);
     }
 
-    function buildGoogleMapsNavigationUrl(destination, options = {}) {
+    function buildGoogleMapsNavigationUrl(destination) {
         const point = routePoint(destination);
         if (!point) return "";
 
         return (
             "https://www.google.com/maps/dir/?api=1" +
             `&destination=${encodeURIComponent(point)}` +
-            "&travelmode=driving&dir_action=navigate" +
-            (options.avoidTolls === true ? "&avoid=tolls" : "")
+            "&travelmode=driving&dir_action=navigate"
         );
     }
 
-    function buildGoogleMapsRouteSections(home, stops, maxWaypoints = 9, options = {}) {
+    function buildGoogleMapsRouteSections(home, stops, maxWaypoints = 9) {
         const selectedStops = Array.isArray(stops) ? stops : [];
         if (!home || selectedStops.length === 0) return [];
 
@@ -199,7 +198,7 @@
                 origin: sectionPoints[0],
                 waypoints: sectionPoints.slice(1, -1),
                 destination: sectionPoints[sectionPoints.length - 1],
-                url: buildGoogleMapsDirectionsUrlFromPoints(sectionPoints, options),
+                url: buildGoogleMapsDirectionsUrlFromPoints(sectionPoints),
             });
 
             startIndex = endIndex;

@@ -238,7 +238,6 @@
         home,
         serviceByStopId,
         timing,
-        avoidTolls,
     }) {
         const service = (Array.isArray(routeIds) ? routeIds : []).map((stopId) => [
             stopId,
@@ -248,7 +247,6 @@
             routeIds: Array.isArray(routeIds) ? routeIds.slice() : [],
             home: stableHomeBasis(home),
             service,
-            ...(avoidTolls === undefined ? {} : { avoidTolls }),
             departureTime: String(timing?.departureTime ?? ""),
             homeByTime: String(timing?.homeByTime ?? ""),
         });
@@ -263,7 +261,6 @@
             home: prepared?.snapshot?.home,
             serviceByStopId: prepared?.context?.serviceByStopId,
             timing: prepared?.snapshot?.timing,
-            avoidTolls: prepared?.snapshot?.avoidTolls,
         });
     }
 
@@ -274,7 +271,7 @@
         ) {
             throw new GoogleRouteBrowserError(
                 "STALE_ROUTE",
-                "The route, Home, service time, Departure, Home By, or toll choice changed while Google was calculating. No route was changed. Run Google Optimize again.",
+                "The route, Home, service time, Departure, or Home By changed while Google was calculating. No route was changed. Run Google Optimize again.",
             );
         }
         return true;
@@ -459,9 +456,6 @@
         return {
             snapshot: {
                 home: snapshot.home,
-                ...(runtimeRoot?.FMRSettings?.readAvoidTolls
-                    ? { avoidTolls: runtimeRoot.FMRSettings.readAvoidTolls(storage) }
-                    : {}),
                 ...(timing ? { timing } : {}),
                 stops: snapshot.stops.map((stop) => ({
                     ...stop,
@@ -490,9 +484,6 @@
         return contract.buildBackendRequest({
             requestId: id,
             home: snapshot?.home,
-            ...(snapshot?.avoidTolls === undefined
-                ? {}
-                : { avoidTolls: snapshot.avoidTolls }),
             ...(snapshot?.timing ? { timing: snapshot.timing } : {}),
             stops: stops.map((stop) => {
                 const location =
@@ -969,7 +960,6 @@
                         home: prepared.snapshot.home,
                         serviceByStopId: prepared.context.serviceByStopId,
                         timing: prepared.snapshot.timing,
-                        avoidTolls: prepared.snapshot.avoidTolls,
                     });
                     persistGoogleSchedule(
                         runtimeRoot.localStorage,
@@ -989,7 +979,6 @@
                     `Google road route applied to ${routeIds.length} stops.` +
                         (metrics ? ` ${metrics}.` : "") +
                         scheduleOutcome +
-                        (prepared.snapshot.avoidTolls === true ? " Avoid tolls ON." : "") +
                         (prepared.context.enforceHomeBy
                             ? ""
                             : " Home By limit off."),

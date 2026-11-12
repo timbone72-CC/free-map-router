@@ -80,9 +80,6 @@ function buildGoogleOptimizeToursRequest(backendRequest, { now } = {}) {
             longitude: request.home.longitude,
         },
         costPerTraveledHour: 1,
-        ...(Object.hasOwn(request, "avoidTolls")
-            ? { routeModifiers: { avoidTolls: request.avoidTolls } }
-            : {}),
     };
 
     if (request.timing) {
@@ -246,9 +243,6 @@ function interpretGoogleOptimizeToursResponse(backendRequest, googleResponse) {
 
     const providerResponse = {
         requestId: request.requestId,
-        ...(Object.hasOwn(request, "avoidTolls")
-            ? { avoidTolls: request.avoidTolls }
-            : {}),
         orderedStopIds: visits.map((visit) => visitStopId(request, visit)),
         skippedStopIds: skippedShipments.map((skipped) =>
             skippedStopId(request, skipped),
