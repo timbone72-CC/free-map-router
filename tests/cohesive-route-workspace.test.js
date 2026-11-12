@@ -56,7 +56,7 @@ test("mobile tool order and breakpoints are unchanged", () => {
     }
     assert.match(css, /@media \(max-width: 760px\)\s*\{\s*#routePage \.plannerToolsGrid,[\s\S]*?#routePage \.plannerToolGroup\s*\{\s*display:\s*contents/);
     assert.match(css, /@media \(max-width: 760px\)[\s\S]*?#routePage \.plannerToolSecondary h4\s*\{\s*display:\s*none/);
-    assert.match(html, /styles\.css\?v=1\.2\.12/);
+    assert.match(html, /styles\.css\?v=1\.2\.13/);
 });
 
 test("desktop routes have readable text and full-width grouping rather than nested skinny cards", () => {

@@ -50,7 +50,7 @@ test("all route tools retain their original unique IDs inside the same dropdown"
 test("the moved dropdown remains compact and no unused Quick Actions CSS remains", () => {
     assert.match(css, /\.plannerContext > \.plannerUtilities\s*\{/);
     assert.doesNotMatch(css, /\.plannerQuickActions/);
-    assert.match(html, /styles\.css\?v=1\.2\.12/);
+    assert.match(html, /styles\.css\?v=1\.2\.13/);
 });
 
 test("Start New Route keeps the original pending-only display and confirmation logic", () => {
