@@ -30,7 +30,7 @@ test("route-only desktop typography is readable without enlarging other pages", 
     assert.match(readable, /#routePage \.plannerStopId\s*\{\s*font-size:\s*14px/);
     assert.match(readable, /#routePage #routePlanControls h3,[\s\S]*?font-size:\s*20px/);
     assert.doesNotMatch(readable, /(^|\n)\s*body\s*\{/);
-    assert.match(html, /styles\.css\?v=1\.2\.12/);
+    assert.match(html, /styles\.css\?v=1\.2\.13/);
 });
 
 test("the route page uses the available laptop width but never changes other pages", () => {

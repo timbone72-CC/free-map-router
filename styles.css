@@ -500,6 +500,20 @@ li {
     line-height: 1.3;
 }
 
+/* Keep long Day assignments inside their existing collapsible section. */
+#routePage #routePlanAssignmentList {
+    max-height: min(28rem, 60vh);
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scrollbar-gutter: stable;
+    padding: 4px;
+}
+
+#routePage #routePlanAssignmentList:focus-visible {
+    outline: 2px solid #176f68;
+    outline-offset: 2px;
+}
+
 /* Build Route: four timing controls across on desktop, responsive on smaller screens. */
 #routePage .plannerWorkday {
     margin: 8px 0 10px;

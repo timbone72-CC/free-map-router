@@ -4,7 +4,7 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Free Map Router</title>
-        <link rel="stylesheet" href="styles.css?v=1.2.12" />
+        <link rel="stylesheet" href="styles.css?v=1.2.13" />
         <link
             rel="stylesheet"
             href="vendor/leaflet.css?v=1.9.4"
@@ -531,7 +531,12 @@
                         </p>
                         <details>
                             <summary>Day assignments</summary>
-                            <div id="routePlanAssignmentList"></div>
+                            <div
+                                id="routePlanAssignmentList"
+                                role="region"
+                                aria-label="Day assignments"
+                                tabindex="0"
+                            ></div>
                         </details>
                     </div>
 
