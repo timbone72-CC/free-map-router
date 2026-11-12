@@ -242,6 +242,9 @@ async function resolveGoogleRouteRequest(
         requestId: request.requestId,
         home: request.home,
         stops: resolvedStops,
+        ...(Object.hasOwn(request, "avoidTolls")
+            ? { avoidTolls: request.avoidTolls }
+            : {}),
         ...(request.timing ? { timing: request.timing } : {}),
     });
 }
@@ -330,7 +333,11 @@ function createRequestHandler({
             const url = new URL(request.url, "http://localhost");
 
             if (request.method === "GET" && url.pathname === "/health") {
-                writeJson(response, 200, { ok: true, service: "fmr-route-optimizer" });
+                writeJson(response, 200, {
+                    ok: true,
+                    service: "fmr-route-optimizer",
+                    features: { avoidTolls: true },
+                });
                 return;
             }
 
