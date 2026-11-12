@@ -26,10 +26,12 @@ function extractFunction(source, name) {
     throw new Error(`${name} has no closing brace`);
 }
 
-function runDoneAndNext({ home, jobs, routeIds }) {
+function runDoneAndNext({ home, jobs, routeIds, avoidTolls = true }) {
     const context = {
         alerts: [],
         opens: [],
+        navigationOptions: [],
+        readAvoidTolls: require("../settings.js").readAvoidTolls,
         renderRouteCalls: 0,
         renderJobsCalls: 0,
         persistRouteCalls: 0,
@@ -47,7 +49,7 @@ function runDoneAndNext({ home, jobs, routeIds }) {
             google: { routeIds: routeIds.slice() },
             basic: { routeIds: routeIds.slice() },
         };
-        const localStorage = {};
+        const localStorage = { getItem: () => "${avoidTolls}" };
         const savedJobIds = () => null;
         const completeActivePlanStop = (history, stopId) => {
             completionCalls += 1;
@@ -65,10 +67,10 @@ function runDoneAndNext({ home, jobs, routeIds }) {
         const els = { routeStatus: { textContent: "" } };
         const alert = (message) => alerts.push(message);
         const window = { open: (url, target) => opens.push({ url, target }) };
-        const buildGoogleMapsNavigationUrl = (destination) =>
-            destination?.address
-                ? "navigate:" + destination.address
-                : "";
+        const buildGoogleMapsNavigationUrl = (destination, options) => {
+            navigationOptions.push(options);
+            return destination?.address ? "navigate:" + destination.address : "";
+        };
         const renderRouteList = () => { renderRouteCalls += 1; };
         const renderJobsList = () => { renderJobsCalls += 1; };
         const persistActiveRoute = () => { persistRouteCalls += 1; };
@@ -88,10 +90,12 @@ function runDoneAndNext({ home, jobs, routeIds }) {
     return context;
 }
 
-function runStartNavigation({ home, jobs, routeIds }) {
+function runStartNavigation({ home, jobs, routeIds, avoidTolls = true }) {
     const context = {
         alerts: [],
         opens: [],
+        navigationOptions: [],
+        readAvoidTolls: require("../settings.js").readAvoidTolls,
         renderRouteCalls: 0,
         renderJobsCalls: 0,
         persistRouteCalls: 0,
@@ -102,13 +106,14 @@ function runStartNavigation({ home, jobs, routeIds }) {
         let home = ${JSON.stringify(home)};
         let jobs = ${JSON.stringify(jobs)};
         let routeIds = ${JSON.stringify(routeIds)};
+        const localStorage = { getItem: () => "${avoidTolls}" };
         const els = { routeStatus: { textContent: "" } };
         const alert = (message) => alerts.push(message);
         const window = { open: (url, target) => opens.push({ url, target }) };
-        const buildGoogleMapsNavigationUrl = (destination) =>
-            destination?.address
-                ? "navigate:" + destination.address
-                : "";
+        const buildGoogleMapsNavigationUrl = (destination, options) => {
+            navigationOptions.push(options);
+            return destination?.address ? "navigate:" + destination.address : "";
+        };
         const renderRouteList = () => { renderRouteCalls += 1; };
         const renderJobsList = () => { renderJobsCalls += 1; };
         const persistActiveRoute = () => { persistRouteCalls += 1; };
@@ -255,4 +260,24 @@ test("Done does nothing when no current route stop exists", () => {
     assert.deepEqual(context.alerts, [
         "No current stop remains in this route.",
     ]);
+});
+
+
+test("Start, Done to next, and Done to Home pass the remembered toll choice", () => {
+    for (const avoidTolls of [true, false]) {
+        const input = {
+            home: { address: "Home" },
+            jobs: [{ id: "a", address: "First" }, { id: "b", address: "Second" }],
+            routeIds: ["a", "b"],
+            avoidTolls,
+        };
+        for (const context of [
+            runStartNavigation(input),
+            runDoneAndNext(input),
+            runDoneAndNext({ ...input, routeIds: ["a"] }),
+        ]) {
+            assert.equal(context.navigationOptions.length, 1);
+            assert.equal(context.navigationOptions[0].avoidTolls, avoidTolls);
+        }
+    }
 });
