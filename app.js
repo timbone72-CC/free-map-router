@@ -73,8 +73,6 @@ const {
     optimizeRoundTripOrder,
 } = globalThis.FMRRouting;
 const {
-    bindAvoidTollsControl,
-    readAvoidTolls,
     maskedKey,
     readGeoapifyKey,
     updateApp,
@@ -816,9 +814,7 @@ function renderGoogleMapsActions() {
 
     if (!home || routeIds.length === 0) return;
 
-    const sections = buildGoogleMapsRouteSections(
-        home, selectedRouteJobs(), 9, { avoidTolls: readAvoidTolls(localStorage) },
-    );
+    const sections = buildGoogleMapsRouteSections(home, selectedRouteJobs());
     if (sections.length <= 1) return;
 
     els.exportRoute.hidden = true;
@@ -1673,9 +1669,7 @@ async function optimizeSelectedRoute() {
     renderRouteList();
     renderJobsList();
     renderRouteChoice();
-    const sections = buildGoogleMapsRouteSections(
-        home, ordered, 9, { avoidTolls: readAvoidTolls(localStorage) },
-    );
+    const sections = buildGoogleMapsRouteSections(home, ordered);
     const mapsReady =
         sections.length > 1
             ? ` ${sections.length} numbered Google Maps sections are ready below.`
@@ -1697,9 +1691,7 @@ function exportToGoogleMaps() {
     }
 
     const selected = selectedRouteJobs();
-    const sections = buildGoogleMapsRouteSections(
-        home, selected, 9, { avoidTolls: readAvoidTolls(localStorage) },
-    );
+    const sections = buildGoogleMapsRouteSections(home, selected);
 
     if (sections.length > 1) {
         renderGoogleMapsActions();
@@ -1707,9 +1699,7 @@ function exportToGoogleMaps() {
         return;
     }
 
-    const url = buildGoogleMapsDirectionsUrl(
-        home, selected, { avoidTolls: readAvoidTolls(localStorage) },
-    );
+    const url = buildGoogleMapsDirectionsUrl(home, selected);
     if (!url) {
         alert(
             "Every route item needs a readable address or a valid corrected pin.",
@@ -1743,9 +1733,7 @@ function completeCurrentStopAndNavigate() {
         .map((id) => jobs.find((job) => job.id === id))
         .find(Boolean);
     const destination = nextStop || home;
-    const url = buildGoogleMapsNavigationUrl(destination, {
-        avoidTolls: readAvoidTolls(localStorage),
-    });
+    const url = buildGoogleMapsNavigationUrl(destination);
 
     if (!url) {
         alert("The next destination needs a readable address or corrected pin.");
@@ -1792,9 +1780,7 @@ function startCurrentStopNavigation() {
         return;
     }
 
-    const url = buildGoogleMapsNavigationUrl(currentStop, {
-        avoidTolls: readAvoidTolls(localStorage),
-    });
+    const url = buildGoogleMapsNavigationUrl(currentStop);
     if (!url) {
         alert(
             "The first destination needs a readable address or corrected pin.",
@@ -1814,23 +1800,6 @@ function startCurrentStopNavigation() {
 // ============================================================================
 // SECTION 13 — Event Wiring
 // ============================================================================
-function refreshTollPreference(avoidTolls) {
-    if (routeIds.length > 0) {
-        renderRouteList();
-    } else {
-        renderGoogleMapsActions();
-    }
-    writeOptimizationFeedback(
-        `Avoid tolls ${avoidTolls ? "ON" : "OFF"} saved. Use Optimize Google Route to apply the choice to your route.`,
-    );
-}
-
-bindAvoidTollsControl({
-    document,
-    storage: localStorage,
-    onChange: refreshTollPreference,
-});
-
 if (els.homeForm) {
     els.homeForm.addEventListener("submit", (event) => {
         event.preventDefault();
@@ -2693,7 +2662,6 @@ function currentPlannerScheduleBasis(snapshot, projection, dayContext) {
             home,
             serviceByStopId,
             timing,
-            avoidTolls: readAvoidTolls(localStorage),
         });
     } catch {
         return "";

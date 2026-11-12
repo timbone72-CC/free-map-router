@@ -199,15 +199,7 @@
         }
     }
 
-    function optionalAvoidTolls(value) {
-        if (value === undefined) return {};
-        if (typeof value !== "boolean") {
-            fail("INVALID_TOLL_PREFERENCE", "Avoid tolls must be ON or OFF.");
-        }
-        return { avoidTolls: value };
-    }
-
-    function buildBackendRequest({ home, stops, requestId, timing, avoidTolls }) {
+    function buildBackendRequest({ home, stops, requestId, timing }) {
         const normalizedRequestId = normalizeId(requestId, "requestId");
         const normalizedStops = normalizeStops(stops);
         const normalizedTiming = normalizeTiming(timing);
@@ -216,12 +208,11 @@
             requestId: normalizedRequestId,
             home: normalizePoint(home, "home"),
             stops: normalizedStops,
-            ...optionalAvoidTolls(avoidTolls),
             ...(normalizedTiming ? { timing: normalizedTiming } : {}),
         };
     }
 
-    function buildCoordinateRequest({ home, stops, requestId, timing, avoidTolls }) {
+    function buildCoordinateRequest({ home, stops, requestId, timing }) {
         const normalizedRequestId = normalizeId(requestId, "requestId");
         const normalizedStops = normalizeStops(stops, normalizePoint);
         const normalizedTiming = normalizeTiming(timing);
@@ -230,7 +221,6 @@
             requestId: normalizedRequestId,
             home: normalizePoint(home, "home"),
             stops: normalizedStops,
-            ...optionalAvoidTolls(avoidTolls),
             ...(normalizedTiming ? { timing: normalizedTiming } : {}),
         };
     }
@@ -409,15 +399,6 @@
         const normalizedRequest = request.timing
             ? buildBackendRequest(request)
             : buildBackendRequest(request);
-        if (
-            Object.hasOwn(normalizedRequest, "avoidTolls") &&
-            response.avoidTolls !== normalizedRequest.avoidTolls
-        ) {
-            fail(
-                "TOLL_PREFERENCE_NOT_CONFIRMED",
-                "The toll choice was not confirmed. Your route was kept. Try Google Optimize again shortly.",
-            );
-        }
         const requestId = normalizeId(response.requestId, "response.requestId");
         if (requestId !== normalizedRequest.requestId) {
             fail("REQUEST_ID_MISMATCH", "The optimization response does not match the request.");
@@ -449,7 +430,6 @@
 
         return {
             requestId,
-            ...optionalAvoidTolls(normalizedRequest.avoidTolls),
             orderedStopIds,
             skippedStopIds: [],
             totalDistanceMeters: optionalNonnegativeNumber(
