@@ -26,6 +26,9 @@ jobs:
 
       - name: Install Cloud Native Buildpacks pack
         uses: buildpacks/github-actions/setup-pack@v5.1.0
+        with:
+          # 0.28.0 lacks support for GitHub's modern Docker API.
+          pack-version: "0.40.10"
 
       - name: Stage 2 preflight — build image locally without publishing
         shell: bash
