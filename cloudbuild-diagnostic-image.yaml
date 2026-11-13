@@ -1,0 +1,29 @@
+# Manual diagnostic build 2/3: build and publish a uniquely tagged image only.
+# Must be started after the diagnostic test build passes.
+# This NEVER calls gcloud run deploy or changes live Cloud Run traffic.
+steps:
+  - id: diagnostic-image-build
+    name: gcr.io/k8s-skaffold/pack
+    entrypoint: pack
+    args:
+      - build
+      - us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/fmr-route-optimizer:diagnostic-$BUILD_ID
+      - --builder
+      - gcr.io/buildpacks/builder:latest
+      - --network
+      - cloudbuild
+      - --publish
+      - --env
+      - GOOGLE_NODEJS_VERSION=22.x.x
+  - id: diagnostic-image-record
+    name: gcr.io/google.com/cloudsdktool/google-cloud-cli:slim
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -Eeuo pipefail
+        echo "FMR DIAGNOSTIC IMAGE: PASS — image published, Cloud Run not modified"
+        echo "IMAGE_URI=us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/fmr-route-optimizer:diagnostic-$BUILD_ID"
+options:
+  logging: CLOUD_LOGGING_ONLY
+timeout: 1200s
