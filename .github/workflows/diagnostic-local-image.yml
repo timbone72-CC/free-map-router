@@ -1,0 +1,80 @@
+name: Diagnostic — Google Buildpacks image only
+
+# This diagnostic runs ONLY on the dedicated unshipped diagnostic PR.
+# It does not authenticate to Google Cloud, publish an image, or deploy.
+on:
+  pull_request:
+    branches:
+      - feature/remember-avoid-tolls-safe-refresh-20261111
+    paths:
+      - .github/workflows/diagnostic-local-image.yml
+
+permissions:
+  contents: read
+
+jobs:
+  local-image-build:
+    if: ${{ github.event.pull_request.head.repo.full_name == 'timbone72-CC/free-map-router' && github.event.pull_request.head.ref == 'diagnostics/isolated-cloud-build-20261113' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out the diagnostic feature source
+        uses: actions/checkout@v4
+
+      - name: Confirm Docker is available
+        run: docker info --format 'Docker engine {{.ServerVersion}}'
+
+      - name: Install Cloud Native Buildpacks pack
+        uses: buildpacks/github-actions/setup-pack@v5.1.0
+        with:
+          # 0.28.0 lacks support for GitHub's modern Docker API.
+          pack-version: "0.40.10"
+
+      - name: Stage 2 preflight — build into temporary local registry
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          trap 'exit_code=$?; echo "FMR STAGE 2 PREFLIGHT: FAILED (exit $exit_code)"; exit "$exit_code"' ERR
+          echo "FMR STAGE 2 PREFLIGHT: START"
+          echo "Builder: gcr.io/buildpacks/builder:latest"
+          echo "Node version: 22.x.x"
+          echo "Registry: disposable localhost only; no Google login, no external publishing or deploy"
+          docker run --detach --rm --name fmr-stage2-registry \
+            --publish 127.0.0.1:5000:5000 registry:2
+          trap 'docker rm -f fmr-stage2-registry >/dev/null 2>&1 || true' EXIT
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -fsS http://127.0.0.1:5000/v2/ >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:5000/v2/ >/dev/null
+          pack build localhost:5000/fmr-stage2-diagnostic:local \
+            --path . \
+            --builder gcr.io/buildpacks/builder:latest \
+            --network host \
+            --publish \
+            --env GOOGLE_NODEJS_VERSION=22.x.x
+          curl -fsS -H 'Accept: application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.index.v1+json' \
+            http://127.0.0.1:5000/v2/fmr-stage2-diagnostic/manifests/local > /tmp/fmr-diag-manifest.json
+          test -s /tmp/fmr-diag-manifest.json
+          docker pull localhost:5000/fmr-stage2-diagnostic:local
+          echo "FMR STAGE 2 PREFLIGHT: PASS (ephemeral registry only; no Google upload)"
+
+      - name: Pre-deployment local server startup and health check
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          trap 'exit_code=$?; docker logs fmr-stage2-runtime || true; docker rm -f fmr-stage2-runtime >/dev/null 2>&1 || true; if [ "$exit_code" -ne 0 ]; then echo "FMR LOCAL HEALTH: FAILED (exit $exit_code)"; fi' EXIT
+          echo "FMR LOCAL HEALTH: START (local container; not Cloud Run)"
+          docker run -d --name fmr-stage2-runtime \
+            -e PORT=8080 \
+            -e FMR_ALLOWED_ORIGIN=https://example.invalid \
+            -p 127.0.0.1:18080:8080 \
+            localhost:5000/fmr-stage2-diagnostic:local
+          healthy=0
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            if curl --silent --fail --show-error http://127.0.0.1:18080/health -o /tmp/fmr-diag-health.json; then healthy=1; break; fi
+            sleep 1
+          done
+          test "$healthy" -eq 1
+          node -e 'const fs=require("fs");const body=JSON.parse(fs.readFileSync("/tmp/fmr-diag-health.json","utf8"));if(body.ok!==true||body.service!=="fmr-route-optimizer"||body.features?.avoidTolls!==true)process.exit(1);console.log("FMR LOCAL HEALTH: expected service and toll capability confirmed")'
+          echo "FMR LOCAL HEALTH: PASS (no Google Cloud credentials, calls or traffic changes)"

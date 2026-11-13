@@ -1,0 +1,21 @@
+# Manual diagnostic build 1/3: run existing tests and syntax checks only.
+# Does not build an image, modify Cloud Run, or deploy any revision.
+steps:
+  - id: diagnostic-test
+    name: node:22
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -Eeuo pipefail
+        trap 'result=$$?; echo "FMR DIAGNOSTIC TEST: FAIL (exit $$result)"; exit "$$result"' ERR
+        echo "FMR DIAGNOSTIC TEST: START"
+        node --version
+        npm test
+        for file in *.js; do
+          node --check "$$file"
+        done
+        echo "FMR DIAGNOSTIC TEST: PASS"
+options:
+  logging: CLOUD_LOGGING_ONLY
+timeout: 900s

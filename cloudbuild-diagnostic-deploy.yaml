@@ -1,0 +1,56 @@
+# Manual diagnostic build 3/3: OPTIONAL, EXPLICITLY APPROVED zero-traffic
+# Cloud Run revision. This MUST NOT run without separate approval and
+# confirmed passing test and image-build stages. No production traffic change.
+substitutions:
+  _OPERATOR_APPROVED: "NO"
+  _DIAGNOSTIC_IMAGE: "UNSET"
+steps:
+  - id: diagnostic-zero-traffic-deploy
+    name: gcr.io/google.com/cloudsdktool/google-cloud-cli:slim
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -Eeuo pipefail
+        if [ "${_OPERATOR_APPROVED}" != "YES" ]; then
+          echo "STOP: Diagnostic Cloud Run deploy requires explicit approval."
+          exit 1
+        fi
+        image="${_DIAGNOSTIC_IMAGE}"
+        case "$$image" in
+          us-central1-docker.pkg.dev/*/cloud-run-source-deploy/fmr-route-optimizer:diagnostic-*) ;;
+          *) echo "STOP: image must be the exact diagnostic image from stage 2."; exit 1 ;;
+        esac
+        service="fmr-route-optimizer"
+        region="us-central1"
+        expected_account="fmr-route-runtime@$PROJECT_ID.iam.gserviceaccount.com"
+        actual_account="$$(gcloud run services describe "$$service" --project="$PROJECT_ID" --region="$$region" --format='value(spec.template.spec.serviceAccountName)')"
+        if [ "$$actual_account" != "$$expected_account" ]; then
+          echo "STOP: Cloud Run runtime service account mismatch."
+          exit 1
+        fi
+        tag="diagnostic-$BUILD_ID"
+        echo "FMR DIAGNOSTIC DEPLOY: deploying an isolated revision with ZERO live traffic"
+        gcloud run deploy "$$service" \
+          --project="$PROJECT_ID" \
+          --region="$$region" \
+          --image="$$image" \
+          --no-traffic \
+          --tag="$$tag" \
+          --quiet
+        url="$$(gcloud run services describe "$$service" \
+          --project="$PROJECT_ID" \
+          --region="$$region" \
+          --format=json \
+          | python3 -c 'import sys,json; d=json.load(sys.stdin); tag=sys.argv[1]; print(next((x.get("url","") for x in d.get("status",{}).get("traffic",[]) if x.get("tag")==tag),""))' "$$tag")"
+        if [ -z "$$url" ]; then
+          echo "FAIL: zero-traffic diagnostic revision has no tagged URL."
+          exit 1
+        fi
+        curl -fsS --retry 2 --retry-all-errors "$$url/health" \
+          | tee /tmp/fmr-diagnostic-health.json
+        grep -Eq '"ok"[[:space:]]*:[[:space:]]*true' /tmp/fmr-diagnostic-health.json
+        echo "FMR DIAGNOSTIC DEPLOY: PASS — tagged revision healthy; live traffic NOT changed"
+options:
+  logging: CLOUD_LOGGING_ONLY
+timeout: 1200s
