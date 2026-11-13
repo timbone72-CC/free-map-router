@@ -1,0 +1,44 @@
+name: Diagnostic — Google Buildpacks image only
+
+# This diagnostic runs ONLY on the dedicated unshipped diagnostic PR.
+# It does not authenticate to Google Cloud, publish an image, or deploy.
+on:
+  pull_request:
+    branches:
+      - feature/remember-avoid-tolls-safe-refresh-20261111
+    paths:
+      - .github/workflows/diagnostic-local-image.yml
+
+permissions:
+  contents: read
+
+jobs:
+  local-image-build:
+    if: ${{ github.event.pull_request.head.repo.full_name == 'timbone72-CC/free-map-router' && github.event.pull_request.head.ref == 'diagnostics/isolated-cloud-build-20261113' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out the diagnostic feature source
+        uses: actions/checkout@v4
+
+      - name: Confirm Docker is available
+        run: docker info --format 'Docker engine {{.ServerVersion}}'
+
+      - name: Install Cloud Native Buildpacks pack
+        uses: buildpacks/github-actions/setup-pack@v5.1.0
+
+      - name: Stage 2 preflight — build image locally without publishing
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          trap 'exit_code=$?; echo "FMR STAGE 2 PREFLIGHT: FAILED (exit $exit_code)"; exit "$exit_code"' ERR
+          echo "FMR STAGE 2 PREFLIGHT: START"
+          echo "Builder: gcr.io/buildpacks/builder:latest"
+          echo "Node version: 22.x.x"
+          echo "No Google credentials, no registry upload, no Cloud Run deployment"
+          pack build fmr-stage2-diagnostic:local \
+            --path . \
+            --builder gcr.io/buildpacks/builder:latest \
+            --env GOOGLE_NODEJS_VERSION=22.x.x
+          pack inspect-image fmr-stage2-diagnostic:local
+          echo "FMR STAGE 2 PREFLIGHT: PASS (local image only)"
