@@ -30,7 +30,7 @@ jobs:
           # 0.28.0 lacks support for GitHub's modern Docker API.
           pack-version: "0.40.10"
 
-      - name: Stage 2 preflight — build image locally without publishing
+      - name: Stage 2 preflight — build into temporary local registry
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -38,10 +38,22 @@ jobs:
           echo "FMR STAGE 2 PREFLIGHT: START"
           echo "Builder: gcr.io/buildpacks/builder:latest"
           echo "Node version: 22.x.x"
-          echo "No Google credentials, no registry upload, no Cloud Run deployment"
-          pack build fmr-stage2-diagnostic:local \
+          echo "Registry: disposable localhost only; no Google login, no external publishing or deploy"
+          docker run --detach --rm --name fmr-stage2-registry \
+            --publish 127.0.0.1:5000:5000 registry:2
+          trap 'docker rm -f fmr-stage2-registry >/dev/null 2>&1 || true' EXIT
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -fsS http://127.0.0.1:5000/v2/ >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:5000/v2/ >/dev/null
+          pack build localhost:5000/fmr-stage2-diagnostic:local \
             --path . \
             --builder gcr.io/buildpacks/builder:latest \
+            --network host \
+            --publish \
             --env GOOGLE_NODEJS_VERSION=22.x.x
-          pack inspect-image fmr-stage2-diagnostic:local
-          echo "FMR STAGE 2 PREFLIGHT: PASS (local image only)"
+          curl -fsS -H 'Accept: application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.index.v1+json' \
+            http://127.0.0.1:5000/v2/fmr-stage2-diagnostic/manifests/local > /tmp/fmr-diag-manifest.json
+          test -s /tmp/fmr-diag-manifest.json
+          echo "FMR STAGE 2 PREFLIGHT: PASS (ephemeral registry only; no Google upload)"
