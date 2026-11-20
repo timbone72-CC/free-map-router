@@ -62,6 +62,14 @@ identity, or a script that can affect the Address page.
 - [ ] Edit loads the correct address and preserves its saved pin and notes.
 - [ ] Correcting a workbook stop preserves its ID, GIS/DCFS source, strongest
       pin, route selection, and prior exact address alias.
+
+- [ ] Learning a street rewrite requires explicit approval; later house
+      numbers with the same exact old street and town/state use it without
+      borrowing another property's pin, GIS/DCFS source, or Order IDs.
+- [ ] Two conflicting street rewrites show ! beside the address and leave
+      the incoming street unchanged until selection; removing a rule stops
+      future matches without deleting jobs. Both devices use the same Drive
+      record after updating and checking the workbook route.
 - [ ] Correcting a workbook stop reports that its permanent correction record
       saved successfully; a raw resend after local browser storage is replaced
       still selects the corrected address once.
