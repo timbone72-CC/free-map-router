@@ -2115,8 +2115,15 @@ function commitCorrectionDelta(localRecord) {
         await saveAddressCorrectionsToDrive(token, merged);
         streetCorrectionRecord = merged;
         setAddressCorrectionStatus("Corrections saved in Google Drive for your devices.");
+        const focusedStop = plannerFocusedStopId;
         renderJobsList();
         renderRouteList();
+        if (focusedStop && !els.routePage?.hidden && focusPlannerStop(focusedStop)) {
+            const focusedCard = Array.from(
+                document.querySelectorAll("#routeList > li[data-stop-id]"),
+            ).find((card) => card.dataset.stopId === focusedStop);
+            focusedCard?.scrollIntoView?.({ block: "nearest" });
+        }
         return merged;
     };
     // One device never overlaps its own correction writes.
