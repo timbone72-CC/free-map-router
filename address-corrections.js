@@ -19,6 +19,7 @@
 
         const CORRECTIONS_APP = "free-map-router";
         const CORRECTIONS_VERSION = 1;
+        const STREET_CORRECTIONS_VERSION = 2;
 
         if (!contract) {
             throw new Error("Free Map Router contract failed to load.");
@@ -31,6 +32,171 @@
             normalizeSource,
             normalizeStop,
         } = contract;
+
+
+        // Street rules are deliberately narrower than geocoding: only an
+        // explicitly approved correction for the same street, town and state
+        // may change the written street of another house number.
+        function streetParts(value) {
+            const address = normalizeAddress(value);
+            const found = /^(\\d+[A-Z]?)\\s+([^,]+)(,\\s*([^,]+),\\s*([A-Z]{2})\\s+(\\d{5}(?:-\\d{4})?)(?:,\\s*(?:USA|US))?\\s*)$/i.exec(address);
+            if (!found) return null;
+            return {
+                house: found[1].toUpperCase(),
+                street: normalizeAddress(found[2]),
+                suffix: found[3],
+                town: normalizeAddress(found[4]),
+                state: found[5].toUpperCase(),
+                postalCode: found[6],
+            };
+        }
+
+        function streetRuleKey(raw) {
+            return [
+                addressKey(raw?.town),
+                String(raw?.state || "").trim().toUpperCase(),
+                addressKey(raw?.originalStreet),
+            ].join("|");
+        }
+
+        function proposeStreetCorrection(before, after) {
+            const oldParts = streetParts(before);
+            const nextParts = streetParts(after);
+            if (!oldParts || !nextParts) return null;
+            if (
+                oldParts.house !== nextParts.house ||
+                oldParts.postalCode !== nextParts.postalCode ||
+                oldParts.state !== nextParts.state ||
+                addressKey(oldParts.town) !== addressKey(nextParts.town) ||
+                addressKey(oldParts.street) === addressKey(nextParts.street)
+            ) return null;
+            return {
+                town: nextParts.town,
+                state: nextParts.state,
+                originalStreet: oldParts.street,
+                correctedStreet: nextParts.street,
+            };
+        }
+
+        function normalizeStreetRule(raw) {
+            const id = String(raw?.id || "").trim();
+            const town = normalizeAddress(raw?.town);
+            const state = String(raw?.state || "").trim().toUpperCase();
+            const originalStreet = normalizeAddress(raw?.originalStreet);
+            const correctedStreet = normalizeAddress(raw?.correctedStreet);
+            if (
+                !/^[a-z0-9_-]{6,100}$/i.test(id) ||
+                !town || !/^[A-Z]{2}$/.test(state) ||
+                !originalStreet || !correctedStreet ||
+                addressKey(originalStreet) === addressKey(correctedStreet)
+            ) return null;
+            return { id, town, state, originalStreet, correctedStreet };
+        }
+
+        function normalizedStreetState(record) {
+            const removed = new Set(
+                (Array.isArray(record?.removedStreetRuleIds)
+                    ? record.removedStreetRuleIds : [])
+                    .filter((id) => /^[a-z0-9_-]{6,100}$/i.test(String(id)))
+                    .map(String),
+            );
+            const byId = new Map();
+            for (const value of Array.isArray(record?.streetRules) ? record.streetRules : []) {
+                const rule = normalizeStreetRule(value);
+                if (rule && !removed.has(rule.id)) byId.set(rule.id, rule);
+            }
+            return {
+                streetRules: [...byId.values()].sort((a, b) => a.id.localeCompare(b.id)),
+                removedStreetRuleIds: [...removed].sort(),
+            };
+        }
+
+        function recordWithStreetState(base, state) {
+            const normalized = normalizedStreetState(state);
+            const upgraded = Boolean(
+                base?.correctionsVersion === STREET_CORRECTIONS_VERSION ||
+                normalized.streetRules.length ||
+                normalized.removedStreetRuleIds.length
+            );
+            return {
+                ...base,
+                correctionsVersion: upgraded ? STREET_CORRECTIONS_VERSION : CORRECTIONS_VERSION,
+                ...(upgraded ? normalized : {}),
+            };
+        }
+
+        function addStreetCorrectionRule(record, candidate, id) {
+            const validated = normalizeStreetRule({
+                ...candidate,
+                id: id || (
+                    "street_" + Date.now().toString(36) + "_" +
+                    Math.random().toString(36).slice(2, 10)
+                ),
+            });
+            if (!validated) return record;
+            const current = normalizedStreetState(record);
+            const exists = current.streetRules.some((rule) =>
+                streetRuleKey(rule) === streetRuleKey(validated) &&
+                addressKey(rule.correctedStreet) === addressKey(validated.correctedStreet)
+            );
+            return recordWithStreetState(record, {
+                ...current,
+                streetRules: exists
+                    ? current.streetRules
+                    : [...current.streetRules, validated],
+            });
+        }
+
+        function removeStreetCorrectionRules(record, ids) {
+            const current = normalizedStreetState(record);
+            const removed = new Set(current.removedStreetRuleIds);
+            for (const id of ids) {
+                if (current.streetRules.some((rule) => rule.id === id)) removed.add(id);
+            }
+            return recordWithStreetState(record, {
+                streetRules: current.streetRules,
+                removedStreetRuleIds: [...removed],
+            });
+        }
+
+        function streetDecisionForAddress(address, record) {
+            const parts = streetParts(address);
+            if (!parts) return null;
+            const matching = normalizedStreetState(record).streetRules.filter((rule) =>
+                streetRuleKey(rule) === streetRuleKey({
+                    town: parts.town, state: parts.state, originalStreet: parts.street,
+                }),
+            );
+            if (!matching.length) return null;
+            const targets = new Map();
+            for (const rule of matching) {
+                const key = addressKey(rule.correctedStreet);
+                if (!targets.has(key)) {
+                    targets.set(key, { street: rule.correctedStreet, ruleIds: [] });
+                }
+                targets.get(key).ruleIds.push(rule.id);
+            }
+            const choices = [...targets.values()];
+            if (choices.length > 1) {
+                return {
+                    status: "conflict",
+                    address,
+                    town: parts.town,
+                    state: parts.state,
+                    originalStreet: parts.street,
+                    choices,
+                };
+            }
+            return {
+                status: "corrected",
+                address: parts.house + " " + choices[0].street + parts.suffix,
+                originalAddress: address,
+                town: parts.town,
+                state: parts.state,
+                originalStreet: parts.street,
+                choices,
+            };
+        }
 
         function normalizeCorrection(raw) {
             const originalAddress = normalizeAddress(raw?.originalAddress);
@@ -119,7 +285,7 @@
             if (
                 !parsed ||
                 parsed.app !== CORRECTIONS_APP ||
-                parsed.correctionsVersion !== CORRECTIONS_VERSION ||
+                ![CORRECTIONS_VERSION, STREET_CORRECTIONS_VERSION].includes(parsed.correctionsVersion) ||
                 !Array.isArray(parsed.corrections)
             ) {
                 throw new Error(
@@ -127,12 +293,12 @@
                 );
             }
 
-            return {
+            return recordWithStreetState({
                 app: CORRECTIONS_APP,
-                correctionsVersion: CORRECTIONS_VERSION,
+                correctionsVersion: parsed.correctionsVersion,
                 updatedAt: String(parsed.updatedAt || "").trim(),
                 corrections: normalizeCorrections(parsed.corrections),
-            };
+            }, parsed.correctionsVersion === STREET_CORRECTIONS_VERSION ? parsed : {});
         }
 
         function mergeCorrectionRecords(remote, local, now = new Date()) {
@@ -154,14 +320,28 @@
                 });
             }
 
-            return {
+            const left = normalizedStreetState(remote);
+            const right = normalizedStreetState(local);
+            const removed = [...new Set([
+                ...left.removedStreetRuleIds, ...right.removedStreetRuleIds,
+            ])];
+            const ruleById = new Map(
+                [...left.streetRules, ...right.streetRules].map((rule) => [rule.id, rule]),
+            );
+            return recordWithStreetState({
                 app: CORRECTIONS_APP,
-                correctionsVersion: CORRECTIONS_VERSION,
+                correctionsVersion:
+                    remote?.correctionsVersion === STREET_CORRECTIONS_VERSION ||
+                    local?.correctionsVersion === STREET_CORRECTIONS_VERSION
+                        ? STREET_CORRECTIONS_VERSION : CORRECTIONS_VERSION,
                 updatedAt: new Date(now).toISOString(),
                 corrections: normalizeCorrections(
                     Array.from(mergedByOriginalKey.values()),
                 ),
-            };
+            }, {
+                streetRules: [...ruleById.values()],
+                removedStreetRuleIds: removed,
+            });
         }
 
         function applyCorrectionsToInbox(inbox, record) {
@@ -179,7 +359,22 @@
                     const correction = byOriginalKey.get(
                         addressKey(originalAddress),
                     );
-                    if (!correction) return incoming;
+                    if (!correction) {
+                        const street = streetDecisionForAddress(originalAddress, record);
+                        if (!street) return incoming;
+                        if (street.status === "conflict") {
+                            return { ...incoming, streetCorrectionConflict: street };
+                        }
+                        // Never copy a different property's coordinates or metadata.
+                        return {
+                            ...incoming,
+                            address: street.address,
+                            originalAddresses: [
+                                originalAddress, ...(incoming?.originalAddresses || []),
+                            ],
+                            originalAddress: incoming?.originalAddress || originalAddress,
+                        };
+                    }
                     const correctionHasManualPin =
                         correction.pinStatus === "manual" &&
                         correction.latitude !== null &&
@@ -258,6 +453,11 @@
         return Object.freeze({
             CORRECTIONS_APP,
             CORRECTIONS_VERSION,
+            STREET_CORRECTIONS_VERSION,
+            addStreetCorrectionRule,
+            removeStreetCorrectionRules,
+            proposeStreetCorrection,
+            streetDecisionForAddress,
             applyCorrectionsToInbox,
             savedAddressSuggestions,
             createCorrectionRecord,
