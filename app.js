@@ -2990,7 +2990,18 @@ function plannerCard(card, index, timeZone) {
         renderRouteList();
         renderJobsList();
     });
-    actions.append(upBtn, downBtn, removeBtn);
+    const editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.textContent = "Edit";
+    editBtn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        if (!jobs.some((job) => job.id === card.stopId)) return;
+        const addEditView = document.getElementById("addressViewAddEdit");
+        if (addEditView) addEditView.checked = true;
+        showPage("addresses");
+        startEditJob(card.stopId);
+    });
+    actions.append(upBtn, downBtn, editBtn, removeBtn);
     // Reuse the existing completion control only on the current first stop.
     // Reparenting preserves its original Done & Navigate Next event handler.
     if (
