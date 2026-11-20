@@ -53,7 +53,7 @@ test("ordinary app changes do not schedule whole-app Drive backup activity", () 
     );
     assert.match(
         app,
-        /void savePermanentAddressCorrections\(jobs\)/,
+        /void savePermanentAddressCorrections\(jobs, approvedRule\)/,
     );
     assert.match(
         contract,
