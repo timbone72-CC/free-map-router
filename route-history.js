@@ -470,9 +470,11 @@
             );
             if (routeIds.length === 0 && !sourceUpdatedAt) return null;
 
+            const planningDate = normalizedLocalDate(value.planningDate);
             return {
                 routeIds,
                 sourceUpdatedAt,
+                ...(planningDate ? { planningDate } : {}),
                 optimizationStatus:
                     routeIds.length === 0
                         ? "not_optimized"
@@ -1842,6 +1844,7 @@
             validIds = null,
             orderIdsByStopId = null,
             workbookPayByStopId = null,
+            planningDate = null,
         ) {
             const normalized = normalizeRouteHistory(history, validIds);
             const result = workbookRouteRelation(
@@ -1851,10 +1854,17 @@
             if (result !== "newer") {
                 return { history: normalized, result };
             }
+            const validPlanningDate = planningDate === null || planningDate === undefined
+                ? null
+                : normalizedLocalDate(planningDate);
+            if (planningDate !== null && planningDate !== undefined && !validPlanningDate) {
+                throw new Error("The workbook route has an invalid planning date.");
+            }
             const pending = normalizeRouteSnapshot(
                 {
                     routeIds,
                     sourceUpdatedAt,
+                    ...(validPlanningDate ? { planningDate: validPlanningDate } : {}),
                     optimizationStatus: "not_optimized",
                     orderIdsByStopId,
                     workbookPayByStopId,
@@ -1873,7 +1883,7 @@
             };
         }
 
-        function startPendingRoute(history, validIds = null) {
+        function startPendingRoute(history, validIds = null, initialDayContext = null) {
             const normalized = normalizeRouteHistory(history, validIds);
             if (
                 !normalized.pending ||
@@ -1881,12 +1891,22 @@
             ) {
                 return { history: normalized, result: "none" };
             }
+            const planningDate = normalized.pending.planningDate || null;
+            const dayContext = planningDate
+                ? normalizeDayContext({
+                    ...(initialDayContext || {}),
+                    routeDate: planningDate,
+                })
+                : null;
+            if (planningDate && !dayContext) {
+                throw new Error("The workbook planning date could not initialize the Route Plan Day.");
+            }
             const freshRoute = copiedSnapshot(
                 normalized.pending,
                 "not_optimized",
             );
             const activePlan = migrateOneDayRouteHistory({
-                dayContext: null,
+                dayContext,
                 google: copiedSnapshot(freshRoute),
                 basic: copiedSnapshot(freshRoute),
             });

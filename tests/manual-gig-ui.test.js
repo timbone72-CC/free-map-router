@@ -109,7 +109,7 @@ test("manual gigs are reapplied after Start New Route without changing pending i
     assert.match(manualGigSource, /setGigRouteMembership\(/);
     assert.match(manualGigSource, /if \(routeHistory\.pending\?\.routeIds\.length\) return/);
     assert.doesNotMatch(manualGigSource, /stageWorkbookRoute\(/);
-    assert.match(appSource, /const started = startPendingRoute\(routeHistory, savedJobIds\(\)\)/);
+    assert.match(appSource, /const started = startPendingRoute\(\s*routeHistory,\s*savedJobIds\(\),\s*globalThis\.FMRWorkdayContext\.defaultDayContext\(\),\s*\)/);
 });
 
 test("address deletion is blocked before it can orphan manual gigs", () => {

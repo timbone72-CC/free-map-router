@@ -1198,7 +1198,11 @@ if (els.startNewRoute) {
             return;
         }
 
-        const started = startPendingRoute(routeHistory, savedJobIds());
+        const started = startPendingRoute(
+            routeHistory,
+            savedJobIds(),
+            globalThis.FMRWorkdayContext.defaultDayContext(),
+        );
         routeHistory = writeRouteHistory(
             localStorage,
             started.history,
@@ -2151,6 +2155,7 @@ async function syncWorkbookInboxFrom(
             savedJobIds(),
             imported.orderIdsByStopId,
             imported.workbookPayByStopId,
+            inbox.planningDate || null,
         );
         routeHistory = writeRouteHistory(
             localStorage,
