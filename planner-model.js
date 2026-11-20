@@ -382,12 +382,24 @@
                 stopId,
             );
             const coordinates = displayCoordinates(stop);
-            const workItems = projection.items.map((item) => ({
-                ...item,
-                ...primitiveWorkItemDetail(
+            const workItems = projection.items.map((item) => {
+                const details = primitiveWorkItemDetail(
                     workItemDetails[workItemKey(item.kind, item.workItemId)],
-                ),
-            }));
+                );
+                if (item.kind === "workbook") {
+                    const amounts = routeSnapshot.workbookPayByOrderId || {};
+                    const amount = Object.hasOwn(amounts, item.workItemId)
+                        ? amounts[item.workItemId]
+                        : null;
+                    return {
+                        ...item,
+                        ...details,
+                        expectedPay: typeof amount === "number" &&
+                            Number.isFinite(amount) && amount >= 0 ? amount : null,
+                    };
+                }
+                return { ...item, ...details };
+            });
 
             return {
                 routeNumber: index + 1,

@@ -313,3 +313,36 @@ test("an empty route cannot retain a stale optimizer label", () => {
 
     assert.equal(cleared.google, null);
 });
+
+test("per-order pay survives pending start, route reorder, remap and storage round trip", () => {
+    const valid = new Set(["a", "b", "c"]);
+    const staged = stageWorkbookRoute(
+        {}, ["a", "b"], "2026-11-08T12:00:00.000Z", valid,
+        { a: ["ONE", "TWO"], b: ["THREE"] },
+        { a: { expectedPay: 10, expectedPayComplete: false } },
+        { ONE: 10, TWO: null, THREE: 0 },
+    ).history;
+    assert.deepEqual(staged.pending.workbookPayByOrderId, {
+        ONE: 10, TWO: null, THREE: 0,
+    });
+    const started = startPendingRoute(staged, valid).history;
+    for (const slot of ["google", "basic"]) {
+        assert.deepEqual(started[slot].workbookPayByOrderId, {
+            ONE: 10, TWO: null, THREE: 0,
+        });
+    }
+    const reordered = replaceRoute(started, "google", ["b", "a"], valid);
+    assert.deepEqual(reordered.google.workbookPayByOrderId, {
+        ONE: 10, TWO: null, THREE: 0,
+    });
+    const remapped = remapRouteStopIds(reordered, { a: "c" }, valid);
+    assert.deepEqual(remapped.google.workbookPayByOrderId, {
+        ONE: 10, TWO: null, THREE: 0,
+    });
+    const storage = memoryStorage();
+    writeRouteHistory(storage, remapped, valid);
+    const restored = readRouteHistory(storage, valid);
+    assert.deepEqual(restored.google.workbookPayByOrderId, {
+        ONE: 10, TWO: null, THREE: 0,
+    });
+});

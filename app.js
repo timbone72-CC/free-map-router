@@ -2151,6 +2151,7 @@ async function syncWorkbookInboxFrom(
             savedJobIds(),
             imported.orderIdsByStopId,
             imported.workbookPayByStopId,
+            imported.workbookPayByOrderId,
         );
         routeHistory = writeRouteHistory(
             localStorage,

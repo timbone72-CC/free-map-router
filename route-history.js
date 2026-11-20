@@ -458,6 +458,21 @@
             return result;
         }
 
+        function normalizedWorkbookPayByOrderId(value, orderIdsByStopId) {
+            const result = {};
+            if (!value || typeof value !== "object" || Array.isArray(value)) return result;
+            const allowed = new Set(Object.values(orderIdsByStopId || {}).flat());
+            for (const [orderId, amount] of Object.entries(value)) {
+                if (!allowed.has(orderId) || orderId === "__proto__") continue;
+                if (amount !== null &&
+                    (typeof amount !== "number" || !Number.isFinite(amount) || amount < 0)) continue;
+                Object.defineProperty(result, orderId, {
+                    value: amount, enumerable: true, writable: true, configurable: true,
+                });
+            }
+            return result;
+        }
+
         function normalizeRouteSnapshot(
             value,
             validIds = null,
@@ -486,6 +501,10 @@
                 workbookPayByStopId: normalizedWorkbookPayByStopId(
                     value.workbookPayByStopId,
                     routeIds,
+                ),
+                workbookPayByOrderId: normalizedWorkbookPayByOrderId(
+                    value.workbookPayByOrderId,
+                    normalizedOrderIdsByStopId(value.orderIdsByStopId, routeIds),
                 ),
                 gigIdsByStopId: normalizedGigIdsByStopId(
                     value.gigIdsByStopId,
@@ -766,6 +785,7 @@
                 optimizationStatus: snapshot.optimizationStatus,
                 orderIdsByStopId: snapshot.orderIdsByStopId,
                 workbookPayByStopId: snapshot.workbookPayByStopId,
+                workbookPayByOrderId: snapshot.workbookPayByOrderId,
                 gigIdsByStopId: snapshot.gigIdsByStopId,
                 gigManagedStopIds: snapshot.gigManagedStopIds,
             });
@@ -1339,6 +1359,8 @@
                     orderIdsByStopId: existing?.orderIdsByStopId,
                     workbookPayByStopId:
                         existing?.workbookPayByStopId,
+                    workbookPayByOrderId:
+                        existing?.workbookPayByOrderId,
                     gigIdsByStopId: existing?.gigIdsByStopId,
                     gigManagedStopIds: existing?.gigManagedStopIds,
                     schedule: null,
@@ -1480,6 +1502,7 @@
                     routeIds,
                     orderIdsByStopId,
                     workbookPayByStopId,
+                    workbookPayByOrderId: snapshot.workbookPayByOrderId,
                     gigIdsByStopId,
                     gigManagedStopIds: routeIds.filter(
                         (stopId) => managedState[stopId] === true,
@@ -1726,6 +1749,8 @@
                                 existing?.orderIdsByStopId || {},
                             workbookPayByStopId:
                                 existing?.workbookPayByStopId || {},
+                            workbookPayByOrderId:
+                                existing?.workbookPayByOrderId || {},
                             gigIdsByStopId,
                             gigManagedStopIds: Array.from(managed),
                             schedule: null,
@@ -1842,6 +1867,7 @@
             validIds = null,
             orderIdsByStopId = null,
             workbookPayByStopId = null,
+            workbookPayByOrderId = null,
         ) {
             const normalized = normalizeRouteHistory(history, validIds);
             const result = workbookRouteRelation(
@@ -1858,6 +1884,7 @@
                     optimizationStatus: "not_optimized",
                     orderIdsByStopId,
                     workbookPayByStopId,
+                    workbookPayByOrderId,
                 },
                 validIds,
                 false,

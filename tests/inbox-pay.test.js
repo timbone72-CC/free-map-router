@@ -145,3 +145,35 @@ test("malformed optional pay metadata fails closed", () => {
         );
     }
 });
+
+test("individual Order ID pay survives parsing and import with unknown and zero intact", () => {
+    const inbox = parseAddressInbox(inboxText([{
+        address: "100 Main St, Elk City, OK 73644",
+        orderIds: ["ADE-1", "ADE-2", "ADE-3"],
+        expectedPay: 12.5,
+        expectedPayComplete: false,
+        payByOrderId: { "ADE-1": 12.5, "ADE-2": null, "ADE-3": 0 },
+    }]));
+    const imported = applyAddressInbox([], inbox);
+    assert.deepEqual(imported.workbookPayByOrderId, {
+        "ADE-1": 12.5, "ADE-2": null, "ADE-3": 0,
+    });
+    assert.deepEqual(imported.orderIdsByStopId[imported.routeIds[0]], [
+        "ADE-1", "ADE-2", "ADE-3",
+    ]);
+});
+
+test("per-order pay rejects unmatched Order IDs and invalid amounts", () => {
+    for (const payByOrderId of [
+        { "WRONG-ID": 15 },
+        { "ADE-1": -1 },
+        { "ADE-1": "15" },
+        { "ADE-1": {} },
+    ]) {
+        assert.throws(() => parseAddressInbox(inboxText([{
+            address: "100 Main St, Elk City, OK 73644",
+            orderIds: ["ADE-1"],
+            payByOrderId,
+        }])), /per-order pay|pay Order ID/);
+    }
+});
