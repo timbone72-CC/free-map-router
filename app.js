@@ -846,9 +846,11 @@ function renderGoogleMapsActions() {
 }
 
 
-function appendStreetConflictWarning(parent, address) {
-    const decision = streetDecisionForAddress(address, streetCorrectionRecord);
-    if (decision?.status !== "conflict") return;
+function appendStreetConflictWarning(parent, address, aliases = []) {
+    const rawConflictAddress = [address, ...aliases].find((candidate) =>
+        streetDecisionForAddress(candidate, streetCorrectionRecord)?.status === "conflict"
+    );
+    if (!rawConflictAddress) return;
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = "!";
@@ -856,10 +858,10 @@ function appendStreetConflictWarning(parent, address) {
     button.style.width = "auto";
     button.style.padding = "0.1em 0.5em";
     button.title = "Conflicting street-name corrections — choose one";
-    button.setAttribute("aria-label", "Resolve street-name correction conflict for " + address);
+    button.setAttribute("aria-label", "Resolve street-name correction conflict for " + rawConflictAddress);
     button.addEventListener("click", (event) => {
         event.stopPropagation();
-        void resolveStreetConflict(address);
+        void resolveStreetConflict(rawConflictAddress);
     });
     parent.appendChild(button);
 }
@@ -869,11 +871,11 @@ async function resolveStreetConflict(address) {
     if (decision?.status !== "conflict") return;
     const options = decision.choices.map((entry, index) =>
         (index + 1) + ". " + entry.street
-    ).join("\\n");
+    ).join("\n");
     const selected = prompt(
         "Conflicting corrections for " + decision.originalStreet + " in " +
-        decision.town + ", " + decision.state + ":\\n" +
-        options + "\\nEnter the number of the correct street name:",
+        decision.town + ", " + decision.state + ":\n" +
+        options + "\nEnter the number of the correct street name:",
     );
     if (selected === null) return;
     const choiceIndex = Number(selected) - 1;
@@ -905,9 +907,9 @@ async function manageStreetCorrections() {
     const options = rules.map((rule, index) =>
         (index + 1) + ". " + rule.town + ", " + rule.state +
         ": " + rule.originalStreet + " → " + rule.correctedStreet
-    ).join("\\n");
+    ).join("\n");
     const selected = prompt(
-        "Remove a learned street correction? Enter its number, or Cancel:\\n" + options,
+        "Remove a learned street correction? Enter its number, or Cancel:\n" + options,
     );
     if (selected === null) return;
     const index = Number(selected) - 1;
@@ -1002,7 +1004,7 @@ function renderJobsList() {
         li.appendChild(document.createTextNode(" "));
         li.appendChild(sourceLabel);
         li.appendChild(label);
-        appendStreetConflictWarning(li, job.address);
+        appendStreetConflictWarning(li, job.address, job.addressAliases || []);
         li.appendChild(document.createTextNode(" "));
         li.appendChild(editBtn);
         li.appendChild(document.createTextNode(" "));
@@ -2459,7 +2461,7 @@ if (els.jobForm) {
                 const proposal = proposeStreetCorrection(previousAddress, address);
                 const approvedRule = proposal && confirm(
                     "Also remember this street-name correction for other house numbers " +
-                    "in " + proposal.town + ", " + proposal.state + "?\\n" +
+                    "in " + proposal.town + ", " + proposal.state + "?\n" +
                     proposal.originalStreet + " → " + proposal.correctedStreet,
                 ) ? proposal : null;
                 void savePermanentAddressCorrections(jobs, approvedRule);
@@ -3033,7 +3035,10 @@ function plannerStopHeader(card, timeZone) {
         : `Service: ${plannerMinutesText(card.knownServiceMinutes || 0)} known + incomplete`;
     meta.appendChild(service);
     header.append(number, address, meta);
-    appendStreetConflictWarning(header, card.address);
+    appendStreetConflictWarning(
+        header, card.address,
+        jobs.find((job) => job.id === card.stopId)?.addressAliases || [],
+    );
     return header;
 }
 
