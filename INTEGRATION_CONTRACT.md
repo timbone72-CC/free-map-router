@@ -55,6 +55,16 @@ attaches the inbox's exact Order IDs to that stop's pending route entry. The
 raw address is not recreated as a second stop. Fuzzy, partial, coordinate,
 label, client, and inferred alias matching are prohibited.
 
+## Workbook-selected route planning date — 2026-11-19 companion
+
+The workbook's optional top-level `planningDate` in the existing version-1 **Free Map Router Address Inbox.json** carries the exact local `YYYY-MM-DD` selected under Print > Set Route Planning Date. It is export context, not a job start date, source timestamp, or permanent address property. Invalid explicit dates fail closed; older inboxes without this field remain supported.
+
+FMR must preserve the optional date only with the **newly staged pending workbook route**. Loading the inbox may not change any existing active Route Plan Day, manual gigs, pins, or saved timing. When the operator confirms **Start New Route**, FMR initializes that new Route Plan Day to the pending workbook date; the operator can explicitly change the active Day date afterward. FMR returns its actual active-Day `routePlan.routeDate` unchanged in the existing version-2 route-order file.
+
+The workbook still matches the exact `sourceUpdatedAt` to the current inbox, checks exact `Source_ID` identities, and rejects jobs whose start date is later than the returned actual route Day. The workbook's Print planning date resets only after successful send, while Complete?/turn-in remain controlled by real today. No job-row schema, due date, pay, GIS/DCFS source, Route Order JSON structure, or gig identity changes are authorized.
+
+**Rollout:** Publish the backward-compatible FMR receiver first; then deploy the workbook's date-bearing exporter. Existing already-imported pending/active routes do not acquire a retroactive date: resend from the workbook, import, then Start New Route to use the transferred day. Before merge/deploy, verify the final runtime CI heads and complete the Cross-System Reality Gate. The workbook sandbox shares the LIVE FMR Drive handoff and is not a safe isolated write target. This companion must not write to that shared handoff during synthetic tests without separate authorization.
+
 ## Route-order return
 
 The workbook may send optional `orderIds` beside one de-duplicated physical
