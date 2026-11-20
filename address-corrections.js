@@ -39,7 +39,7 @@
         // may change the written street of another house number.
         function streetParts(value) {
             const address = normalizeAddress(value);
-            const found = /^(\\d+[A-Z]?)\\s+([^,]+)(,\\s*([^,]+),\\s*([A-Z]{2})\\s+(\\d{5}(?:-\\d{4})?)(?:,\\s*(?:USA|US))?\\s*)$/i.exec(address);
+            const found = /^(\d+[A-Z]?)\s+([^,]+)(,\s*([^,]+),\s*([A-Z]{2})\s+(\d{5}(?:-\d{4})?)(?:,\s*(?:USA|US))?\s*)$/i.exec(address);
             if (!found) return null;
             return {
                 house: found[1].toUpperCase(),
