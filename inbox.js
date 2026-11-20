@@ -197,6 +197,27 @@
                 );
             }
 
+            // The workbook may provide the chosen route-planning day. An
+            // invalid explicit day must never silently become today's date.
+            if (Object.hasOwn(parsed, "planningDate")) {
+                const value = parsed.planningDate;
+                const match = typeof value === "string"
+                    ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+                    : null;
+                const year = match ? Number(match[1]) : NaN;
+                const month = match ? Number(match[2]) : NaN;
+                const day = match ? Number(match[3]) : NaN;
+                const date = match ? new Date(Date.UTC(year, month - 1, day)) : null;
+                if (
+                    !date ||
+                    date.getUTCFullYear() !== year ||
+                    date.getUTCMonth() !== month - 1 ||
+                    date.getUTCDate() !== day
+                ) {
+                    throw new Error("The workbook address inbox has an invalid planning date.");
+                }
+            }
+
             const updatedAt = parsed.updatedAt
                 ? new Date(parsed.updatedAt)
                 : null;
