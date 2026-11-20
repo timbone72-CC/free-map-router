@@ -42,6 +42,8 @@ Complete only for Level 3:
 
 ## Verification
 
+<!-- AI handoff: retain accepted evidence and the exact tested runtime head (if relevant); state PASS/BLOCKED/FAIL/PENDING accurately and the one next checkpoint. Reuse existing scope records; do not restart valid tests or add a new handoff form. -->
+
 - [ ] I read `CONTRACT.md`.
 - [ ] I read `CHANGE_CONTROL_CONTRACT.md`.
 - [ ] I read the relevant `REGRESSION_CHECKLIST.md` sections.
