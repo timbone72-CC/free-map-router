@@ -75,7 +75,9 @@ Required process:
 - use realistic fixtures and a safe validation environment when available;
 - identify exact rollback steps before implementation;
 - pass the complete automated suite and all affected smoke checks;
-- obtain explicit operator approval before merge.
+- obtain one explicit operator release approval after the material scope is
+  described and before merge; that approval remains valid through completion of
+  the unchanged release transaction.
 
 ## Classification rules
 
@@ -90,14 +92,45 @@ Required process:
 ## Authorization
 
 - The user's request and approval authorize the documented scope.
-- No duplicate approval is required for Level 1 or Level 2 work when the scope
-  remains unchanged.
-- Level 3 requires explicit pre-merge approval even when implementation was
-  previously authorized.
+- Level 1 and Level 2 authorization covers implementation and the complete
+  release transaction unless the user explicitly requests a review-only stop.
+- Level 3 requires one explicit **PUBLISH** or equally clear release instruction
+  after the material scope is described and before merge.
+- That one Level 3 approval authorizes final testing, branch, commit, push, pull
+  request, in-scope review corrections, merge, publication, live verification,
+  and rollback if live verification fails.
+- Approval remains valid across tool changes, session handoffs, delayed checks,
+  and corrections that stay inside the approved scope. Do not translate tool or
+  connector limitations into another user approval.
+- Ask again only when the repository destination changes, the material scope
+  expands, a newly discovered destructive consequence changes the decision, or
+  the user stops or withdraws approval.
+- The established repository is the destination until the user changes it. Do
+  not demand a longer repository-specific approval phrase after **PUBLISH**.
 - A contract finding, code audit, or adjacent defect is not automatic
   implementation authorization.
 - Adjacent defects must be reported separately.
 - No direct feature work is performed on `main`.
+
+## Streamlined release transaction
+
+- Treat publication as one continuous transaction, not a sequence of user
+  permission gates.
+- Internal status updates are informational. They must not become questions or
+  pauses unless a decision covered by the authorization rules is required.
+- Run focused tests while developing and one final complete gate on the exact
+  runtime head. Reuse successful exact-head CI; do not duplicate it locally.
+- Trigger at most one advisory automated review cycle. Address actionable
+  findings together, then rely on required exact-head CI, diff inspection, and
+  repository protection. Do not repeatedly wait for optional re-reviews unless
+  GitHub branch protection requires them.
+- Tool unavailability does not invalidate approval. Use another already
+  authorized repository tool when available. Ask the user to act only when no
+  available tool can complete a required operation.
+- Stop only for a failed required check, unresolved safety assumption, genuine
+  permission blocker, changed scope or destination, or the user's **STOP**.
+- Once authorized, continue through merge and live verification and return with
+  the finished result or one concise real blocker.
 
 ## Required change records
 
