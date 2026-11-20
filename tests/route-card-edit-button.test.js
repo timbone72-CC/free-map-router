@@ -142,6 +142,7 @@ function makeSaveHarness({ routeOrigin = false, failSave = false } = {}) {
         remapRouteStopIds: (history) => history,
         savedJobIds: () => new Set(saved.map((job) => job.id)),
         writeRouteHistory: (_storage, history) => history,
+        proposeStreetCorrection: () => null,
         savePermanentAddressCorrections: () => Promise.resolve(),
         refreshAddressSuggestions() {},
         renderAll: () => calls.push("render"),
