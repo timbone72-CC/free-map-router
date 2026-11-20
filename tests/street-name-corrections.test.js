@@ -209,7 +209,7 @@ test("FMR UI has opt-in learning, conflict marker, removal and shared Drive work
     const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
     assert.match(app, /proposeStreetCorrection\(previousAddress, address\)/);
     assert.match(app, /approvedRule = proposal && confirm\(/);
-    assert.match(app, /appendStreetConflictWarning\(header, card\.address/);
+    assert.match(app, /appendStreetConflictWarning\(\s*header, card\.address/);
     assert.match(app, /textContent = "!"/);
     assert.match(app, /removeStreetCorrectionRules\(/);
     assert.match(app, /streetCorrectionRecord = corrections;/);
