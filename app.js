@@ -337,6 +337,7 @@ let activeRouteSlot = "google";
 const optimizerFeedbackByRoute = { google: "", basic: "" };
 let routeIds = routeHistory.google?.routeIds.slice() || [];
 let editingJobId = null;
+let routeEditReturnStopId = null;
 let formPinStatus = "unverified";
 let locationMap = null;
 let locationMarker = null;
@@ -1257,6 +1258,7 @@ function refreshAddressSuggestions() {
 // ============================================================================
 function resetForm() {
     editingJobId = null;
+    routeEditReturnStopId = null;
     formPinStatus = "unverified";
     if (els.jobForm) els.jobForm.reset();
     if (els.locationPreview) {
@@ -1272,11 +1274,12 @@ function resetForm() {
     refreshAddressSuggestions();
 }
 
-function startEditJob(jobId) {
+function startEditJob(jobId, returnToRoute = false) {
     const job = jobs.find((j) => j.id === jobId);
     if (!job) return;
 
     editingJobId = jobId;
+    routeEditReturnStopId = returnToRoute ? jobId : null;
 
     if (els.address) els.address.value = job.address || "";
     if (els.label) els.label.value = job.label || "";
@@ -2323,6 +2326,11 @@ if (els.jobForm) {
                     : "unverified",
         };
 
+        const returnToRouteStopId =
+            editingJobId && routeEditReturnStopId === editingJobId
+                ? editingJobId
+                : null;
+
         if (editingJobId) {
             try {
                 const edited = applyStopEdit(jobs, editingJobId, draft);
@@ -2355,6 +2363,15 @@ if (els.jobForm) {
 
         resetForm();
         renderAll();
+        if (returnToRouteStopId) {
+            showPage("route");
+            if (focusPlannerStop(returnToRouteStopId)) {
+                const editedCard = Array.from(
+                    document.querySelectorAll("#routeList > li[data-stop-id]"),
+                ).find((card) => card.dataset.stopId === returnToRouteStopId);
+                editedCard?.scrollIntoView?.({ block: "nearest" });
+            }
+        }
     });
 }
 
@@ -2999,7 +3016,7 @@ function plannerCard(card, index, timeZone) {
         const addEditView = document.getElementById("addressViewAddEdit");
         if (addEditView) addEditView.checked = true;
         showPage("addresses");
-        startEditJob(card.stopId);
+        startEditJob(card.stopId, true);
     });
     actions.append(upBtn, downBtn, editBtn, removeBtn);
     // Reuse the existing completion control only on the current first stop.
