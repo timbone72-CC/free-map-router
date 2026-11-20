@@ -35,6 +35,30 @@ test("street learning requires a genuine before/after edit of the same numbered 
     assert.equal(proposeStreetCorrection("W HEAT AVE", "WHEAT AVE"), null);
 });
 
+test("approved correction works for workbook addresses glued to the house number", () => {
+    const proposed = proposeStreetCorrection(
+        "119NWVALLEYBROOK DR, Lawton, OK 73505",
+        "119 NW VALLEYBROOK DR, Lawton, OK 73505",
+    );
+    assert.deepEqual(proposed, {
+        town: "Lawton", state: "OK",
+        originalStreet: "NWVALLEYBROOK DR",
+        correctedStreet: "NW VALLEYBROOK DR",
+    });
+    const saved = addStreetCorrectionRule(
+        createCorrectionRecord([]), proposed, "street_glued_1",
+    );
+    const imported = applyCorrectionsToInbox({ addresses: [{
+        address: "321NWVALLEYBROOK DR, Lawton, OK 73505",
+        orderIds: ["NEW-321"],
+    }] }, saved);
+    assert.equal(
+        imported.addresses[0].address,
+        "321 NW VALLEYBROOK DR, Lawton, OK 73505",
+    );
+    assert.deepEqual(imported.addresses[0].orderIds, ["NEW-321"]);
+});
+
 test("v1 exact-address memory remains compatible until street learning is approved", () => {
     const old = createCorrectionRecord([{
         address: fixed,
