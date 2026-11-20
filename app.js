@@ -90,9 +90,13 @@ const {
     parseAddressInbox,
 } = globalThis.FMRInbox;
 const {
+    addStreetCorrectionRule,
     applyCorrectionsToInbox,
     createCorrectionRecord,
     mergeCorrectionRecords,
+    proposeStreetCorrection,
+    removeStreetCorrectionRules,
+    streetDecisionForAddress,
     parseCorrectionRecord,
     savedAddressSuggestions,
 } = globalThis.FMRAddressCorrections;
@@ -338,6 +342,8 @@ const optimizerFeedbackByRoute = { google: "", basic: "" };
 let routeIds = routeHistory.google?.routeIds.slice() || [];
 let editingJobId = null;
 let routeEditReturnStopId = null;
+let streetCorrectionRecord = createCorrectionRecord([], new Date(0));
+let correctionWriteQueue = Promise.resolve();
 let formPinStatus = "unverified";
 let locationMap = null;
 let locationMarker = null;
@@ -454,6 +460,7 @@ const els = {
     restoreGoogleDrive: document.getElementById("restoreGoogleDrive"),
     googleDriveStatus: document.getElementById("googleDriveStatus"),
     addressCorrectionStatus: document.getElementById("addressCorrectionStatus"),
+    manageStreetCorrections: document.getElementById("manageStreetCorrections"),
     googleDriveInboxStatus: document.getElementById("googleDriveInboxStatus"),
 
     // import
@@ -838,6 +845,87 @@ function renderGoogleMapsActions() {
     }
 }
 
+
+function appendStreetConflictWarning(parent, address) {
+    const decision = streetDecisionForAddress(address, streetCorrectionRecord);
+    if (decision?.status !== "conflict") return;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = "!";
+    button.className = "btn btnSmall";
+    button.style.width = "auto";
+    button.style.padding = "0.1em 0.5em";
+    button.title = "Conflicting street-name corrections — choose one";
+    button.setAttribute("aria-label", "Resolve street-name correction conflict for " + address);
+    button.addEventListener("click", (event) => {
+        event.stopPropagation();
+        void resolveStreetConflict(address);
+    });
+    parent.appendChild(button);
+}
+
+async function resolveStreetConflict(address) {
+    const decision = streetDecisionForAddress(address, streetCorrectionRecord);
+    if (decision?.status !== "conflict") return;
+    const options = decision.choices.map((entry, index) =>
+        (index + 1) + ". " + entry.street
+    ).join("\\n");
+    const selected = prompt(
+        "Conflicting corrections for " + decision.originalStreet + " in " +
+        decision.town + ", " + decision.state + ":\\n" +
+        options + "\\nEnter the number of the correct street name:",
+    );
+    if (selected === null) return;
+    const choiceIndex = Number(selected) - 1;
+    if (!Number.isInteger(choiceIndex) || !decision.choices[choiceIndex]) {
+        alert("No correction changed. Select a listed number.");
+        return;
+    }
+    const rejectedIds = decision.choices.flatMap((choice, index) =>
+        index === choiceIndex ? [] : choice.ruleIds
+    );
+    const amended = removeStreetCorrectionRules(streetCorrectionRecord, rejectedIds);
+    await commitCorrectionDelta(amended);
+}
+
+async function manageStreetCorrections() {
+    try {
+        streetCorrectionRecord = await loadPermanentAddressCorrections();
+        renderJobsList();
+        renderRouteList();
+    } catch (error) {
+        setAddressCorrectionStatus(error?.message || "Could not load shared street corrections.");
+        return;
+    }
+    const rules = streetCorrectionRecord.streetRules || [];
+    if (!rules.length) {
+        alert("No shared street-name corrections saved.");
+        return;
+    }
+    const options = rules.map((rule, index) =>
+        (index + 1) + ". " + rule.town + ", " + rule.state +
+        ": " + rule.originalStreet + " → " + rule.correctedStreet
+    ).join("\\n");
+    const selected = prompt(
+        "Remove a learned street correction? Enter its number, or Cancel:\\n" + options,
+    );
+    if (selected === null) return;
+    const index = Number(selected) - 1;
+    if (!Number.isInteger(index) || !rules[index]) {
+        alert("No correction removed.");
+        return;
+    }
+    const selectedRule = rules[index];
+    if (!confirm(
+        "Stop automatically correcting " + selectedRule.originalStreet + " to " +
+        selectedRule.correctedStreet + " in " + selectedRule.town + ", " +
+        selectedRule.state + "? Existing jobs will not be changed.",
+    )) return;
+    await commitCorrectionDelta(
+        removeStreetCorrectionRules(streetCorrectionRecord, [selectedRule.id]),
+    );
+}
+
 function renderJobsList() {
     const list = els.jobList;
     if (!list) return;
@@ -914,6 +1002,7 @@ function renderJobsList() {
         li.appendChild(document.createTextNode(" "));
         li.appendChild(sourceLabel);
         li.appendChild(label);
+        appendStreetConflictWarning(li, job.address);
         li.appendChild(document.createTextNode(" "));
         li.appendChild(editBtn);
         li.appendChild(document.createTextNode(" "));
@@ -1992,6 +2081,12 @@ function setAddressCorrectionStatus(message) {
     }
 }
 
+if (els.manageStreetCorrections) {
+    els.manageStreetCorrections.addEventListener("click", () => {
+        void manageStreetCorrections();
+    });
+}
+
 async function loadPermanentAddressCorrections() {
     const token = currentDriveToken();
     if (!token) {
@@ -2006,33 +2101,43 @@ async function loadPermanentAddressCorrections() {
         : createCorrectionRecord([], new Date(0));
 }
 
-function savePermanentAddressCorrections(stops) {
-    const localRecord = createCorrectionRecord(stops);
-    if (localRecord.corrections.length === 0) {
-        return Promise.resolve(null);
-    }
-
-    setAddressCorrectionStatus("Saving this correction permanently…");
-    const tokenPromise = requestDriveToken();
-    return (async () => {
-        const token = await tokenPromise;
-        const rawRemoteRecord = await loadAddressCorrectionsFromDrive(token);
-        const remoteRecord = rawRemoteRecord
-            ? parseCorrectionRecord(rawRemoteRecord)
+function commitCorrectionDelta(localRecord) {
+    const action = async () => {
+        setAddressCorrectionStatus("Saving shared corrections to Google Drive…");
+        const token = await requestDriveToken();
+        const raw = await loadAddressCorrectionsFromDrive(token);
+        const remote = raw
+            ? parseCorrectionRecord(raw)
             : createCorrectionRecord([], new Date(0));
-        const merged = mergeCorrectionRecords(remoteRecord, localRecord);
+        const merged = mergeCorrectionRecords(remote, localRecord);
         await saveAddressCorrectionsToDrive(token, merged);
-        setAddressCorrectionStatus(
-            "Correction saved permanently in Google Drive.",
-        );
+        streetCorrectionRecord = merged;
+        setAddressCorrectionStatus("Corrections saved in Google Drive for your devices.");
+        renderJobsList();
+        renderRouteList();
         return merged;
-    })().catch((error) => {
+    };
+    // One device never overlaps its own correction writes.
+    const pending = correctionWriteQueue.catch(() => {}).then(action);
+    correctionWriteQueue = pending;
+    return pending.catch((error) => {
         setAddressCorrectionStatus(
-            error?.message ||
-                "This correction was saved only on this device. Google Drive could not save it.",
+            error?.message || "Correction was not synced. Existing saved addresses were kept.",
         );
         return null;
     });
+}
+
+function savePermanentAddressCorrections(stops, proposedStreetRule = null) {
+    let localRecord = createCorrectionRecord(stops);
+    if (proposedStreetRule) {
+        localRecord = addStreetCorrectionRule(localRecord, proposedStreetRule);
+    }
+    if (
+        localRecord.corrections.length === 0 &&
+        !localRecord.streetRules?.length
+    ) return Promise.resolve(null);
+    return commitCorrectionDelta(localRecord);
 }
 
 async function sendDisplayedRouteOrderToWorkbook() {
@@ -2102,6 +2207,7 @@ async function syncWorkbookInboxFrom(
     driveInboxSyncPromise = (async () => {
         let inbox = parseAddressInbox(await loadInbox());
         const corrections = await loadPermanentAddressCorrections();
+        streetCorrectionRecord = corrections;
         inbox = applyCorrectionsToInbox(inbox, corrections);
 
         const inboxRelation = workbookRouteRelation(
@@ -2331,6 +2437,9 @@ if (els.jobForm) {
                 ? editingJobId
                 : null;
 
+        const previousAddress = editingJobId
+            ? jobs.find((job) => job.id === editingJobId)?.address || ""
+            : "";
         if (editingJobId) {
             try {
                 const edited = applyStopEdit(jobs, editingJobId, draft);
@@ -2347,7 +2456,13 @@ if (els.jobForm) {
                 );
                 routeIds =
                     routeHistory[activeRouteSlot]?.routeIds.slice() || [];
-                void savePermanentAddressCorrections(jobs);
+                const proposal = proposeStreetCorrection(previousAddress, address);
+                const approvedRule = proposal && confirm(
+                    "Also remember this street-name correction for other house numbers " +
+                    "in " + proposal.town + ", " + proposal.state + "?\\n" +
+                    proposal.originalStreet + " → " + proposal.correctedStreet,
+                ) ? proposal : null;
+                void savePermanentAddressCorrections(jobs, approvedRule);
             } catch (error) {
                 alert(error?.message || "The address could not be updated.");
                 return;
@@ -2918,6 +3033,7 @@ function plannerStopHeader(card, timeZone) {
         : `Service: ${plannerMinutesText(card.knownServiceMinutes || 0)} known + incomplete`;
     meta.appendChild(service);
     header.append(number, address, meta);
+    appendStreetConflictWarning(header, card.address);
     return header;
 }
 
