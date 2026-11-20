@@ -78,9 +78,9 @@ test("only current first stop card receives the original completion button", () 
     const second = sandbox.makeCard({ stopId: "second" }, 1, "UTC");
     const firstActions = cardActions(first);
     const secondActions = cardActions(second);
-    assert.equal(firstActions.children[0], done, "Done comes before Up / Down / Remove");
-    assert.equal(firstActions.children.length, 4);
-    assert.equal(secondActions.children.length, 3, "later stop cannot prematurely complete");
+    assert.equal(firstActions.children[0], done, "Done comes before Up / Down / Edit / Remove");
+    assert.equal(firstActions.children.length, 5);
+    assert.equal(secondActions.children.length, 4, "later stop cannot prematurely complete");
     assert.equal(done.listeners.click, onDone, "existing click handler stays attached");
 });
 
