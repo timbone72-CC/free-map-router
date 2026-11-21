@@ -220,3 +220,140 @@ test("the existing Google optimize action is separate and the new saved-stop con
     assert.match(browserSource, /assertPreparedContextCurrent\(prepared, currentPrepared\)/);
     assert.match(browserSource, /newStopButton\.addEventListener\("click"/);
 });
+
+async function runAuthenticatedInsertion({ changeDuringCalculation = false } = {}) {
+    let authorize = null;
+    let insertClick = null;
+    let applied = null;
+    let request = null;
+    let status = "";
+    let guard = "unchanged";
+    const button = (record) => ({
+        disabled: true,
+        addEventListener(event, fn) {
+            if (event === "click" && record === "insert") insertClick = fn;
+        },
+    });
+    const newStopButton = button("insert");
+    const newStopSelect = { value: "new", disabled: false, addEventListener() {} };
+    const elements = {
+        googleRouteSignIn: { hidden: false },
+        googleOptimizeRoute: button("regular"),
+        googleInsertStop: newStopButton,
+        googleInsertStopChoice: newStopSelect,
+        googleRouteAuthStatus: { textContent: "" },
+    };
+    const dayContext = context();
+    const history = {
+        google: { routeIds: ["s1", "s2"] },
+        dayContext,
+    };
+    const root = {
+        document: {
+            readyState: "complete",
+            visibilityState: "hidden",
+            getElementById(id) { return elements[id] || null; },
+            addEventListener() {},
+        },
+        localStorage: { getItem() { return null; } },
+        addEventListener() {},
+        FMRRouteHistory: {
+            readRouteHistory() { return history; },
+            validateDayContext(value) {
+                return { ok: true, dayContext: value };
+            },
+        },
+        FMRWorkItemPlanningRuntime: {
+            projectRoute() {
+                return {
+                    complete: true,
+                    stops: [
+                        { stopId: "s1", serviceMinutes: 5, items: [] },
+                        { stopId: "s2", serviceMinutes: 5, items: [] },
+                    ],
+                };
+            },
+        },
+        FMRWorkdayContext: {
+            homeByRestrictionEnabled() { return false; },
+        },
+        FMRRouteBridge: {
+            setRouteStatus() {},
+            setOptimizerFeedback(text) { status = text; },
+            setGoogleInsertionBusy(value) { newStopSelect.disabled = value; },
+            googleInsertionContext(newStopId) {
+                return {
+                    planId: "plan",
+                    planRevision: 1,
+                    dayId: "day",
+                    originalIds: ["s1", "s2"],
+                    newStopId,
+                    guard,
+                };
+            },
+            async prepareGoogleInsertionSnapshot(newStopId) {
+                return {
+                    home: { latitude: 35, longitude: -99 },
+                    stops: [
+                        { id: "s1", address: "100 Main St" },
+                        { id: "s2", address: "200 Main St" },
+                        { id: newStopId, address: "150 New Ave" },
+                    ],
+                    insertion: { newStopId },
+                };
+            },
+            applyGoogleInsertionResult(value) { applied = value; },
+        },
+        google: {
+            accounts: {
+                id: {
+                    initialize(options) { authorize = options.callback; },
+                    renderButton() {},
+                },
+            },
+        },
+    };
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options) => {
+        assert.match(url, /\/optimize$/);
+        request = JSON.parse(options.body);
+        if (changeDuringCalculation) guard = "changed";
+        return {
+            ok: true,
+            status: 200,
+            async json() {
+                return {
+                    requestId: request.requestId,
+                    orderedStopIds: ["s1", "new", "s2"],
+                    skippedStopIds: [],
+                    totalDistanceMeters: 16093,
+                    totalDurationSeconds: 1800,
+                };
+            },
+        };
+    };
+    try {
+        assert.equal(GoogleBrowser.initializeBrowserUi(root), true);
+        await authorize({ credential: "approved-test-token" });
+        await insertClick();
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+    return { applied, request, status };
+}
+
+test("signed-in insertion sends the unchanged two-stop chain plus new address and applies only the validated answer", async () => {
+    const result = await runAuthenticatedInsertion();
+    assert.deepEqual(result.request.stops.map((stop) => stop.id), ["s1", "s2", "new"]);
+    assert.deepEqual(result.request.insertion, { newStopId: "new" });
+    assert.equal(result.request.stops[2].serviceDurationSeconds, 0);
+    assert.deepEqual(result.applied.response.orderedStopIds, ["s1", "new", "s2"]);
+    assert.equal(result.applied.schedule, null);
+    assert.match(result.status, /New stop inserted. All previous stops kept their order/);
+});
+
+test("signed-in insertion refuses a stale route changed during the Google request", async () => {
+    const result = await runAuthenticatedInsertion({ changeDuringCalculation: true });
+    assert.equal(result.applied, null);
+    assert.match(result.status, /Nothing was inserted/);
+});
