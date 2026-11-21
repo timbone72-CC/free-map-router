@@ -143,7 +143,7 @@ test("selected Basic reversal changes Basic only, leaving Google order intact", 
 
 test("reverse action stays visible in route header and disabled for ineligible routes", () => {
     assert.match(html, /id="plannerHeading">Today's Route<\/h3>[\s\S]*?id="reverseRoute"/);
-    assert.match(html, /app\.js\?v=3\.34\.16/);
+    assert.match(html, /app\.js\?v=3\.34\.17/);
     assert.match(app, /reverseRoute: document\.getElementById\("reverseRoute"\)/);
     assert.match(app, /els\.reverseRoute\?\.addEventListener\("click", reverseSelectedRoute\)/);
     assert.equal((app.match(/routeIds\.length < 2 \|\| Boolean\(routeOrderSendPromise\)/g) || []).length, 2);
