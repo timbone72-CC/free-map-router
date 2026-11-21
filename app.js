@@ -407,6 +407,29 @@ function markRouteManuallyChanged() {
     return null;
 }
 
+function reverseSelectedRoute() {
+    if (routeIds.length < 2 || routeOrderSendPromise) return false;
+    const previousRouteIds = routeIds.slice();
+    routeIds = routeIds.slice().reverse();
+    try {
+        persistActiveRoute("manually_changed");
+    } catch (error) {
+        routeIds = previousRouteIds;
+        renderRouteList();
+        if (els.routeStatus) {
+            els.routeStatus.textContent =
+                error?.message || "Could not reverse the selected route.";
+        }
+        return false;
+    }
+    renderRouteList();
+    if (els.routeStatus) {
+        els.routeStatus.textContent =
+            `${activeRouteSlot === "basic" ? "Basic Route" : "Google Route"} reversed — ${routeIds.length} stops.`;
+    }
+    return true;
+}
+
 function filterRoutesForSavedJobs() {
     routeHistory = writeRouteHistory(
         localStorage,
@@ -499,6 +522,7 @@ const els = {
     addressCountyFilter: document.getElementById("addressCountyFilter"),
     addressFilterCount: document.getElementById("addressFilterCount"),
     routeList: document.getElementById("routeList"),
+    reverseRoute: document.getElementById("reverseRoute"),
     routeChoice: document.getElementById("routeChoice"),
     routePage: document.getElementById("routePage"),
     checkWorkbookRoute: document.getElementById("checkWorkbookRoute"),
@@ -1085,6 +1109,10 @@ function renderRouteList() {
         els.sendRouteOrder.disabled =
             routeIds.length === 0 || Boolean(routeOrderSendPromise);
     }
+    if (els.reverseRoute) {
+        els.reverseRoute.disabled =
+            routeIds.length < 2 || Boolean(routeOrderSendPromise);
+    }
 
     if (!home) {
         const li = document.createElement("li");
@@ -1329,6 +1357,8 @@ if (els.routeChoice) {
         }
     });
 }
+
+els.reverseRoute?.addEventListener("click", reverseSelectedRoute);
 
 if (els.startNewRoute) {
     els.startNewRoute.addEventListener("click", () => {
@@ -3409,6 +3439,10 @@ renderRouteList = function plannerAwareRenderRouteList() {
     if (els.sendRouteOrder) {
         els.sendRouteOrder.disabled =
             routeIds.length === 0 || Boolean(routeOrderSendPromise);
+    }
+    if (els.reverseRoute) {
+        els.reverseRoute.disabled =
+            routeIds.length < 2 || Boolean(routeOrderSendPromise);
     }
     return renderPlannerPresentation();
 };
