@@ -401,6 +401,10 @@ test("signed-in insertion sends the unchanged two-stop chain plus new address an
     assert.equal(result.request.stops[2].serviceDurationSeconds, 0);
     assert.deepEqual(result.applied.response.orderedStopIds, ["s1", "new", "s2"]);
     assert.equal(result.applied.schedule, null);
+    assert.match(result.preview.address, /150 New Ave/);
+    assert.match(result.preview.position, /After: 100 Main St[\s\S]*Before: 200 Main St/);
+    assert.match(result.preview.map, /Proposed Map 1 of 1/);
+    assert.match(result.preview.backtrack, /Possible backtracking/);
     assert.match(result.status, /New stop inserted. All previous stops kept their order/);
 });
 
@@ -408,6 +412,59 @@ test("signed-in insertion refuses a stale route changed during the Google reques
     const result = await runAuthenticatedInsertion({ changeDuringCalculation: true });
     assert.equal(result.applied, null);
     assert.match(result.status, /Nothing was inserted/);
+});
+
+test("Cancel does not write the previewed new stop", async () => {
+    const result = await runAuthenticatedInsertion({ decision: "cancel" });
+    assert.equal(result.applied, null);
+    assert.match(result.preview.map, /Proposed Map/);
+    assert.match(result.status, /cancelled.*unchanged/i);
+});
+
+test("Continue rejects stale route edits made while the preview is open", async () => {
+    const result = await runAuthenticatedInsertion({ changeDuringPreview: true });
+    assert.equal(result.applied, null);
+    assert.match(result.status, /route changed.*Nothing was inserted/i);
+});
+
+test("preview uses existing map sections and compares order to Heading Here, not GPS", () => {
+    const home = { address: "Home Base" };
+    const old = Array.from({ length: 19 }, (_, i) => ({
+        id: `s${i}`, address: `${100 + i} Main St`,
+    }));
+    const newStop = { id: "new", address: "152 New Ave" };
+    const ordered = old.map((stop) => stop.id);
+    ordered.splice(13, 0, "new");
+    const preview = GoogleBrowser.buildGoogleInsertionPreview(
+        { home, stops: [...old, newStop] },
+        ordered, "new", "s15", require("../routing.js"),
+    );
+    assert.match(preview.mapSection, /Proposed Map 2 of 3/);
+    assert.match(preview.backtrackingMessage, /Possible backtracking/);
+    assert.equal(preview.backtracking, true);
+    const withoutPosition = GoogleBrowser.buildGoogleInsertionPreview(
+        { home, stops: [...old, newStop] },
+        ordered, "new", "", require("../routing.js"),
+    );
+    assert.equal(withoutPosition.backtracking, null);
+    assert.match(withoutPosition.backtrackingMessage, /check unavailable/);
+    assert.throws(() => GoogleBrowser.buildGoogleInsertionPreview(
+        { home, stops: [...old, newStop] },
+        ["s1", "s0", ...ordered.slice(2)],
+        "new", "s15", require("../routing.js"),
+    ), /preserve the existing stop order/);
+});
+
+test("new stop review requires Continue and Cancel controls before a route write", () => {
+    for (const id of [
+        "googleInsertionPreviewDialog", "googleInsertionPreviewAddress",
+        "googleInsertionPreviewPosition", "googleInsertionPreviewMap",
+        "googleInsertionPreviewBacktrack", "googleInsertionPreviewContinue",
+        "googleInsertionPreviewCancel",
+    ]) {
+        assert.match(html, new RegExp('id="' + id + '"'));
+    }
+    assert.match(html, /google-route-browser\.js\?v=1\.9\.3/);
 });
 
 
