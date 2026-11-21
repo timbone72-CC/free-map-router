@@ -1537,6 +1537,17 @@ li {
     box-shadow: inset 4px 0 #16766a;
 }
 
+#routePage #googleInsertStopChoice {
+    flex: 1 1 220px;
+    min-width: 0;
+    width: auto;
+    margin: 0;
+}
+
+#routePage #googleInsertStop {
+    flex: 0 1 auto;
+}
+
 #routePage #optimizeRoute {
     background: #235a86;
     border-color: #1b496d;
