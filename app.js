@@ -463,6 +463,10 @@ const els = {
     addressCorrectionStatus: document.getElementById("addressCorrectionStatus"),
     manageStreetCorrections: document.getElementById("manageStreetCorrections"),
     streetCorrectionManageStatus: document.getElementById("streetCorrectionManageStatus"),
+    streetCorrectionManagePanel: document.getElementById("streetCorrectionManagePanel"),
+    streetCorrectionRuleChoice: document.getElementById("streetCorrectionRuleChoice"),
+    removeSelectedStreetCorrection: document.getElementById("removeSelectedStreetCorrection"),
+    closeStreetCorrectionManage: document.getElementById("closeStreetCorrectionManage"),
     googleDriveInboxStatus: document.getElementById("googleDriveInboxStatus"),
 
     // import
@@ -892,6 +896,59 @@ async function resolveStreetConflict(address) {
     await commitCorrectionDelta(amended);
 }
 
+
+function renderStreetCorrectionChoices() {
+    const choice = els.streetCorrectionRuleChoice;
+    const panel = els.streetCorrectionManagePanel;
+    if (!choice || !panel) return;
+    const selectedId = choice.value;
+    const rules = effectiveStreetRules(streetCorrectionRecord);
+    choice.replaceChildren();
+    for (const rule of rules) {
+        const option = document.createElement("option");
+        option.value = rule.id;
+        option.textContent =
+            rule.town + ", " + rule.state + ": " +
+            rule.originalStreet + " → " + rule.correctedStreet;
+        choice.appendChild(option);
+    }
+    choice.value = rules.some((rule) => rule.id === selectedId) ? selectedId : "";
+    panel.hidden = false;
+    if (els.removeSelectedStreetCorrection) {
+        els.removeSelectedStreetCorrection.disabled = !choice.value;
+    }
+}
+
+async function removeSelectedStreetCorrection() {
+    const choice = els.streetCorrectionRuleChoice;
+    const button = els.removeSelectedStreetCorrection;
+    if (!choice || !button || button.disabled) return;
+    const rule = effectiveStreetRules(streetCorrectionRecord).find(
+        (entry) => entry.id === choice.value,
+    );
+    if (!rule) return;
+    if (!confirm(
+        "Stop automatically correcting " + rule.originalStreet + " to " +
+        rule.correctedStreet + " in " + rule.town + ", " +
+        rule.state + "? Existing jobs will not be changed.",
+    )) return;
+    button.disabled = true;
+    if (els.streetCorrectionManageStatus) {
+        els.streetCorrectionManageStatus.textContent = "Saving correction removal…";
+    }
+    const saved = await commitCorrectionDelta(
+        removeStreetCorrectionRules(streetCorrectionRecord, [rule.id]),
+    );
+    if (saved) renderStreetCorrectionChoices();
+    if (els.streetCorrectionManageStatus) {
+        els.streetCorrectionManageStatus.textContent = saved
+            ? "Street correction removed and synced. " +
+                effectiveStreetRules(streetCorrectionRecord).length + " remaining."
+            : "Could not sync the removal. The shared rule was not changed.";
+    }
+    if (!saved) button.disabled = false;
+}
+
 async function manageStreetCorrections() {
     const button = els.manageStreetCorrections;
     if (!button || button.disabled) return;
@@ -900,8 +957,8 @@ async function manageStreetCorrections() {
         els.streetCorrectionManageStatus.textContent = "Connecting to Google Drive…";
     }
     try {
-        // This is a user-clicked action: it may ask the user to reconnect.
-        // Automatic workbook imports still require an existing token.
+        // Only the user-clicked manager may request interactive Drive consent.
+        // Automatic workbook import still requires an existing token.
         await requestDriveToken();
         streetCorrectionRecord = await loadPermanentAddressCorrections();
         renderJobsList();
@@ -915,41 +972,11 @@ async function manageStreetCorrections() {
     } finally {
         button.disabled = false;
     }
-    const rules = effectiveStreetRules(streetCorrectionRecord);
+    renderStreetCorrectionChoices();
     if (els.streetCorrectionManageStatus) {
         els.streetCorrectionManageStatus.textContent =
-            "Loaded " + rules.length + " street corrections from Google Drive.";
-    }
-    if (!rules.length) return;
-    const options = rules.map((rule, index) =>
-        (index + 1) + ". " + rule.town + ", " + rule.state +
-        ": " + rule.originalStreet + " → " + rule.correctedStreet
-    ).join("\n");
-    const selected = prompt(
-        "Remove a learned street correction? Enter its number, or Cancel:\n" + options,
-    );
-    if (selected === null) return;
-    const index = Number(selected) - 1;
-    if (!Number.isInteger(index) || !rules[index]) {
-        alert("No correction removed.");
-        return;
-    }
-    const selectedRule = rules[index];
-    if (!confirm(
-        "Stop automatically correcting " + selectedRule.originalStreet + " to " +
-        selectedRule.correctedStreet + " in " + selectedRule.town + ", " +
-        selectedRule.state + "? Existing jobs will not be changed.",
-    )) return;
-    if (els.streetCorrectionManageStatus) {
-        els.streetCorrectionManageStatus.textContent = "Saving correction removal…";
-    }
-    const saved = await commitCorrectionDelta(
-        removeStreetCorrectionRules(streetCorrectionRecord, [selectedRule.id]),
-    );
-    if (els.streetCorrectionManageStatus) {
-        els.streetCorrectionManageStatus.textContent = saved
-            ? "Street correction removed and synced."
-            : "Could not sync the removal. The shared rule was not changed.";
+            "Loaded " + effectiveStreetRules(streetCorrectionRecord).length +
+            " street corrections from Google Drive.";
     }
 }
 
@@ -2111,6 +2138,26 @@ function setAddressCorrectionStatus(message) {
 if (els.manageStreetCorrections) {
     els.manageStreetCorrections.addEventListener("click", () => {
         void manageStreetCorrections();
+    });
+}
+if (els.streetCorrectionRuleChoice) {
+    els.streetCorrectionRuleChoice.addEventListener("change", () => {
+        if (els.removeSelectedStreetCorrection) {
+            els.removeSelectedStreetCorrection.disabled =
+                !els.streetCorrectionRuleChoice.value;
+        }
+    });
+}
+if (els.removeSelectedStreetCorrection) {
+    els.removeSelectedStreetCorrection.addEventListener("click", () => {
+        void removeSelectedStreetCorrection();
+    });
+}
+if (els.closeStreetCorrectionManage) {
+    els.closeStreetCorrectionManage.addEventListener("click", () => {
+        if (els.streetCorrectionManagePanel) {
+            els.streetCorrectionManagePanel.hidden = true;
+        }
     });
 }
 
