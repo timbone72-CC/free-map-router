@@ -21,10 +21,10 @@
         const CORRECTIONS_VERSION = 1;
         const STREET_CORRECTIONS_VERSION = 2;
 
-        // User-reviewed corrections already saved in FMR's Drive record on
-        // 2026-11-20; only the 24 exact street-text transformations with
-        // unchanged house, town, state and ZIP are reused here. No house
-        // numbers, pin coordinates or workbook identities ship in app code.
+        // Starting memory: 24 approved exact-address corrections from FMR's
+        // existing Drive record plus 22 additional spelling/spacing pairs
+        // verified against other correctly written jobs in the same workbook
+        // town. No house numbers, pins or workbook IDs ship in app code.
         // Seeds are read-only defaults; removal stores a tombstone in Drive.
         const APPROVED_STREET_SEEDS = Object.freeze([
             { id: "seed_01", town: "Fletcher", state: "OK", originalStreet: "S OUTH SYCAMORE ST", correctedStreet: "SOUTH SYCAMORE ST" },
@@ -51,6 +51,29 @@
             { id: "seed_22", town: "Cache", state: "OK", originalStreet: "S OUTHWEST DEYO MISSION ROAD -", correctedStreet: "SOUTHWEST DEYO MISSION ROAD -" },
             { id: "seed_23", town: "Elk City", state: "OK", originalStreet: "W EST 10TH STREET -", correctedStreet: "WEST 10TH STREET -" },
             { id: "seed_24", town: "Cordell", state: "OK", originalStreet: "W EST 10TH", correctedStreet: "WEST 10TH" },
+
+            { id: "seed_25", town: "Cache", state: "OK", originalStreet: "NWGRANITE AVE", correctedStreet: "NW GRANITE AVE" },
+            { id: "seed_26", town: "Elgin", state: "OK", originalStreet: "NEJERE LAYNE", correctedStreet: "NE JERE LAYNE" },
+            { id: "seed_27", town: "Fletcher", state: "OK", originalStreet: "NEKLEEMAN RD", correctedStreet: "NE KLEEMAN RD" },
+            { id: "seed_28", town: "Lawton", state: "OK", originalStreet: "NWWILLIAMS AVE", correctedStreet: "NW WILLIAMS AVE" },
+            { id: "seed_29", town: "Lawton", state: "OK", originalStreet: "NWIRWIN AVE", correctedStreet: "NW IRWIN AVE" },
+            { id: "seed_30", town: "Lawton", state: "OK", originalStreet: "NWCHERRY AVE", correctedStreet: "NW CHERRY AVE" },
+            { id: "seed_31", town: "Lawton", state: "OK", originalStreet: "NWOAK AVE", correctedStreet: "NW OAK AVE" },
+            { id: "seed_32", town: "Lawton", state: "OK", originalStreet: "SWPARK GROVE DR", correctedStreet: "SW PARK GROVE DR" },
+            { id: "seed_33", town: "Lawton", state: "OK", originalStreet: "NWKINYON AVE", correctedStreet: "NW KINYON AVE" },
+            { id: "seed_34", town: "Lawton", state: "OK", originalStreet: "SWEDINBUROUGH DR", correctedStreet: "SW EDINBUROUGH DR" },
+            { id: "seed_35", town: "Lawton", state: "OK", originalStreet: "SWH AVE", correctedStreet: "SW H AVE" },
+            { id: "seed_36", town: "Lawton", state: "OK", originalStreet: "NWLIBERTY AVE", correctedStreet: "NW LIBERTY AVE" },
+            { id: "seed_37", town: "Lawton", state: "OK", originalStreet: "NWPRENTICE AVE", correctedStreet: "NW PRENTICE AVE" },
+            { id: "seed_38", town: "Lawton", state: "OK", originalStreet: "NEWILLOW WAY", correctedStreet: "NE WILLOW WAY" },
+            { id: "seed_39", town: "Lawton", state: "OK", originalStreet: "NWNOB HILL DR", correctedStreet: "NW NOB HILL DR" },
+            { id: "seed_40", town: "Lawton", state: "OK", originalStreet: "SEELLSWORTH AVE", correctedStreet: "SE ELLSWORTH AVE" },
+            { id: "seed_41", town: "Lawton", state: "OK", originalStreet: "NWMEADOWBROOK DR", correctedStreet: "NW MEADOWBROOK DR" },
+            { id: "seed_42", town: "Lawton", state: "OK", originalStreet: "NWCOTTONWOOD DR", correctedStreet: "NW COTTONWOOD DR" },
+            { id: "seed_43", town: "Lawton", state: "OK", originalStreet: "NWALAN A DALE LN", correctedStreet: "NW ALAN A DALE LN" },
+            { id: "seed_44", town: "Lawton", state: "OK", originalStreet: "SWDRAKESTONE BLVD", correctedStreet: "SW DRAKESTONE BLVD" },
+            { id: "seed_45", town: "Lawton", state: "OK", originalStreet: "SWCHEROKEE AVE", correctedStreet: "SW CHEROKEE AVE" },
+            { id: "seed_46", town: "Lawton", state: "OK", originalStreet: "NWDENVER AVE", correctedStreet: "NW DENVER AVE" },
         ]);
 
         if (!contract) {
