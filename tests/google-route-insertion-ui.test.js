@@ -357,3 +357,107 @@ test("signed-in insertion refuses a stale route changed during the Google reques
     assert.equal(result.applied, null);
     assert.match(result.status, /Nothing was inserted/);
 });
+
+
+test("actual Send Route Order serializes the inserted address-only stop without changing work IDs", async () => {
+    const { createRouteOrderSendController } = require("../route-order-ui.js");
+    const GigHandoff = require("../gig-handoff.js");
+    const h = setup();
+    RouteHistory.commitGoogleInsertion(h.storage, h.insertion(), ids);
+    const addressById = {
+        s1: "100 First St",
+        s2: "200 Second St",
+        s3: "300 Third St",
+        new: "150 New Ave",
+    };
+    const current = h.current();
+    const displayed = current.google.routeIds.map((stopId) => ({
+        dataset: { stopId },
+    }));
+    const button = { disabled: false, addEventListener(type, handler) {
+        if (type === "click") this.handler = handler;
+    } };
+    const status = { textContent: "" };
+    const writes = [];
+    const controller = createRouteOrderSendController({
+        contractApi: {
+            readStops() {
+                return {
+                    stops: Object.entries(addressById).map(([id, address]) => ({
+                        id, address,
+                    })),
+                };
+            },
+        },
+        routeHistoryApi: RouteHistory,
+        routeOrderApi: RouteOrder,
+        gigHandoffApi: {
+            ...GigHandoff,
+            async saveGigHandoffToDrive(token, handoff) {
+                writes.push({ type: "gig", content: JSON.stringify(handoff) });
+            },
+        },
+        manualGigsProvider() {
+            return [{
+                id: "GIG-3",
+                stopId: "s3",
+                source: "HNP",
+                workOrderId: "WORK-3",
+                expectedPay: 25,
+                dueDate: "2026-11-20",
+                completedDate: null,
+                notes: "",
+                updatedAt: "2026-11-20T15:00:00.000Z",
+            }];
+        },
+        driveApi: {
+            async requestDriveToken() { return "fake-local-token"; },
+            async saveRouteOrderToDrive(token, routeOrder) {
+                writes.push({ type: "route", content: JSON.stringify(routeOrder) });
+            },
+        },
+        storage: h.storage,
+        documentRef: {
+            getElementById(id) {
+                return {
+                    sendRouteOrder: button,
+                    workbookRouteOrderStatus: status,
+                    routeChoice: { value: "google" },
+                }[id] || null;
+            },
+            querySelectorAll(selector) {
+                assert.equal(selector, "#routeList > li[data-stop-id]");
+                return displayed;
+            },
+        },
+        now: () => new Date("2026-11-20T18:00:00.000Z"),
+    });
+    assert.equal(controller.attach(), true);
+    button.handler({
+        preventDefault() {},
+        stopImmediatePropagation() {},
+    });
+    await controller.whenIdle();
+    assert.deepEqual(writes.map((item) => item.type), ["gig", "route"]);
+    const handoff = JSON.parse(writes[0].content);
+    const sent = JSON.parse(writes[1].content);
+    assert.equal(sent.routeOrderVersion, 2);
+    assert.equal(sent.routeScope, "active_day");
+    assert.equal(sent.routeSlot, "google");
+    assert.equal(sent.sourceUpdatedAt, "2026-11-20T14:00:00.000Z");
+    assert.equal(sent.updatedAt, handoff.updatedAt);
+    assert.equal(sent.routePlan.routeDate, "2026-11-20");
+    assert.deepEqual(sent.stops, [
+        { stopNumber: 1, address: "100 First St", orderIds: ["ORDER-1"] },
+        { stopNumber: 2, address: "150 New Ave", orderIds: [] },
+        { stopNumber: 3, address: "200 Second St", orderIds: ["ORDER-2"] },
+        { stopNumber: 4, address: "300 Third St", orderIds: [], gigIds: ["GIG-3"] },
+    ]);
+    assert.deepEqual(handoff.gigs.map((item) => item.gigId), ["GIG-3"]);
+    assert.match(status.textContent, /2 InspectorADE jobs/);
+    assert.match(status.textContent, /1 manual gig/);
+    assert.match(status.textContent, /4 physical stops \\(1 address-only\\)/);
+    assert.deepEqual(h.current().basic.routeIds, ["s3", "s2", "s1"]);
+    assert.equal(h.current().pending, null);
+    // The Drive stubs capture payloads in memory only; no shared handoff is written.
+});
