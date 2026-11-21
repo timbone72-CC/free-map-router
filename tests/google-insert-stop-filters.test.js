@@ -95,7 +95,7 @@ test("Build Route has compact searchable insert-only address, City, County and e
     }
     assert.match(region, /All cities/);
     assert.match(region, /All counties/);
-    assert.match(html, /app\.js\?v=3\.34\.15/);
+    assert.match(html, /app\.js\?v=3\.34\.16/);
     assert.match(app, /els\.googleInsertStopSearch[\s\S]*els\.googleInsertStopCity[\s\S]*els\.googleInsertStopCounty/);
     assert.match(app, /filter === els\.googleInsertStopSearch \? "input" : "change"/);
 });
@@ -153,6 +153,73 @@ test("a new saved Oklahoma town automatically adds its verified county without a
     elements.googleInsertStopCity.value = "Vici";
     render();
     assert.deepEqual(visible(), ["vici-new"]);
+});
+
+test("typing house-number digits only returns addresses starting with those digits in chosen city/county", () => {
+    const { stops, elements, render, visible } = setup();
+    stops.push(
+        { id: "one-first", address: "100 North 1st Ave, Elk City, OK 73644", county: "Beckham" },
+        { id: "one-two", address: "123 Second St, Elk City, OK 73644", county: "Beckham" },
+        { id: "not-prefix", address: "21 First Ave, Elk City, OK 73644", county: "Beckham" },
+        { id: "street-has-one", address: "345 1st St, Elk City, OK 73644", county: "Beckham" },
+        { id: "other-county", address: "109 Main St, Lawton, OK 73501", county: "Comanche" },
+    );
+    render();
+    elements.googleInsertStopCity.value = "Elk City";
+    elements.googleInsertStopCounty.value = "Beckham";
+    elements.googleInsertStopSearch.value = "1";
+    render();
+    assert.deepEqual(visible(), ["elk-main", "one-first", "one-two"]);
+    // The next digits keep narrowing the left-to-right house-number prefix.
+    elements.googleInsertStopSearch.value = "12";
+    render();
+    assert.deepEqual(visible(), ["elk-main", "one-two"]);
+    elements.googleInsertStopSearch.value = "121";
+    render();
+    assert.deepEqual(visible(), ["elk-main"]);
+    elements.googleInsertStopSearch.value = "121 Main";
+    render();
+    assert.deepEqual(visible(), ["elk-main"]);
+    elements.googleInsertStopSearch.value = "121 Oak";
+    render();
+    assert.deepEqual(visible(), []);
+    assert.equal(elements.googleInsertStop.disabled, true);
+    assert.match(elements.googleInsertStopChoice.options[0].textContent, /No matching/);
+
+    // Different county: 109 should appear only after selecting its county.
+    elements.googleInsertStopSearch.value = "1";
+    elements.googleInsertStopCity.value = "All";
+    elements.googleInsertStopCounty.value = "Comanche";
+    render();
+    assert.deepEqual(visible(), ["other-county"]);
+
+    // Street names beginning with digits still work as ordinary text searches.
+    elements.googleInsertStopSearch.value = "1st";
+    elements.googleInsertStopCity.value = "Elk City";
+    elements.googleInsertStopCounty.value = "Beckham";
+    render();
+    assert.deepEqual(visible(), ["one-first", "street-has-one"]);
+});
+
+test("a number in the ZIP, label, or notes never qualifies an address for a leading house number", () => {
+    const { stops, elements, render, visible } = setup();
+    stops.push(
+        { id: "zip-one", address: "455 Fir St, Elk City, OK 71111", county: "Beckham" },
+        { id: "label-one", address: "455 Pine Ave, Elk City, OK 73644", county: "Beckham", label: "Visit 123" },
+        { id: "notes-one", address: "455 Ash St, Elk City, OK 73644", county: "Beckham", notes: "1st replacement" },
+    );
+    elements.googleInsertStopCity.value = "Elk City";
+    elements.googleInsertStopCounty.value = "Beckham";
+    elements.googleInsertStopSearch.value = "1";
+    render();
+    assert.deepEqual(visible(), ["elk-main"]);
+    // Non-numeric text still searches labels and notes.
+    elements.googleInsertStopSearch.value = "replacement";
+    render();
+    assert.deepEqual(visible(), ["notes-one"]);
+    elements.googleInsertStopSearch.value = "123";
+    render();
+    assert.deepEqual(visible(), []);
 });
 
 test("typing preserves a still-matching chosen stop, and clears it on a mismatch without changing routes", () => {
