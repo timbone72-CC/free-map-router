@@ -1,6 +1,7 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+const { spawnSync } = require("node:child_process");
 const test = require("node:test");
 
 const configPath = path.join(__dirname, "..", "cloudbuild.yaml");
@@ -54,4 +55,66 @@ test("deployment does not rewrite protected runtime configuration", () => {
   assert.doesNotMatch(config, /--update-env-vars/);
   assert.doesNotMatch(config, /--allow-unauthenticated/);
   assert.doesNotMatch(config, /--service-account=/);
+});
+
+function runShaGate(githubReply, commitSha) {
+  const start = config.indexOf('        latest_main="$$(');
+  const end = config.indexOf('        actual_runtime_account="$$(', start);
+  assert.ok(start !== -1 && end > start, "SHA check must precede Cloud Run calls");
+  // Cloud Build substitutes '$$' with '$' before running the bash step.
+  const gatedCommands = config.slice(start, end)
+    .split("\n")
+    .map((line) => line.replace(/^        /, ""))
+    .join("\n")
+    .replaceAll("$$", "$");
+  const script = [
+    "set -euo pipefail",
+    "curl() {",
+    "  case \" $* \" in",
+    "    *'Accept: application/vnd.github.sha'*) ;;",
+    "    *) return 40 ;;",
+    "  esac",
+    '  if [ "$FAKE_GITHUB_REPLY" = "@failure@" ]; then return 44; fi',
+    '  printf "%s" "$FAKE_GITHUB_REPLY"',
+    "}",
+    gatedCommands,
+    'printf "SAFE_TO_DEPLOY\\n"',
+  ].join("\n");
+  return spawnSync("bash", ["-c", script], {
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      COMMIT_SHA: commitSha,
+      FAKE_GITHUB_REPLY: githubReply,
+    },
+  });
+}
+
+test("Cloud Build SHA gate accepts an exact current-main SHA without Python", () => {
+  assert.doesNotMatch(config, /python3/);
+  assert.match(config, /Accept: application\\/vnd\\.github\\.sha/);
+  const sha = "a".repeat(40);
+  const result = runShaGate(sha, sha);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /SAFE_TO_DEPLOY/);
+});
+
+test("Cloud Build SHA gate skips a stale commit without deploying", () => {
+  const result = runShaGate("b".repeat(40), "a".repeat(40));
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /Skipping stale commit/);
+  assert.doesNotMatch(result.stdout, /SAFE_TO_DEPLOY/);
+});
+
+test("Cloud Build SHA gate fails closed on malformed GitHub response", () => {
+  const result = runShaGate('{"sha":"not-a-raw-hash"}', "a".repeat(40));
+  assert.equal(result.status, 1, result.stderr);
+  assert.match(result.stdout, /did not return a valid commit SHA/);
+  assert.doesNotMatch(result.stdout, /SAFE_TO_DEPLOY/);
+});
+
+test("Cloud Build SHA gate stops on GitHub request failure", () => {
+  const result = runShaGate("@failure@", "a".repeat(40));
+  assert.equal(result.status, 44);
+  assert.doesNotMatch(result.stdout, /SAFE_TO_DEPLOY/);
 });
