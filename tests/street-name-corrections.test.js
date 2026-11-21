@@ -289,7 +289,7 @@ test("FMR UI has opt-in learning, conflict marker, removal and shared Drive work
     assert.match(app, /saveAddressCorrectionsToDrive\(token, merged\)/);
     assert.match(html, /id="manageStreetCorrections"/);
     assert.match(html, /address-corrections\.js\?v=1\.0\.2/);
-    assert.match(html, /app\.js\?v=3\.34\.15/);
+    assert.match(html, /app\.js\?v=3\.34\.16/);
 });
 
 
@@ -438,5 +438,5 @@ test("Saved Addresses list is bounded and provides Close and explicit Remove con
         /prompt\(/,
     );
     assert.match(html, /styles\.css\?v=1\.2\.14/);
-    assert.match(html, /app\.js\?v=3\.34\.15/);
+    assert.match(html, /app\.js\?v=3\.34\.16/);
 });
