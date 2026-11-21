@@ -95,7 +95,7 @@ test("Build Route has compact searchable insert-only address, City, County and e
     }
     assert.match(region, /All cities/);
     assert.match(region, /All counties/);
-    assert.match(html, /app\.js\?v=3\.34\.16/);
+    assert.match(html, /app\.js\?v=3\.34\.17/);
     assert.match(app, /els\.googleInsertStopSearch[\s\S]*els\.googleInsertStopCity[\s\S]*els\.googleInsertStopCounty/);
     assert.match(app, /filter === els\.googleInsertStopSearch \? "input" : "change"/);
 });
