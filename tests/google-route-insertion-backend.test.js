@@ -155,7 +155,7 @@ test("browser-side contract also rejects an attempted reorder before any route w
 test("address geocoding preserves insertion intent, locations, service time and original stop IDs", async () => {
     const input = request();
     input.stops[1] = { id: "old-2", address: "102 Main, Elk City, OK", serviceDurationSeconds: 300 };
-    input.stops.at(-1) = { id: "new-stop", address: "350 Main, Elk City, OK", serviceDurationSeconds: 600 };
+    input.stops[input.stops.length - 1] = { id: "new-stop", address: "350 Main, Elk City, OK", serviceDurationSeconds: 600 };
     const seen = [];
     const ready = await resolveGoogleRouteRequest(input, {
         accessToken: "test",
