@@ -289,22 +289,49 @@ test("FMR UI has opt-in learning, conflict marker, removal and shared Drive work
     assert.match(app, /saveAddressCorrectionsToDrive\(token, merged\)/);
     assert.match(html, /id="manageStreetCorrections"/);
     assert.match(html, /address-corrections\.js\?v=1\.0\.2/);
-    assert.match(html, /app\.js\?v=3\.34\.11/);
+    assert.match(html, /app\.js\?v=3\.34\.12/);
 });
 
 
-function managerHarness({ failConnection = false } = {}) {
+
+function managerHarness({ failConnection = false, count = 46 } = {}) {
     const app = fs.readFileSync(path.join(__dirname, "../app.js"), "utf8");
-    const begin = app.indexOf("async function manageStreetCorrections() {");
+    const begin = app.indexOf("function renderStreetCorrectionChoices() {");
     const end = app.indexOf("\nfunction renderJobsList()", begin);
     assert.ok(begin >= 0 && end > begin);
+
+    const rules = Array.from({ length: count }, (_unused, index) => ({
+        id: "seed_" + String(index + 1).padStart(2, "0"),
+        town: "Lawton",
+        state: "OK",
+        originalStreet: "NW MISSING " + index,
+        correctedStreet: "NW PRESENT " + index,
+    }));
     const calls = [];
     const button = { disabled: false };
     const status = { textContent: "" };
+    const panel = { hidden: true };
+    const removeButton = { disabled: true };
+    const select = {
+        value: "",
+        children: [],
+        replaceChildren() { this.children = []; this.value = ""; },
+        appendChild(option) { this.children.push(option); },
+    };
     const sandbox = {
         els: {
             manageStreetCorrections: button,
             streetCorrectionManageStatus: status,
+            streetCorrectionManagePanel: panel,
+            streetCorrectionRuleChoice: select,
+            removeSelectedStreetCorrection: removeButton,
+        },
+        streetCorrectionRecord: { rules },
+        document: {
+            createElement: (tag) => {
+                assert.equal(tag, "option");
+                return { value: "", textContent: "" };
+            },
         },
         requestDriveToken: async () => {
             calls.push("requestDriveToken");
@@ -313,43 +340,103 @@ function managerHarness({ failConnection = false } = {}) {
         },
         loadPermanentAddressCorrections: async () => {
             calls.push("loadPermanentAddressCorrections");
-            return { streetRules: [] };
+            return { rules };
         },
-        effectiveStreetRules: () => [
-            { town: "Lawton", state: "OK", originalStreet: "NWWILLIAMS AVE",
-              correctedStreet: "NW WILLIAMS AVE" },
-        ],
+        effectiveStreetRules: (record) => record.rules,
         renderJobsList: () => calls.push("renderJobsList"),
         renderRouteList: () => calls.push("renderRouteList"),
-        prompt: () => null,
+        removeStreetCorrectionRules: (record, ids) => ({
+            rules: record.rules.filter((rule) => !ids.includes(rule.id)),
+        }),
+        commitCorrectionDelta: async (record) => {
+            calls.push("commitCorrectionDelta");
+            sandbox.streetCorrectionRecord = record;
+            return record;
+        },
+        confirm: () => false,
         alert: (message) => { throw new Error("Unexpected alert: " + message); },
+        prompt: (message) => { throw new Error("Legacy popup must not run: " + message); },
     };
-    vm.runInNewContext(app.slice(begin, end) + "\nthis.run = manageStreetCorrections;", sandbox);
-    return { run: () => sandbox.run(), calls, button, status };
+    vm.runInNewContext(
+        app.slice(begin, end) +
+        "\nthis.run = manageStreetCorrections;" +
+        "\nthis.remove = removeSelectedStreetCorrection;" +
+        "\nthis.refresh = renderStreetCorrectionChoices;",
+        sandbox,
+    );
+    return {
+        run: () => sandbox.run(),
+        remove: () => sandbox.remove(),
+        refresh: () => sandbox.refresh(),
+        calls, button, status, panel, removeButton, select, sandbox,
+    };
 }
 
-test("manual street manager can connect interactively and shows loaded status", async () => {
+test("manual manager connects once and shows all 46 rules in a scrollable in-page list", async () => {
     const manager = managerHarness();
     await manager.run();
     assert.deepEqual(manager.calls, [
         "requestDriveToken", "loadPermanentAddressCorrections",
         "renderJobsList", "renderRouteList",
     ]);
-    assert.equal(manager.status.textContent, "Loaded 1 street corrections from Google Drive.");
+    assert.equal(manager.status.textContent, "Loaded 46 street corrections from Google Drive.");
+    assert.equal(manager.panel.hidden, false);
+    assert.equal(manager.select.children.length, 46);
+    assert.equal(manager.select.children[45].value, "seed_46");
+    assert.match(manager.select.children[45].textContent, /NW PRESENT 45/);
+    assert.equal(manager.removeButton.disabled, true);
     assert.equal(manager.button.disabled, false);
 });
 
-test("street manager exposes a canceled Drive connection beside the button", async () => {
+test("street manager canceled Drive connection keeps panel closed and displays an error", async () => {
     const manager = managerHarness({ failConnection: true });
     await manager.run();
     assert.deepEqual(manager.calls, ["requestDriveToken"]);
     assert.equal(manager.status.textContent, "Google Drive connection canceled");
+    assert.equal(manager.panel.hidden, true);
     assert.equal(manager.button.disabled, false);
 });
 
-test("street manager status is visible on the Saved Addresses pane", () => {
+test("selecting a rule does not write, and declining removal preserves all 46", async () => {
+    const manager = managerHarness();
+    await manager.run();
+    manager.select.value = "seed_46";
+    manager.removeButton.disabled = false;
+    await manager.remove();
+    assert.equal(manager.select.children.length, 46);
+    assert.equal(manager.calls.includes("commitCorrectionDelta"), false);
+});
+
+test("confirmed removal targets selected ID only and refreshes list", async () => {
+    const manager = managerHarness();
+    await manager.run();
+    manager.select.value = "seed_46";
+    manager.removeButton.disabled = false;
+    manager.sandbox.confirm = () => true;
+    await manager.remove();
+    assert.equal(manager.calls.filter(v => v === "commitCorrectionDelta").length, 1);
+    assert.equal(manager.select.children.length, 45);
+    assert.equal(manager.select.children.some(v => v.value === "seed_46"), false);
+    assert.equal(manager.removeButton.disabled, true);
+    assert.equal(manager.status.textContent, "Street correction removed and synced. 45 remaining.");
+});
+
+test("Saved Addresses list is bounded and provides Close and explicit Remove controls", () => {
     const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
+    const css = fs.readFileSync(path.join(__dirname, "../styles.css"), "utf8");
+    const app = fs.readFileSync(path.join(__dirname, "../app.js"), "utf8");
     const page = html.slice(html.indexOf('data-address-view="saved-addresses"'));
-    assert.match(page, /id="manageStreetCorrections"[\s\S]*id="streetCorrectionManageStatus"/);
-    assert.match(page, /id="streetCorrectionManageStatus"[^>]*role="status"/);
+    assert.match(page, /id="streetCorrectionManagePanel"[^>]*hidden/);
+    assert.match(page, /id="streetCorrectionRuleChoice" size="8"/);
+    assert.match(page, /id="removeSelectedStreetCorrection"[^>]*disabled/);
+    assert.match(page, /id="closeStreetCorrectionManage"/);
+    assert.match(css, /\.streetCorrectionManagePanel select\s*\{[^}]*max-height: 240px/);
+    assert.match(app, /streetCorrectionManagePanel\.hidden = true/);
+    assert.doesNotMatch(
+        app.slice(app.indexOf("async function manageStreetCorrections()"),
+            app.indexOf("\nfunction renderJobsList()")),
+        /prompt\(/,
+    );
+    assert.match(html, /styles\.css\?v=1\.2\.14/);
+    assert.match(html, /app\.js\?v=3\.34\.12/);
 });
