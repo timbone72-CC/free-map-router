@@ -242,6 +242,40 @@ textarea {
     display: none;
 }
 
+.streetCorrectionManagePanel {
+    margin: 8px 0 16px;
+    padding: 12px;
+    border: 1px solid #cfcfcf;
+    border-radius: 10px;
+    max-width: 100%;
+    background: #fafafa;
+}
+
+.streetCorrectionManagePanel[hidden] {
+    display: none;
+}
+
+.streetCorrectionManagePanel label {
+    display: block;
+    margin-bottom: 8px;
+}
+
+.streetCorrectionManagePanel select {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    min-height: 190px;
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+.streetCorrectionManagePanel .btnRow {
+    margin-top: 10px;
+    gap: 8px;
+}
+
+
 #addressViewAddEdit:checked ~ .addressViewPanes [data-address-view="add-edit"],
 #addressViewManualGigs:checked ~ .addressViewPanes [data-address-view="manual-gigs"],
 #addressViewWorkLibrary:checked ~ .addressViewPanes [data-address-view="work-library"],
