@@ -356,6 +356,7 @@ let homeDraftPinStatus = "unverified";
 let driveSaveRevision = 0;
 let driveInboxSyncPromise = null;
 let routeOrderSendPromise = null;
+let googleInsertionBusy = false;
 const driveSaveQueue = createLatestDriveSaveQueue(saveBackupToDrive);
 
 function savedJobIds() {
@@ -524,6 +525,8 @@ const els = {
     routeList: document.getElementById("routeList"),
     reverseRoute: document.getElementById("reverseRoute"),
     routeChoice: document.getElementById("routeChoice"),
+    googleInsertStopChoice: document.getElementById("googleInsertStopChoice"),
+    googleInsertStop: document.getElementById("googleInsertStop"),
     routePage: document.getElementById("routePage"),
     checkWorkbookRoute: document.getElementById("checkWorkbookRoute"),
     workbookRouteCheckStatus: document.getElementById("workbookRouteCheckStatus"),
@@ -1246,6 +1249,94 @@ function confirmRouteSwitchIfNeeded(requested) {
     );
 }
 
+function googleInsertionCandidates() {
+    const current = readRouteHistory(localStorage, savedJobIds());
+    if (!current.google?.routeIds?.length) return [];
+    const routeApi = globalThis.FMRRouteHistory;
+    return jobs
+        .filter((job) => routeApi.canInsertSavedStop(current, job.id))
+        .map((job) => ({ id: job.id, address: job.address }));
+}
+
+function renderGoogleInsertionChoices() {
+    if (!els.googleInsertStopChoice || !els.googleInsertStop) return;
+    const select = els.googleInsertStopChoice;
+    const selected = select.value;
+    const candidates = googleInsertionCandidates();
+    select.textContent = "";
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = candidates.length
+        ? "Choose a saved address"
+        : "No available saved addresses";
+    select.appendChild(placeholder);
+    for (const candidate of candidates) {
+        const option = document.createElement("option");
+        option.value = candidate.id;
+        option.textContent = candidate.address;
+        select.appendChild(option);
+    }
+    select.value = candidates.some((entry) => entry.id === selected)
+        ? selected
+        : "";
+    select.disabled =
+        googleInsertionBusy ||
+        !candidates.length ||
+        activeRouteSlot !== "google";
+    els.googleInsertStop.disabled =
+        googleInsertionBusy ||
+        Boolean(routeOrderSendPromise) ||
+        activeRouteSlot !== "google" ||
+        !select.value ||
+        !home;
+}
+
+function googleInsertionContext(newStopId) {
+    const history = readRouteHistory(localStorage, savedJobIds());
+    const routeApi = globalThis.FMRRouteHistory;
+    if (!routeApi.canInsertSavedStop(history, newStopId)) {
+        throw new Error("That address is already routed, assigned to another day, or contains work needing assignment.");
+    }
+    const currentHome = readHome(localStorage);
+    const saved = readStops(localStorage).stops;
+    const originalIds = history.google.routeIds.slice();
+    const ids = [...originalIds, newStopId];
+    const savedStops = ids.map((id) => saved.find((item) => item.id === id));
+    const displayedStops = ids.map((id) => jobs.find((item) => item.id === id));
+    if (!currentHome || !savedStops.every(Boolean) ||
+        JSON.stringify(currentHome) !== JSON.stringify(home) ||
+        JSON.stringify(savedStops) !== JSON.stringify(displayedStops)) {
+        throw new Error("Saved addresses or Home changed. Refresh FMR and try again.");
+    }
+    return {
+        planId: history.activePlan.planId,
+        planRevision: history.activePlan.revision,
+        dayId: history.activePlan.activeDayId,
+        originalIds,
+        newStopId,
+        guard: JSON.stringify({
+            activePlan: history.activePlan,
+            pending: history.pending,
+            home: currentHome,
+            stops: savedStops,
+            activeRouteSlot,
+        }),
+    };
+}
+
+function prepareGoogleInsertionSnapshot(newStopId) {
+    const context = googleInsertionContext(newStopId);
+    if (home?.latitude == null || home?.longitude == null) {
+        throw new Error("Verify the Home location before inserting a stop.");
+    }
+    const ids = [...context.originalIds, newStopId];
+    return {
+        home: { ...home },
+        stops: ids.map((id) => ({ ...jobs.find((job) => job.id === id) })),
+        insertion: { newStopId },
+    };
+}
+
 function renderRouteChoice() {
     if (!els.routeChoice) return;
     els.routeChoice.value = activeRouteSlot;
@@ -1275,6 +1366,7 @@ function renderRouteChoice() {
         basicOption.disabled =
             !routeHistory.basic || routeHistory.basic.routeIds.length === 0;
     }
+    renderGoogleInsertionChoices();
 }
 
 function renderNewRouteAvailable() {
@@ -2760,6 +2852,56 @@ globalThis.FMRRouteBridge = Object.freeze({
             totalDistanceMeters: validated.totalDistanceMeters,
             totalDurationSeconds: validated.totalDurationSeconds,
         };
+    },
+
+    googleInsertionContext(newStopId) {
+        return googleInsertionContext(newStopId);
+    },
+
+    async prepareGoogleInsertionSnapshot(newStopId) {
+        return prepareGoogleInsertionSnapshot(newStopId);
+    },
+
+    applyGoogleInsertionResult({ expected, request, response, schedule = null }) {
+        const current = googleInsertionContext(expected?.newStopId);
+        if (current.guard !== expected.guard) {
+            throw new Error("The saved route or address changed during Google calculation. Nothing was inserted.");
+        }
+        if (routeOrderSendPromise) {
+            throw new Error("A workbook route send is in progress. No new stop was inserted.");
+        }
+        const validated =
+            globalThis.FMRGoogleRouteContract.validateBackendResponse(
+                request,
+                response,
+            );
+        if (!request.insertion ||
+            request.insertion.newStopId !== expected.newStopId) {
+            throw new Error("The Google insertion request does not match the chosen address.");
+        }
+        const written = globalThis.FMRRouteHistory.commitGoogleInsertion(
+            localStorage,
+            {
+                planId: expected.planId,
+                planRevision: expected.planRevision,
+                dayId: expected.dayId,
+                originalIds: expected.originalIds,
+                newStopId: expected.newStopId,
+                orderedIds: validated.orderedStopIds,
+                schedule,
+            },
+            savedJobIds(),
+        );
+        routeHistory = written;
+        activeRouteSlot = "google";
+        routeIds = written.google?.routeIds.slice() || [];
+        renderAll();
+        return { orderedStopIds: routeIds.slice() };
+    },
+
+    setGoogleInsertionBusy(value) {
+        googleInsertionBusy = Boolean(value);
+        renderGoogleInsertionChoices();
     },
 
     async applyWorkbookInboxFromBackend(
