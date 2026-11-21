@@ -221,13 +221,49 @@ test("the existing Google optimize action is separate and the new saved-stop con
     assert.match(browserSource, /newStopButton\.addEventListener\("click"/);
 });
 
-async function runAuthenticatedInsertion({ changeDuringCalculation = false } = {}) {
+async function runAuthenticatedInsertion({
+    changeDuringCalculation = false,
+    changeDuringPreview = false,
+    decision = "continue",
+    assumedStopId = "s2",
+} = {}) {
     let authorize = null;
     let insertClick = null;
     let applied = null;
     let request = null;
     let status = "";
     let guard = "unchanged";
+    let previewSnapshot = null;
+    const actionHandlers = new Map();
+    const reviewButton = (name) => ({
+        addEventListener(event, fn) {
+            if (event === "click") actionHandlers.set(name, fn);
+        },
+        removeEventListener(event, fn) {
+            if (event === "click" && actionHandlers.get(name) === fn) actionHandlers.delete(name);
+        },
+    });
+    const previewDialog = {
+        open: false,
+        handlers: new Map(),
+        addEventListener(event, fn) { this.handlers.set(event, fn); },
+        removeEventListener(event, fn) {
+            if (this.handlers.get(event) === fn) this.handlers.delete(event);
+        },
+        showModal() {
+            this.open = true;
+            previewSnapshot = {
+                address: elements.googleInsertionPreviewAddress.textContent,
+                position: elements.googleInsertionPreviewPosition.textContent,
+                map: elements.googleInsertionPreviewMap.textContent,
+                backtrack: elements.googleInsertionPreviewBacktrack.textContent,
+            };
+            assert.equal(applied, null, "opening the preview must not commit a route");
+            if (changeDuringPreview) guard = "changed";
+            actionHandlers.get(decision === "cancel" ? "cancel" : "continue")();
+        },
+        close() { this.open = false; },
+    };
     const button = (record) => ({
         disabled: true,
         addEventListener(event, fn) {
@@ -242,6 +278,13 @@ async function runAuthenticatedInsertion({ changeDuringCalculation = false } = {
         googleInsertStop: newStopButton,
         googleInsertStopChoice: newStopSelect,
         googleRouteAuthStatus: { textContent: "" },
+        googleInsertionPreviewDialog: previewDialog,
+        googleInsertionPreviewAddress: { textContent: "" },
+        googleInsertionPreviewPosition: { textContent: "" },
+        googleInsertionPreviewMap: { textContent: "" },
+        googleInsertionPreviewBacktrack: { textContent: "", dataset: {} },
+        googleInsertionPreviewContinue: reviewButton("continue"),
+        googleInsertionPreviewCancel: reviewButton("cancel"),
     };
     const dayContext = context();
     const history = {
@@ -257,6 +300,10 @@ async function runAuthenticatedInsertion({ changeDuringCalculation = false } = {
         },
         localStorage: { getItem() { return null; } },
         addEventListener() {},
+        FMRRouting: require("../routing.js"),
+        FMRAssumedRouteLocation: {
+            read() { return assumedStopId ? { stopId: assumedStopId } : null; },
+        },
         FMRRouteHistory: {
             readRouteHistory() { return history; },
             validateDayContext(value) {
@@ -293,7 +340,7 @@ async function runAuthenticatedInsertion({ changeDuringCalculation = false } = {
             },
             async prepareGoogleInsertionSnapshot(newStopId) {
                 return {
-                    home: { latitude: 35, longitude: -99 },
+                    home: { address: "Home Base", latitude: 35, longitude: -99 },
                     stops: [
                         { id: "s1", address: "100 Main St" },
                         { id: "s2", address: "200 Main St" },
@@ -302,7 +349,12 @@ async function runAuthenticatedInsertion({ changeDuringCalculation = false } = {
                     insertion: { newStopId },
                 };
             },
-            applyGoogleInsertionResult(value) { applied = value; },
+            applyGoogleInsertionResult(value) {
+                if (guard !== value.expected.guard) {
+                    throw new Error("The route changed while the preview was open. Nothing was inserted.");
+                }
+                applied = value;
+            },
         },
         google: {
             accounts: {
@@ -339,7 +391,7 @@ async function runAuthenticatedInsertion({ changeDuringCalculation = false } = {
     } finally {
         globalThis.fetch = originalFetch;
     }
-    return { applied, request, status };
+    return { applied, request, status, preview: previewSnapshot };
 }
 
 test("signed-in insertion sends the unchanged two-stop chain plus new address and applies only the validated answer", async () => {
