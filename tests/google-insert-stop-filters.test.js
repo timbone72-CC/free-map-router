@@ -136,6 +136,75 @@ test("city and county filters combine with search by street, label and notes", (
     assert.deepEqual(visible(), ["lawton"]);
 });
 
+test("County dropdown restricts City choices to eligible saved towns in that county", () => {
+    const { elements, render, visible } = setup();
+    render();
+    elements.googleInsertStopCounty.value = "Beckham";
+    render();
+    assert.deepEqual(elements.googleInsertStopCity.options.map((item) => item.value), [
+        "All", "Elk City",
+    ]);
+    assert.deepEqual(visible(), ["elk-main", "elk-oak"]);
+    elements.googleInsertStopCounty.value = "Comanche";
+    render();
+    assert.deepEqual(elements.googleInsertStopCity.options.map((item) => item.value), [
+        "All", "Lawton",
+    ]);
+    assert.deepEqual(visible(), ["lawton"]);
+    elements.googleInsertStopCounty.value = "All";
+    render();
+    assert.deepEqual(elements.googleInsertStopCity.options.map((item) => item.value), [
+        "All", "Elk City", "Lawton", "Unknown town",
+    ]);
+});
+
+test("changing County clears a City no longer valid without touching saved stops or selected route", () => {
+    const { elements, render, visible } = setup();
+    render();
+    elements.googleInsertStopCity.value = "Elk City";
+    elements.googleInsertStopChoice.value = "elk-main";
+    elements.googleInsertStopCounty.value = "Comanche";
+    render();
+    assert.equal(elements.googleInsertStopCity.value, "All");
+    assert.deepEqual(visible(), ["lawton"]);
+    assert.equal(elements.googleInsertStopChoice.value, "");
+    assert.equal(elements.googleInsertStop.disabled, true);
+    elements.googleInsertStopCity.value = "Lawton";
+    render();
+    assert.deepEqual(visible(), ["lawton"]);
+    assert.equal(elements.googleInsertStopCity.value, "Lawton");
+    render();
+    assert.equal(elements.googleInsertStopCity.value, "Lawton");
+});
+
+test("City native picker opens from a mouse click anywhere on field without altering touch/keyboard behavior", () => {
+    const start = app.indexOf("function openGoogleInsertionCityPicker(");
+    const end = app.indexOf("\nels.googleInsertStopCity?.addEventListener(", start);
+    assert.ok(start > 0 && end > start);
+    const calls = [];
+    const city = {
+        disabled: false,
+        showPicker() { calls.push("open"); },
+    };
+    const ctx = { els: { googleInsertStopCity: city } };
+    vm.runInNewContext(app.slice(start, end), ctx);
+    const event = { pointerType: "mouse", preventDefault() { calls.push("prevent"); } };
+    vm.runInNewContext("openGoogleInsertionCityPicker", ctx)(event);
+    assert.deepEqual(calls, ["open", "prevent"]);
+    vm.runInNewContext("openGoogleInsertionCityPicker", ctx)({
+        pointerType: "touch", preventDefault() { calls.push("touch-blocked"); },
+    });
+    assert.deepEqual(calls, ["open", "prevent"]);
+    city.disabled = true;
+    vm.runInNewContext("openGoogleInsertionCityPicker", ctx)(event);
+    assert.deepEqual(calls, ["open", "prevent"]);
+    city.disabled = false;
+    city.showPicker = () => { throw new Error("unsupported"); };
+    vm.runInNewContext("openGoogleInsertionCityPicker", ctx)(event);
+    assert.deepEqual(calls, ["open", "prevent"]);
+    assert.match(app, /els\.googleInsertStopCity\?\.addEventListener\(\s*"pointerdown"/);
+});
+
 test("a new saved Oklahoma town automatically adds its verified county without adding a statewide city list", () => {
     const { stops, elements, render, visible } = setup();
     render();
