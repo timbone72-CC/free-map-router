@@ -1264,6 +1264,7 @@ function googleInsertionCandidates() {
             address: job.address,
             label: job.label,
             notes: job.notes,
+            county: job.county,
         }));
 }
 
