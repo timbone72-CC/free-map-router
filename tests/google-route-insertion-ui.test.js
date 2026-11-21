@@ -374,7 +374,7 @@ test("actual Send Route Order serializes the inserted address-only stop without 
     const displayed = current.google.routeIds.map((stopId) => ({
         dataset: { stopId },
     }));
-    const button = { disabled: false, addEventListener(type, handler) {
+    const button = { dataset: {}, disabled: false, addEventListener(type, handler) {
         if (type === "click") this.handler = handler;
     } };
     const status = { textContent: "" };
