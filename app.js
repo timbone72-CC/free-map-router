@@ -1097,6 +1097,7 @@ function renderRouteList() {
     const list = els.routeList;
     if (!list) return;
     renderRouteChoice();
+    renderGoogleInsertionChoices();
     renderRouteOptimizationStatus();
     renderRoutePaySummary();
     list.innerHTML = "";
@@ -1366,7 +1367,6 @@ function renderRouteChoice() {
         basicOption.disabled =
             !routeHistory.basic || routeHistory.basic.routeIds.length === 0;
     }
-    renderGoogleInsertionChoices();
 }
 
 function renderNewRouteAvailable() {
@@ -3569,6 +3569,7 @@ function setPlannerView(mode) {
 renderRouteList = function plannerAwareRenderRouteList() {
     refreshPlannerRouteHistory();
     renderRouteChoice();
+    renderGoogleInsertionChoices();
     renderRouteOptimizationStatus();
     renderRoutePaySummary();
     renderGoogleMapsActions();
