@@ -1283,19 +1283,25 @@ function renderGoogleInsertionChoices() {
     const filters = globalThis.FMRAddressFilters;
     const eligible = googleInsertionCandidates();
     // Use the same conservative city/county extraction as Saved Addresses.
-    const options = filters.availableFilters(filters.describeStops(eligible));
-    updateAddressFilterOptions(
-        els.googleInsertStopCity,
-        ["All", ...options.towns],
-        "All cities",
-    );
+    const rows = filters.describeStops(eligible);
+    const options = filters.availableFilters(rows);
     updateAddressFilterOptions(
         els.googleInsertStopCounty,
         ["All", ...options.counties],
         "All counties",
     );
-    const city = els.googleInsertStopCity?.value || "All";
     const county = els.googleInsertStopCounty?.value || "All";
+    // A county narrows the City dropdown to towns present in eligible
+    // saved stops in that county; never list unrelated towns.
+    const countyRows = county === "All"
+        ? rows
+        : rows.filter((row) => row.county === county);
+    updateAddressFilterOptions(
+        els.googleInsertStopCity,
+        ["All", ...filters.availableFilters(countyRows).towns],
+        "All cities",
+    );
+    const city = els.googleInsertStopCity?.value || "All";
     const candidates = eligible.filter((candidate) => {
         if (city !== "All" && filters.townForStop(candidate) !== city) return false;
         if (county !== "All" && filters.countyForStop(candidate) !== county) return false;
@@ -1533,6 +1539,26 @@ if (els.startNewRoute) {
         }
     });
 }
+
+function openGoogleInsertionCityPicker(event) {
+    const citySelect = els.googleInsertStopCity;
+    // On desktop, open the native dropdown from anywhere on its field,
+    // not only from the small arrow. Leave touch and keyboard native.
+    if (event.pointerType !== "mouse" ||
+        citySelect?.disabled ||
+        typeof citySelect?.showPicker !== "function") return;
+    try {
+        citySelect.showPicker();
+        event.preventDefault();
+    } catch {
+        // Browsers that disallow showPicker retain their native interaction.
+    }
+}
+
+els.googleInsertStopCity?.addEventListener(
+    "pointerdown",
+    openGoogleInsertionCityPicker,
+);
 
 for (const filter of [
     els.googleInsertStopSearch,
