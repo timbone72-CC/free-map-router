@@ -431,6 +431,30 @@
                                         Optimize Google Route
                                     </button>
                                 </div>
+                                <div class="btnRow" aria-label="Search insertable saved addresses">
+                                    <label for="googleInsertStopSearch" class="tiny">Search saved addresses</label>
+                                    <input
+                                        id="googleInsertStopSearch"
+                                        type="search"
+                                        placeholder="Street, town, label, or notes"
+                                        aria-label="Search saved addresses to insert"
+                                        autocomplete="off"
+                                    />
+                                </div>
+                                <div class="addressFilterRow" aria-label="Filter insertable saved addresses">
+                                    <label for="googleInsertStopCity" class="tiny">
+                                        City
+                                        <select id="googleInsertStopCity" aria-label="Filter new stops by city">
+                                            <option value="All">All cities</option>
+                                        </select>
+                                    </label>
+                                    <label for="googleInsertStopCounty" class="tiny">
+                                        County
+                                        <select id="googleInsertStopCounty" aria-label="Filter new stops by county">
+                                            <option value="All">All counties</option>
+                                        </select>
+                                    </label>
+                                </div>
                                 <div class="btnRow" aria-label="Insert one saved stop">
                                     <label for="googleInsertStopChoice" class="tiny">New stop</label>
                                     <select id="googleInsertStopChoice" aria-label="Saved address to insert">
@@ -822,7 +846,7 @@
         <script src="route-work-controls.js?v=1.0.1"></script>
         <script src="planner-model.js?v=1.0.0"></script>
         <script src="route-plan-controls.js?v=1.0.0"></script>
-        <script src="app.js?v=3.34.14"></script>
+        <script src="app.js?v=3.34.15"></script>
         <script src="google-route-browser.js?v=1.9.2"></script>
         <script src="garmin-export-ui.js?v=1.1.0"></script>
     </body>
