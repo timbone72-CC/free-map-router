@@ -10,7 +10,7 @@ On each Route Builder stop card, **Heading Here** opens a confirmation showing t
 
 ## Narrow implementation
 
-- `assumed-route-location.js`: optional new browser-local preference `fmr_assumed_route_location_v1`. Stores only `{version,planId,dayId,routeDate,routeSlot,stopId}` on explicit Continue; validates live plan/day/slot membership and saved stop identity on both opening and confirmation. Only `getItem` on display; invalid/stale preferences are not shown (and never rewrite route history).
+- `assumed-route-location.js`: optional new browser-local preference `fmr_assumed_route_location_v1`. Stores only `{version,planId,dayId,routeDate,routeSlot,stopId}` on explicit Continue; validates the selected route slot on opening and confirmation, then reads that physical stop as an assumed position for the **whole active day** (any route view). This preserves it when the app resets from Basic Route to Google Route on refresh. Only `getItem` on display; invalid/stale preferences are not shown (and never rewrite route history).
 - `app.js`: add a button to every existing stop card, native dialog Continue/Cancel handler, and clear "Assumed location" display with the verified saved address. No backtracking preview, Google optimizer changes, completion action or route ordering changes in this first piece.
 - `index.html`: one dialog, one indicator, one cached dependency, one refreshed `app.js` pin. No new top-level page or map.
 - Tests: `tests/assumed-route-location.test.js` exercises real confirmation/Cancel handler and isolated storage, reload, stale route/day/plan/slot/removal, lack of auto navigation or completion; existing route-card tests updated for the one new button, app cache-version tests updated. No external network use.
@@ -21,7 +21,7 @@ On each Route Builder stop card, **Heading Here** opens a confirmation showing t
 
 **Writes:** only one new device-local key after user explicitly presses Continue. No database or Route Plan schema update; no write to saved stops, route IDs, work-order completion, other route versions, Map URLs, Google Drive, workbook, geocoding, or API permissions. The preference intentionally does not sync or join backup files in Phase 1.
 
-**Stale state:** a new plan ID, different active day/date/slot, removed route member or deleted saved address makes the saved assumption invisible. A route change between opening confirmation and Continue blocks saving. Existing disabled/invalid storage must not break route rendering.
+**Stale state:** a new plan ID, different active day/date, removal from both route slots, or a deleted saved address makes the saved assumption invisible. Switching Basic/Google route views alone does not remove the assumed location. A route change between opening confirmation and Continue blocks saving. Existing disabled/invalid storage must not break route rendering.
 
 **Scope boundary:** This does *not* yet re-anchor the Google insertion algorithm, choose a Map section, infer current GPS, or create detour maps. These are later dependent pieces; their implementation needs separate approval.
 
