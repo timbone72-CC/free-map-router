@@ -4,6 +4,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+const vm = require("node:vm");
 const {
     APPROVED_STREET_SEEDS,
     addStreetCorrectionRule,
@@ -288,5 +289,67 @@ test("FMR UI has opt-in learning, conflict marker, removal and shared Drive work
     assert.match(app, /saveAddressCorrectionsToDrive\(token, merged\)/);
     assert.match(html, /id="manageStreetCorrections"/);
     assert.match(html, /address-corrections\.js\?v=1\.0\.2/);
-    assert.match(html, /app\.js\?v=3\.34\.10/);
+    assert.match(html, /app\.js\?v=3\.34\.11/);
+});
+
+
+function managerHarness({ failConnection = false } = {}) {
+    const app = fs.readFileSync(path.join(__dirname, "../app.js"), "utf8");
+    const begin = app.indexOf("async function manageStreetCorrections() {");
+    const end = app.indexOf("\nfunction renderJobsList()", begin);
+    assert.ok(begin >= 0 && end > begin);
+    const calls = [];
+    const button = { disabled: false };
+    const status = { textContent: "" };
+    const sandbox = {
+        els: {
+            manageStreetCorrections: button,
+            streetCorrectionManageStatus: status,
+        },
+        requestDriveToken: async () => {
+            calls.push("requestDriveToken");
+            if (failConnection) throw new Error("Google Drive connection canceled");
+            return "linked";
+        },
+        loadPermanentAddressCorrections: async () => {
+            calls.push("loadPermanentAddressCorrections");
+            return { streetRules: [] };
+        },
+        effectiveStreetRules: () => [
+            { town: "Lawton", state: "OK", originalStreet: "NWWILLIAMS AVE",
+              correctedStreet: "NW WILLIAMS AVE" },
+        ],
+        renderJobsList: () => calls.push("renderJobsList"),
+        renderRouteList: () => calls.push("renderRouteList"),
+        prompt: () => null,
+        alert: (message) => { throw new Error("Unexpected alert: " + message); },
+    };
+    vm.runInNewContext(app.slice(begin, end) + "\nthis.run = manageStreetCorrections;", sandbox);
+    return { run: () => sandbox.run(), calls, button, status };
+}
+
+test("manual street manager can connect interactively and shows loaded status", async () => {
+    const manager = managerHarness();
+    await manager.run();
+    assert.deepEqual(manager.calls, [
+        "requestDriveToken", "loadPermanentAddressCorrections",
+        "renderJobsList", "renderRouteList",
+    ]);
+    assert.equal(manager.status.textContent, "Loaded 1 street corrections from Google Drive.");
+    assert.equal(manager.button.disabled, false);
+});
+
+test("street manager exposes a canceled Drive connection beside the button", async () => {
+    const manager = managerHarness({ failConnection: true });
+    await manager.run();
+    assert.deepEqual(manager.calls, ["requestDriveToken"]);
+    assert.equal(manager.status.textContent, "Google Drive connection canceled");
+    assert.equal(manager.button.disabled, false);
+});
+
+test("street manager status is visible on the Saved Addresses pane", () => {
+    const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
+    const page = html.slice(html.indexOf('data-address-view="saved-addresses"'));
+    assert.match(page, /id="manageStreetCorrections"[\s\S]*id="streetCorrectionManageStatus"/);
+    assert.match(page, /id="streetCorrectionManageStatus"[^>]*role="status"/);
 });
