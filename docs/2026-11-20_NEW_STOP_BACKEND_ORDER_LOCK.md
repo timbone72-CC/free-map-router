@@ -1,44 +1,47 @@
-# FMR — Optimize New Stop Only: Backend Order-Lock Boundary
+# FMR — Optimize New Stop Only (Google Route)
 
 **Date:** 2026-11-20
-**Status:** Stage 1 implementation prepared for review; no public control, live Google call, Cloud Run deployment, or merger authorized.
-**Change level:** 3 (Google Route Optimization API behavior, backend contract).
-**Baseline / rollback:** `main` at `4432fe8b893b7b3fd1821df8757aaf0d271e835f` (live Cloud Run `fmr-route-optimizer-00083-lhj` verified healthy).
-**Original design:** draft PR #142, `docs/2026-11-13_OPTIMIZE_NEW_STOP_ONLY_PLAN.md`.
+**Status:** Backend and Route Builder workflow implemented on draft PR #153; **not merged or deployed**.
+**Change level:** 3 — new Google optimization mode and guarded route persistence.
+**Base / rollback:** `main` at `4432fe8b893b7b3fd1821df8757aaf0d271e835f`, Cloud Run revision `fmr-route-optimizer-00083-lhj` previously verified healthy.
+**Approved original design:** draft PR #142, `docs/2026-11-13_OPTIMIZE_NEW_STOP_ONLY_PLAN.md`.
 
-## Intent and proof
+## Operator flow and acceptance
 
-Existing route A → B → C → D and one new saved stop N must be optimized only to choose N's position; all original stops must remain A → B → C → D, including their exact stable stop IDs and all attached work identities. No new address may create a duplicate physical stop. Google may change road travel estimates and, when timed, its schedule, not the existing stop order.
+1. Select **Google Route** (including the active Day's Google Route).
+2. Open **Route tools & maintenance**, select exactly one **saved address** not already on that Google route, then tap **Optimize New Stop Only**.
+3. While Google calculates, all existing stops retain their order. The chosen new stop may be inserted at any position, Home stays start/finish.
+4. Only after validating Google's full response and detecting no intervening edit does FMR save a new Google route. The existing Basic Route, other Days, pending workbook inbox, corrected pins and represented work identities are preserved. The app does **not** automatically send route order back to the workbook.
 
-This first bounded part implements only the backend capability and validation. **There is no user-facing Add/Optimize New Stop Only control yet**; the app cannot invoke the new mode until a separate UI and staleness-safe application change is built and verified.
+A first-time address must be saved in FMR before it can be inserted. Existing full-route Google Optimize remains a separate button and behavior.
 
-## Exact scope
+## Code ownership and protected data
 
-- `google-route-contract.js`: optional `insertion: {newStopId}` request field; existing stops must be in their original order and the one new stop must be last in the request. Response validates that all original IDs remain an unchanged subsequence after removing exactly one new ID. Invalid, duplicate, missing, moved, or invented IDs reject before app persistence.
-- `google-route-provider.js`: only insertion requests receive Google ShipmentModel `precedenceRules` locking each consecutive pair of *existing* deliveries. The new shipment is not constrained, allowing Google to choose an insertion point. Invalid provider reorder is returned as `INSERTION_ORDER_CHANGED` (502) without applying a route.
-- `google-route-server.js`: carry the validated insertion descriptor through address geocoding. Existing authentication, server request handling and full-route behavior remain unchanged.
-- `tests/google-route-insertion-backend.test.js`: legacy request isolation; insert at beginning/middle/end; larger route fixture (40 existing); malformed IDs; partial/skipped result; precedence properties; geocoded and manually pinned stops.
+- `google-route-contract.js`: optional request `insertion: {newStopId}`, accepted only when appended after existing stops. Validate the returned order contains every existing stop once in identical relative order, and exactly one new stop. Reject missing, duplicate, invented, skipped or reordered stops.
+- `google-route-provider.js`: Google ShipmentModel `precedenceRules` link consecutive old delivery visits; Google chooses the insertion position of the unconstrained new stop. Normal full optimization is unchanged. Google API docs: https://developers.google.com/maps/documentation/route-optimization/reference/rest/v1/ShipmentModel
+- `google-route-server.js`: preserve the opt-in insertion descriptor through geocoding and use the existing company-authenticated API endpoint. No new permissions.
+- `index.html`, `styles.css`: compact dropdown and explicit button in existing Route tools; no new top-level page.
+- `app.js`: show only eligible saved addresses, validate actual saved Home/pin/route plan and selection fingerprint before applying, prohibit cross-day/old completed stop insertion and work-backed stops needing an exact-work assignment. No silent work reassignment.
+- `google-route-browser.js`: reuse signed-in Google request, workday and Home By controls, refresh after Google returns, reject stale context, validate full response and schedule before committing.
+- `route-history.js`: one guarded localStorage write changes only the active Day's Google Route; fail closed on mismatched plan ID/revision/Day, reordered/missing/duplicated stops, other-day ownership, and invalid schedule. Same Day's Basic, other Days, pending inbox and exact existing Order IDs/Gig IDs remain unchanged.
+- `tests/google-route-insertion-backend.test.js`: provider precedence, request validation, geocoding, realistic 40-stop fixture, beginning/middle/end, invalid/reordered results.
+- `tests/google-route-insertion-ui.test.js`: route snapshot and workbook handoff, atomic persistence, stale-route refusal, time-aware schedule, multi-day stop eligibility, signed-in control and in-flight edit refusal.
 
-**Reads:** original ordered stop IDs, service durations, addresses/manual coordinates, Home, optional workday timing; existing authenticated optimizer API.
-**Writes:** none locally. Once released and explicitly used by a later UI, it can call the existing paid Google optimization service but must never mutate a route directly.
+**Reads:** saved stops and corrected pins, current Home, exact active Day/Route Plan, service durations, workday context, company sign-in, Google route provider output.
+**Writes:** only active Day Google route, its optimization status, and its new valid Google schedule on explicit successful insertion. No new Drive, workbook, address, work-item or schema writes. The existing Google optimize call can incur the project's ordinary API charges.
 
-## Safety, limits, and deployment
+## Failure and recovery
 
-- Mode is opt-in; the absence of `insertion` yields the exact existing full optimizer request and output behavior.
-- At least one original route stop plus exactly one appended new stop; existing 100-stop maximum applies.
-- Google documents that precedence constraints can reject larger requests. Failure must be surfaced, not retried as unrestricted optimization.
-- No storage, backup, Route Plan Day, browser UI, route snapshot, workbook, Drive, permission, billing enablement, authentication, Cloud Run environment, or normal optimization behavior changes in this stage.
-- No workbook/router integration impact.
-- Tests simulate Google output; they do not prove live solver performance. A real call and an end-to-end route-application check must be separately approved and verified before releasing the completed feature.
-- Cloud deployment is now operational: PR #152, build `634d8c29-cd0f-4ad4-9398-fd6f336838e9`, healthy live Cloud Run revision `00083-lhj`. This work must not assume new mode has already been deployed.
-- The existing Cloud Build automation runs on merge to `main`, so even an opt-in backend change requires explicit pre-merge authorization.
+- Unknown address, duplicate physical stop, different-Day or completed stop, missing exact work assignment, unverified Home, invalid workday or infeasible Home By, Google timeout/error/invalid response, large precedence rejection, stale route/Day/pin/planning state, or a conflicting workbook send: **no insertion**, no automatic full-route fallback, and a visible error.
+- Old stop order is always validated after Google responds. The selected new stop is a saved address ID, not a new work-order ID. Attached existing work never changes identity.
+- Normal Google Optimization is unaffected when no `insertion` descriptor is passed. No change to storage/backup schema, client or Google permissions, or backend service.
+- Cloud Build is operational following PR #152, but passing GitHub CI does not prove Google accepts a new precedence request live. A controlled live check remains required after an approved merge.
+- If the verified baseline changes unexpectedly, restore the prior working `main` commit through the project's rollback process. Avoid unattended retries.
 
-## Verification and completion criteria
+## Verification and release gate
 
-1. Focused `node --test tests/google-route-insertion-backend.test.js` passes, including 40-stop example.
-2. Exact-final-head complete `npm test` and first-party JS `node --check` pass in CI; inspect narrow diffs.
-3. Do not merge or deploy Stage 1 without operator approval. Stage 1 is **not** a shippable end-user feature.
-4. Follow-up UI stage must select one **existing saved** address not already on current Google Day, build a non-mutating candidate, validate current Home/Day/timing/stop IDs and work identity after the request, and atomically save only the active Day's Google route and correct schedule on a validated result. Do not modify Basic, other Days, pending inbox, or workbook handoff.
-5. For future failure: leave current routes and schedules unchanged; if live deployment affects legacy behavior, use main baseline `4432fe8b...` for governed rollback.
-
-**Pre-merge approval status:** Pending. User authorized starting work; not yet authorized this Level-3 merge.
+- Run focused insertion tests during development and final complete `npm test` plus root `node --check` once on exact final branch head; passing exact-head GitHub Actions CI satisfies this.
+- Confirm the actual Build Route control, single Day/Google persistence, unchanged Basic/other Days and workbook return in tests.
+- Before declaring release successful, inspect real Cloud Build deployment and complete one explicit, affected live route check to confirm Google precedence behavior and the final selected stop order. No paid Google calls or live route changes are triggered from this draft.
+- **No workbook/router integration change** (existing Send Route Order remains explicit and unchanged).
+- **Pre-merge Level 3 approval:** Not requested/granted for this draft; merging deploys the Google backend automatically, so authorization must be explicit.
