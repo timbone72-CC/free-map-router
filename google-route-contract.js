@@ -199,29 +199,52 @@
         }
     }
 
-    function buildBackendRequest({ home, stops, requestId, timing }) {
+    function normalizeInsertion(insertion, stops) {
+        if (insertion === undefined) return null;
+        if (
+            !insertion ||
+            typeof insertion !== "object" ||
+            Array.isArray(insertion)
+        ) {
+            fail("INVALID_INSERTION", "insertion must identify exactly one new stop.");
+        }
+        const newStopId = normalizeId(insertion.newStopId, "insertion.newStopId");
+        if (stops.length < 2 || stops[stops.length - 1].id !== newStopId) {
+            fail(
+                "INVALID_INSERTION",
+                "For new-stop optimization, send the existing stops in their original order followed by exactly one new stop.",
+            );
+        }
+        return { newStopId };
+    }
+
+    function buildBackendRequest({ home, stops, requestId, timing, insertion }) {
         const normalizedRequestId = normalizeId(requestId, "requestId");
         const normalizedStops = normalizeStops(stops);
         const normalizedTiming = normalizeTiming(timing);
         requireTimedStopDurations(normalizedStops, normalizedTiming);
+        const normalizedInsertion = normalizeInsertion(insertion, normalizedStops);
         return {
             requestId: normalizedRequestId,
             home: normalizePoint(home, "home"),
             stops: normalizedStops,
             ...(normalizedTiming ? { timing: normalizedTiming } : {}),
+            ...(normalizedInsertion ? { insertion: normalizedInsertion } : {}),
         };
     }
 
-    function buildCoordinateRequest({ home, stops, requestId, timing }) {
+    function buildCoordinateRequest({ home, stops, requestId, timing, insertion }) {
         const normalizedRequestId = normalizeId(requestId, "requestId");
         const normalizedStops = normalizeStops(stops, normalizePoint);
         const normalizedTiming = normalizeTiming(timing);
         requireTimedStopDurations(normalizedStops, normalizedTiming);
+        const normalizedInsertion = normalizeInsertion(insertion, normalizedStops);
         return {
             requestId: normalizedRequestId,
             home: normalizePoint(home, "home"),
             stops: normalizedStops,
             ...(normalizedTiming ? { timing: normalizedTiming } : {}),
+            ...(normalizedInsertion ? { insertion: normalizedInsertion } : {}),
         };
     }
 
@@ -422,6 +445,18 @@
             expectedIds,
             response.orderedStopIds,
         );
+        if (normalizedRequest.insertion) {
+            const originalIds = expectedIds.slice(0, -1);
+            const actualOriginalIds = orderedStopIds.filter(
+                (id) => id !== normalizedRequest.insertion.newStopId,
+            );
+            if (actualOriginalIds.some((id, index) => id !== originalIds[index])) {
+                fail(
+                    "INSERTION_ORDER_CHANGED",
+                    "Google changed the order of existing route stops. No route was changed.",
+                );
+            }
+        }
         const schedule = normalizeSchedule(
             normalizedRequest,
             orderedStopIds,

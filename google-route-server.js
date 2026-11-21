@@ -243,6 +243,7 @@ async function resolveGoogleRouteRequest(
         home: request.home,
         stops: resolvedStops,
         ...(request.timing ? { timing: request.timing } : {}),
+        ...(request.insertion ? { insertion: request.insertion } : {}),
     });
 }
 

@@ -431,6 +431,15 @@
                                         Optimize Google Route
                                     </button>
                                 </div>
+                                <div class="btnRow" aria-label="Insert one saved stop">
+                                    <label for="googleInsertStopChoice" class="tiny">New stop</label>
+                                    <select id="googleInsertStopChoice" aria-label="Saved address to insert">
+                                        <option value="">Choose a saved address</option>
+                                    </select>
+                                    <button id="googleInsertStop" type="button" class="btn btnSmall" disabled>
+                                        Optimize New Stop Only
+                                    </button>
+                                </div>
                                 <p id="routeOptimizeFeedback" class="tiny muted" role="status" aria-live="polite" aria-atomic="true">
                                     Optimization progress and results appear here.
                                 </p>
@@ -790,7 +799,7 @@
         <script src="settings.js?v=1.1.0"></script>
         <script src="route-plan.js?v=1.0.0"></script>
         <script src="route-plan-days.js?v=1.0.0"></script>
-        <script src="route-history.js?v=7.0.0"></script>
+        <script src="route-history.js?v=7.0.1"></script>
         <script src="workday-context.js?v=1.0.1"></script>
         <script src="route-work-clear.js?v=1.1.0"></script>
         <script src="backup.js?v=5.0.0"></script>
@@ -803,7 +812,7 @@
         <script src="gig-handoff.js?v=1.0.0"></script>
         <script src="route-order.js?v=1.2.1"></script>
         <script src="route-order-ui.js?v=1.2.1"></script>
-        <script src="google-route-contract.js?v=1.1.0"></script>
+        <script src="google-route-contract.js?v=1.1.1"></script>
         <script src="routing.js?v=1.5.0"></script>
         <script src="garmin-gpx.js?v=1.2.0"></script>
         <script src="vendor/leaflet.js?v=1.9.4"></script>
@@ -813,8 +822,8 @@
         <script src="route-work-controls.js?v=1.0.1"></script>
         <script src="planner-model.js?v=1.0.0"></script>
         <script src="route-plan-controls.js?v=1.0.0"></script>
-        <script src="app.js?v=3.34.13"></script>
-        <script src="google-route-browser.js?v=1.9.1"></script>
+        <script src="app.js?v=3.34.14"></script>
+        <script src="google-route-browser.js?v=1.9.2"></script>
         <script src="garmin-export-ui.js?v=1.1.0"></script>
     </body>
 </html>
