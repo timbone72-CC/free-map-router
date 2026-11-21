@@ -41,6 +41,9 @@ class FakeNode {
     addEventListener(type, handler) {
         this.listeners[type] = handler;
     }
+    setAttribute(name, value) {
+        this[name] = value;
+    }
 }
 
 function cardActions(card) {
@@ -67,6 +70,7 @@ function setup() {
         renderRouteList: () => {},
         renderJobsList: () => {},
         focusPlannerStop: () => {},
+        beginAssumedRouteLocation: (stopId) => { sandbox.headingHereStopId = stopId; },
     };
     vm.runInNewContext(app.slice(begin, end) + "\nglobalThis.makeCard = plannerCard;", sandbox);
     return { sandbox, done, onDone };
@@ -79,9 +83,24 @@ test("only current first stop card receives the original completion button", () 
     const firstActions = cardActions(first);
     const secondActions = cardActions(second);
     assert.equal(firstActions.children[0], done, "Done comes before Up / Down / Edit / Remove");
-    assert.equal(firstActions.children.length, 5);
-    assert.equal(secondActions.children.length, 4, "later stop cannot prematurely complete");
+    assert.equal(firstActions.children.length, 6);
+    assert.equal(secondActions.children.length, 5, "later stop cannot prematurely complete");
+    assert.equal(firstActions.children[1].textContent, "Heading Here");
+    assert.equal(secondActions.children[0].textContent, "Heading Here");
     assert.equal(done.listeners.click, onDone, "existing click handler stays attached");
+});
+
+test("Heading Here on any route card only proposes that exact stop without using Done", () => {
+    const { sandbox, done } = setup();
+    const other = sandbox.makeCard({ stopId: "second", address: "222 Oak St" }, 1, "UTC");
+    const headingHere = cardActions(other).children.find((node) => node.textContent === "Heading Here");
+    assert.ok(headingHere);
+    let stopped = false;
+    headingHere.listeners.click({ stopPropagation() { stopped = true; } });
+    assert.equal(stopped, true);
+    assert.equal(sandbox.headingHereStopId, "second");
+    assert.equal(done.parent, null);
+    assert.deepEqual(Array.from(sandbox.routeIds), ["first", "second"]);
 });
 
 test("after advancing to the next stop, the same Done button moves with it", () => {

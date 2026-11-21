@@ -25,6 +25,9 @@ class FakeElement {
     addEventListener(name, handler) {
         this.listeners[name] = handler;
     }
+    setAttribute(name, value) {
+        this[name] = value;
+    }
 }
 
 function renderTestCard(savedStops) {

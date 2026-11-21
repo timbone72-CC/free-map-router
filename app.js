@@ -44,6 +44,9 @@ if (!globalThis.FMRAddressFilters) {
 if (!globalThis.FMRRouteHistory) {
     throw new Error("Free Map Router route history failed to load.");
 }
+if (!globalThis.FMRAssumedRouteLocation) {
+    throw new Error("Free Map Router assumed location failed to load.");
+}
 
 if (!globalThis.FMRRouteOrder) {
     throw new Error("Free Map Router route order failed to load.");
@@ -357,6 +360,7 @@ let driveSaveRevision = 0;
 let driveInboxSyncPromise = null;
 let routeOrderSendPromise = null;
 let googleInsertionBusy = false;
+let pendingAssumedRouteLocation = null;
 const driveSaveQueue = createLatestDriveSaveQueue(saveBackupToDrive);
 
 function savedJobIds() {
@@ -554,6 +558,12 @@ const els = {
     completeAndNavigateNext: document.getElementById(
         "completeAndNavigateNext",
     ),
+    assumedRouteLocationStatus: document.getElementById("assumedRouteLocationStatus"),
+    assumedRouteLocationDialog: document.getElementById("assumedRouteLocationDialog"),
+    assumedRouteLocationAddress: document.getElementById("assumedRouteLocationAddress"),
+    assumedRouteLocationDescription: document.getElementById("assumedRouteLocationDescription"),
+    assumedRouteLocationContinue: document.getElementById("assumedRouteLocationContinue"),
+    assumedRouteLocationCancel: document.getElementById("assumedRouteLocationCancel"),
 
     // actions
     optimizeRoute: document.getElementById("optimizeRoute"),
@@ -3403,6 +3413,94 @@ function plannerWorkRows(card) {
     return list;
 }
 
+// Heading Here is a device-local assumption, not GPS, job completion or navigation.
+function renderAssumedRouteLocationStatus() {
+    const node = els.assumedRouteLocationStatus;
+    if (!node) return;
+    const selection = globalThis.FMRAssumedRouteLocation.read(
+        localStorage, routeHistory, activeRouteSlot, jobs,
+    );
+    const stop = selection && jobs.find((job) => job.id === selection.stopId);
+    node.hidden = !stop;
+    node.textContent = stop
+        ? `Assumed location: ${stop.address} (not GPS)`
+        : "";
+}
+
+function beginAssumedRouteLocation(stopId) {
+    const dialog = els.assumedRouteLocationDialog;
+    if (!dialog) return false;
+    const current = readRouteHistory(localStorage, savedJobIds());
+    let proposed;
+    try {
+        proposed = globalThis.FMRAssumedRouteLocation.prepare(
+            current, activeRouteSlot, stopId, jobs,
+        );
+    } catch (error) {
+        if (els.routeStatus) {
+            els.routeStatus.textContent = error?.message || "Could not select that route stop.";
+        }
+        return false;
+    }
+    pendingAssumedRouteLocation = proposed;
+    const stop = jobs.find((job) => job.id === stopId);
+    if (els.assumedRouteLocationAddress) {
+        els.assumedRouteLocationAddress.textContent = stop?.address || stopId;
+    }
+    if (els.assumedRouteLocationDescription) {
+        els.assumedRouteLocationDescription.textContent =
+            "FMR will assume you're at this address, not use GPS. No jobs will be marked completed, and your route will not change.";
+    }
+    if (typeof dialog.showModal === "function") {
+        dialog.showModal();
+    } else {
+        dialog.setAttribute("open", "");
+    }
+    return true;
+}
+
+function closeAssumedRouteLocationDialog() {
+    pendingAssumedRouteLocation = null;
+    if (typeof els.assumedRouteLocationDialog?.close === "function") {
+        els.assumedRouteLocationDialog.close();
+    } else {
+        els.assumedRouteLocationDialog?.removeAttribute?.("open");
+    }
+}
+
+function confirmAssumedRouteLocation() {
+    const proposed = pendingAssumedRouteLocation;
+    if (!proposed) return false;
+    const current = readRouteHistory(localStorage, savedJobIds());
+    try {
+        globalThis.FMRAssumedRouteLocation.confirm(
+            localStorage, proposed, current, activeRouteSlot, jobs,
+        );
+    } catch (error) {
+        if (els.assumedRouteLocationDescription) {
+            els.assumedRouteLocationDescription.textContent =
+                error?.message || "The assumed location could not be saved.";
+        }
+        return false;
+    }
+    closeAssumedRouteLocationDialog();
+    renderAssumedRouteLocationStatus();
+    return true;
+}
+
+els.assumedRouteLocationContinue?.addEventListener(
+    "click", confirmAssumedRouteLocation,
+);
+els.assumedRouteLocationCancel?.addEventListener(
+    "click", closeAssumedRouteLocationDialog,
+);
+els.assumedRouteLocationDialog?.addEventListener("cancel", () => {
+    pendingAssumedRouteLocation = null;
+});
+els.assumedRouteLocationDialog?.addEventListener("close", () => {
+    pendingAssumedRouteLocation = null;
+});
+
 function focusPlannerStop(stopId) {
     const id = String(stopId || "").trim();
     if (!id || !routeIds.includes(id)) return false;
@@ -3432,6 +3530,14 @@ function plannerCard(card, index, timeZone) {
     li.appendChild(stopId);
     const actions = document.createElement("div");
     actions.className = "plannerCardActions";
+    const headingHereBtn = document.createElement("button");
+    headingHereBtn.type = "button";
+    headingHereBtn.textContent = "Heading Here";
+    headingHereBtn.setAttribute("aria-label", `Heading Here: ${card.address || card.stopId}`);
+    headingHereBtn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        beginAssumedRouteLocation(card.stopId);
+    });
     const upBtn = document.createElement("button");
     upBtn.type = "button";
     upBtn.textContent = "Up";
@@ -3480,7 +3586,7 @@ function plannerCard(card, index, timeZone) {
         showPage("addresses");
         startEditJob(card.stopId, true);
     });
-    actions.append(upBtn, downBtn, editBtn, removeBtn);
+    actions.append(headingHereBtn, upBtn, downBtn, editBtn, removeBtn);
     // Reuse the existing completion control only on the current first stop.
     // Reparenting preserves its original Done & Navigate Next event handler.
     if (
@@ -3630,6 +3736,7 @@ function positionCurrentCompletionControl() {
 
 function renderPlannerPresentation() {
     const { model, plannerError } = activePlannerModel();
+    renderAssumedRouteLocationStatus();
     renderPlannerDaySummary(model, plannerError);
     renderPlannerRouteCards(model);
     positionCurrentCompletionControl();

@@ -642,6 +642,7 @@
                         Done &amp; Navigate Next
                     </button>
                 </div>
+                <p id="assumedRouteLocationStatus" class="tiny" role="status" aria-live="polite" hidden></p>
                 <p class="tiny muted routeNavigationHint">
                     Start Navigation opens the first stop. Done &amp; Navigate Next
                     completes it and opens the next stop (or Home) in Google Maps.
@@ -691,6 +692,18 @@
                     </div>
                 </div>
             </section>
+
+            <dialog id="assumedRouteLocationDialog" class="panel" aria-labelledby="assumedRouteLocationTitle" aria-describedby="assumedRouteLocationDescription" style="max-width: min(440px, 90vw); border-radius: 12px;">
+                <h3 id="assumedRouteLocationTitle">Assume I'm at this address?</h3>
+                <p id="assumedRouteLocationAddress"></p>
+                <p id="assumedRouteLocationDescription" class="tiny">
+                    This will be your assumed location, not GPS. No jobs will be marked completed and your route will not change.
+                </p>
+                <div class="btnRow">
+                    <button id="assumedRouteLocationContinue" type="button" class="btn btnSmall">Continue</button>
+                    <button id="assumedRouteLocationCancel" type="button" class="btn btnSmall">Cancel</button>
+                </div>
+            </dialog>
 
 
 
@@ -846,7 +859,8 @@
         <script src="route-work-controls.js?v=1.0.1"></script>
         <script src="planner-model.js?v=1.0.0"></script>
         <script src="route-plan-controls.js?v=1.0.0"></script>
-        <script src="app.js?v=3.34.17"></script>
+        <script src="assumed-route-location.js?v=1.0.0"></script>
+        <script src="app.js?v=3.34.18"></script>
         <script src="google-route-browser.js?v=1.9.2"></script>
         <script src="garmin-export-ui.js?v=1.1.0"></script>
     </body>
