@@ -25,18 +25,28 @@
         };
     }
 
-    function isCurrent(selection, history, routeSlot, savedStops) {
-        const context = routeContext(history, routeSlot);
-        if (!context || !selection || selection.version !== 1) return false;
-        if (selection.planId !== context.planId ||
-            selection.dayId !== context.dayId ||
-            selection.routeDate !== context.routeDate ||
-            selection.routeSlot !== context.routeSlot) return false;
+    function isOnActiveDay(selection, history, savedStops) {
+        const plan = history?.activePlan;
+        const day = plan?.days?.find((item) => item.dayId === plan.activeDayId);
+        if (!day || !selection || selection.version !== 1) return false;
+        if (selection.planId !== plan.planId ||
+            selection.dayId !== day.dayId ||
+            selection.routeDate !== String(day.dayContext?.routeDate || "")) return false;
         const stopId = selection.stopId;
         return typeof stopId === "string" && stopId.length > 0 &&
-            context.routeIds.includes(stopId) &&
             Array.isArray(savedStops) &&
-            savedStops.some((stop) => stop?.id === stopId);
+            savedStops.some((stop) => stop?.id === stopId) &&
+            ["google", "basic"].some(
+                (slot) => day[slot]?.routeIds?.includes(stopId),
+            );
+    }
+
+    function isCurrent(selection, history, routeSlot, savedStops) {
+        const context = routeContext(history, routeSlot);
+        return Boolean(context &&
+            isOnActiveDay(selection, history, savedStops) &&
+            selection.routeSlot === context.routeSlot &&
+            context.routeIds.includes(selection.stopId));
     }
 
     function prepare(history, routeSlot, stopId, savedStops) {
@@ -59,7 +69,9 @@
         try {
             const value = storage?.getItem?.(STORAGE_KEY);
             const parsed = value ? JSON.parse(value) : null;
-            return isCurrent(parsed, history, routeSlot, savedStops) ? parsed : null;
+            // This is a physical location for the active day, not a route-slot
+            // preference. FMR can reopen on Google after the operator used Basic.
+            return isOnActiveDay(parsed, history, savedStops) ? parsed : null;
         } catch {
             return null;
         }
