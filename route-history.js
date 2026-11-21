@@ -1944,6 +1944,114 @@
             });
         }
 
+        function canInsertSavedStop(history, stopId) {
+            const plan = history?.activePlan;
+            const day = plan?.days?.find((item) => item.dayId === plan.activeDayId);
+            const google = day?.google;
+            if (!google?.routeIds?.length || !stopId || google.routeIds.includes(stopId)) {
+                return false;
+            }
+            // Work-backed stops need an exact-work assignment, never an address-only copy.
+            if (plan.workItems.some((item) => item.stopId === stopId)) return false;
+            const standalone = plan.standaloneStops.find((item) => item.stopId === stopId);
+            if (
+                standalone?.lockedDay &&
+                standalone.assignedDate !== day.dayContext?.routeDate
+            ) {
+                return false;
+            }
+            if (
+                standalone?.assignedDate &&
+                standalone.assignedDate !== day.dayContext?.routeDate
+            ) {
+                return false;
+            }
+            return !plan.days.some((other) =>
+                other.dayId !== day.dayId &&
+                (
+                    other.google?.routeIds.includes(stopId) ||
+                    other.basic?.routeIds.includes(stopId) ||
+                    other.completedStandaloneStops?.some((item) => item.stopId === stopId)
+                ),
+            );
+        }
+
+        function commitGoogleInsertion(
+            storage,
+            {
+                planId,
+                planRevision,
+                dayId,
+                originalIds,
+                newStopId,
+                orderedIds,
+                schedule = null,
+            },
+            validIds = null,
+        ) {
+            const current = readRouteHistory(storage, validIds);
+            const plan = current.activePlan;
+            if (
+                !plan ||
+                plan.planId !== planId ||
+                plan.revision !== planRevision ||
+                plan.activeDayId !== dayId ||
+                !current.google ||
+                !sameIds(current.google.routeIds, originalIds)
+            ) {
+                throw new Error("The active route changed during calculation. No stop was inserted.");
+            }
+            if (!canInsertSavedStop(current, newStopId) ||
+                (validIds && !validIds.has(newStopId))) {
+                throw new Error("The new stop is no longer available on this route. No stop was inserted.");
+            }
+            if (
+                !Array.isArray(orderedIds) ||
+                orderedIds.length !== originalIds.length + 1 ||
+                orderedIds.filter((id) => id === newStopId).length !== 1 ||
+                !sameIds(orderedIds.filter((id) => id !== newStopId), originalIds)
+            ) {
+                throw new Error("The proposed insertion changed existing stop order. No route was changed.");
+            }
+            const google = current.google;
+            const basic = current.basic;
+            const addExactIds = (field) => ({
+                ...(google[field] || {}),
+                ...(basic?.[field]?.[newStopId]
+                    ? { [newStopId]: basic[field][newStopId] }
+                    : {}),
+            });
+            const normalizedSchedule = schedule
+                ? normalizeStoredGoogleSchedule(schedule, orderedIds)
+                : null;
+            if (schedule && !normalizedSchedule) {
+                throw new Error("The new Google workday schedule is invalid. No route was changed.");
+            }
+            const next = replaceActiveDay(
+                current,
+                {
+                    google: {
+                        ...google,
+                        routeIds: orderedIds,
+                        optimizationStatus: "google_optimized",
+                        orderIdsByStopId: addExactIds("orderIdsByStopId"),
+                        workbookPayByStopId: addExactIds("workbookPayByStopId"),
+                        gigIdsByStopId: addExactIds("gigIdsByStopId"),
+                        gigManagedStopIds: [
+                            ...(google.gigManagedStopIds || []),
+                            ...(basic?.gigManagedStopIds?.includes(newStopId)
+                                ? [newStopId]
+                                : []),
+                        ],
+                        schedule: normalizedSchedule,
+                    },
+                },
+                { validIds },
+            );
+            // One storage commit. Any validation or plan conflict leaves all route slots intact.
+            return writeRouteHistory(storage, next, validIds);
+        }
+
         function writeGoogleSchedule(
             storage,
             schedule,
@@ -2077,6 +2185,8 @@
         return {
             ROUTE_HISTORY_CHANGED_EVENT,
             ROUTE_HISTORY_VERSION,
+            canInsertSavedStop,
+            commitGoogleInsertion,
             completeActivePlanStop,
             STORAGE_KEY,
             localDateTimeExists,
