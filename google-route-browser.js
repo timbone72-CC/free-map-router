@@ -378,11 +378,14 @@
             );
         }
 
-        const snapshot = await prepareSnapshotForGoogle(bridge);
+        const snapshot = options.insertionStopId
+            ? await bridge.prepareGoogleInsertionSnapshot(options.insertionStopId)
+            : await prepareSnapshotForGoogle(bridge);
         const stopIds = (snapshot.stops || []).map((stop) => String(stop.id || ""));
+        const existingIds = snapshot.insertion ? stopIds.slice(0, -1) : stopIds;
         let history = routeHistoryContract.readRouteHistory(storage);
         const googleSnapshot = history.google;
-        if (!googleSnapshot || !sameIds(googleSnapshot.routeIds, stopIds)) {
+        if (!googleSnapshot || !sameIds(googleSnapshot.routeIds, existingIds)) {
             throw new GoogleRouteBrowserError(
                 "STALE_ROUTE",
                 "The Google route changed while it was being prepared. Try Google Optimize again.",
@@ -457,6 +460,7 @@
             snapshot: {
                 home: snapshot.home,
                 ...(timing ? { timing } : {}),
+                ...(snapshot.insertion ? { insertion: snapshot.insertion } : {}),
                 stops: snapshot.stops.map((stop) => ({
                     ...stop,
                     serviceDurationSeconds: serviceByStopId[stop.id] ?? 0,
@@ -485,6 +489,7 @@
             requestId: id,
             home: snapshot?.home,
             ...(snapshot?.timing ? { timing: snapshot.timing } : {}),
+            ...(snapshot?.insertion ? { insertion: snapshot.insertion } : {}),
             stops: stops.map((stop) => {
                 const location =
                     stop?.pinStatus === "manual"
@@ -753,6 +758,8 @@
         const signInContainer = document?.getElementById("googleRouteSignIn");
         const optimizeButton = document?.getElementById("googleOptimizeRoute");
         const authStatus = document?.getElementById("googleRouteAuthStatus");
+        const newStopButton = document?.getElementById("googleInsertStop");
+        const newStopSelect = document?.getElementById("googleInsertStopChoice");
 
         if (!document || !bridge || !signInContainer || !optimizeButton) return false;
 
@@ -789,6 +796,7 @@
         function rejectGoogleIdentity(error) {
             idToken = "";
             optimizeButton.disabled = true;
+            if (newStopButton) newStopButton.disabled = true;
             showSignInControl(true);
             if (authStatus) {
                 authStatus.textContent =
@@ -870,6 +878,9 @@
                 callback: async (credentialResponse) => {
                     idToken = String(credentialResponse?.credential ?? "").trim();
                     optimizeButton.disabled = !idToken;
+                    if (newStopButton) {
+                        newStopButton.disabled = !idToken || !newStopSelect?.value || newStopSelect.disabled;
+                    }
                     showSignInControl(!idToken);
                     if (authStatus) {
                         authStatus.textContent = idToken
@@ -992,6 +1003,97 @@
                 optimizeButton.disabled = !idToken;
             }
         });
+
+        if (newStopButton && newStopSelect) {
+            newStopSelect.addEventListener("change", () => {
+                newStopButton.disabled = !idToken || !newStopSelect.value || newStopSelect.disabled;
+            });
+            newStopButton.addEventListener("click", async () => {
+                const newStopId = String(newStopSelect.value || "").trim();
+                if (!idToken || !newStopId) {
+                    setOptimizationStatus(
+                        !idToken
+                            ? "Sign in with the company Google account first."
+                            : "Choose one saved address to insert.",
+                    );
+                    return;
+                }
+                newStopButton.disabled = true;
+                optimizeButton.disabled = true;
+                bridge.setGoogleInsertionBusy?.(true);
+                setOptimizationStatus("Preparing locked route order for the new stop…");
+                try {
+                    const workdayContext = runtimeRoot?.FMRWorkdayContext;
+                    const homeByEnabled = () =>
+                        typeof workdayContext?.homeByRestrictionEnabled === "function"
+                            ? workdayContext.homeByRestrictionEnabled(document)
+                            : true;
+                    const prepared = await prepareTimeAwareSnapshot(bridge, {
+                        root: runtimeRoot,
+                        enforceHomeBy: homeByEnabled(),
+                        insertionStopId: newStopId,
+                    });
+                    const expected = bridge.googleInsertionContext(newStopId);
+                    setOptimizationStatus("Google is finding the best place for the new stop. Existing stops are locked…");
+                    const result = await optimizeWithGoogle({
+                        snapshot: prepared.snapshot,
+                        idToken,
+                    });
+                    const currentPrepared = await prepareTimeAwareSnapshot(bridge, {
+                        root: runtimeRoot,
+                        enforceHomeBy: homeByEnabled(),
+                        insertionStopId: newStopId,
+                    });
+                    assertPreparedContextCurrent(prepared, currentPrepared);
+                    if (bridge.googleInsertionContext(newStopId).guard !== expected.guard) {
+                        throw new GoogleRouteBrowserError(
+                            "STALE_ROUTE",
+                            "Your route or address changed during calculation. Nothing was inserted.",
+                        );
+                    }
+
+                    const routeIds = result.response.orderedStopIds.slice();
+                    let schedule = null;
+                    if (prepared.snapshot.timing) {
+                        const basisKey = buildScheduleBasisKey({
+                            routeIds,
+                            home: prepared.snapshot.home,
+                            serviceByStopId: prepared.context.serviceByStopId,
+                            timing: prepared.snapshot.timing,
+                        });
+                        schedule = normalizeScheduleForStorage(
+                            result.response.schedule,
+                            basisKey,
+                            routeIds,
+                        );
+                    }
+                    bridge.applyGoogleInsertionResult({
+                        expected,
+                        request: result.request,
+                        response: result.response,
+                        schedule,
+                    });
+                    const metrics = formatMetrics(result.response);
+                    setOptimizationStatus(
+                        "New stop inserted. All previous stops kept their order." +
+                            (metrics ? ` ${metrics}.` : "") +
+                            (prepared.context.enforceHomeBy
+                                ? formatScheduleOutcome(result.response, prepared.context)
+                                : " Home By limit off."),
+                    );
+                } catch (error) {
+                    setOptimizationStatus(error?.message || "The new stop could not be inserted. Existing route kept.");
+                    if (error?.statusCode === 401 || error?.statusCode === 403) {
+                        rejectGoogleIdentity(error);
+                    }
+                } finally {
+                    bridge.setGoogleInsertionBusy?.(false);
+                    newStopButton.disabled =
+                        !idToken || !newStopSelect.value || newStopSelect.disabled;
+                    optimizeButton.disabled = !idToken;
+                }
+            });
+        }
 
         runtimeRoot.addEventListener?.("focus", refreshBackendWorkbookInboxOnReturn);
         document.addEventListener?.("visibilitychange", () => {
