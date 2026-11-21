@@ -462,6 +462,7 @@ const els = {
     googleDriveStatus: document.getElementById("googleDriveStatus"),
     addressCorrectionStatus: document.getElementById("addressCorrectionStatus"),
     manageStreetCorrections: document.getElementById("manageStreetCorrections"),
+    streetCorrectionManageStatus: document.getElementById("streetCorrectionManageStatus"),
     googleDriveInboxStatus: document.getElementById("googleDriveInboxStatus"),
 
     // import
@@ -892,19 +893,34 @@ async function resolveStreetConflict(address) {
 }
 
 async function manageStreetCorrections() {
+    const button = els.manageStreetCorrections;
+    if (!button || button.disabled) return;
+    button.disabled = true;
+    if (els.streetCorrectionManageStatus) {
+        els.streetCorrectionManageStatus.textContent = "Connecting to Google Drive…";
+    }
     try {
+        // This is a user-clicked action: it may ask the user to reconnect.
+        // Automatic workbook imports still require an existing token.
+        await requestDriveToken();
         streetCorrectionRecord = await loadPermanentAddressCorrections();
         renderJobsList();
         renderRouteList();
     } catch (error) {
-        setAddressCorrectionStatus(error?.message || "Could not load shared street corrections.");
+        if (els.streetCorrectionManageStatus) {
+            els.streetCorrectionManageStatus.textContent =
+                error?.message || "Could not load street corrections from Google Drive.";
+        }
         return;
+    } finally {
+        button.disabled = false;
     }
     const rules = effectiveStreetRules(streetCorrectionRecord);
-    if (!rules.length) {
-        alert("No shared street-name corrections saved.");
-        return;
+    if (els.streetCorrectionManageStatus) {
+        els.streetCorrectionManageStatus.textContent =
+            "Loaded " + rules.length + " street corrections from Google Drive.";
     }
+    if (!rules.length) return;
     const options = rules.map((rule, index) =>
         (index + 1) + ". " + rule.town + ", " + rule.state +
         ": " + rule.originalStreet + " → " + rule.correctedStreet
@@ -924,9 +940,17 @@ async function manageStreetCorrections() {
         selectedRule.correctedStreet + " in " + selectedRule.town + ", " +
         selectedRule.state + "? Existing jobs will not be changed.",
     )) return;
-    await commitCorrectionDelta(
+    if (els.streetCorrectionManageStatus) {
+        els.streetCorrectionManageStatus.textContent = "Saving correction removal…";
+    }
+    const saved = await commitCorrectionDelta(
         removeStreetCorrectionRules(streetCorrectionRecord, [selectedRule.id]),
     );
+    if (els.streetCorrectionManageStatus) {
+        els.streetCorrectionManageStatus.textContent = saved
+            ? "Street correction removed and synced."
+            : "Could not sync the removal. The shared rule was not changed.";
+    }
 }
 
 function renderJobsList() {
