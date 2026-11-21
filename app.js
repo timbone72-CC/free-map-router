@@ -93,6 +93,7 @@ const {
     addStreetCorrectionRule,
     applyCorrectionsToInbox,
     createCorrectionRecord,
+    effectiveStreetRules,
     mergeCorrectionRecords,
     proposeStreetCorrection,
     removeStreetCorrectionRules,
@@ -899,7 +900,7 @@ async function manageStreetCorrections() {
         setAddressCorrectionStatus(error?.message || "Could not load shared street corrections.");
         return;
     }
-    const rules = streetCorrectionRecord.streetRules || [];
+    const rules = effectiveStreetRules(streetCorrectionRecord);
     if (!rules.length) {
         alert("No shared street-name corrections saved.");
         return;
