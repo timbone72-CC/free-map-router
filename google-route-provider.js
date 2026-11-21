@@ -116,6 +116,19 @@ function buildGoogleOptimizeToursRequest(backendRequest, { now } = {}) {
                 ],
             })),
             vehicles: [vehicle],
+            ...(request.insertion
+                ? {
+                      precedenceRules: request.stops
+                          .slice(0, -2)
+                          .map((_, index) => ({
+                              firstIndex: index,
+                              secondIndex: index + 1,
+                              firstIsDelivery: true,
+                              secondIsDelivery: true,
+                              offsetDuration: "0s",
+                          })),
+                  }
+                : {}),
         },
         considerRoadTraffic: true,
         populatePolylines: false,
@@ -262,6 +275,13 @@ function interpretGoogleOptimizeToursResponse(backendRequest, googleResponse) {
     try {
         return validateBackendResponse(request, providerResponse);
     } catch (error) {
+        if (request.insertion && error?.code === "INSERTION_ORDER_CHANGED") {
+            throw new GoogleRouteProviderError(
+                "INSERTION_ORDER_CHANGED",
+                error.message,
+                502,
+            );
+        }
         if (request.timing && error?.code === "HOME_BY_CONFLICT") {
             throw new GoogleRouteProviderError(
                 "HOME_BY_CONFLICT",
