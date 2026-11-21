@@ -75,11 +75,11 @@ test("assumed location is device-local and changes only after explicit Continue"
     assert.equal(storage.writes.length, 2);
 });
 
-test("assumed location disappears when current route day, plan, slot, address, or route membership changes", () => {
+test("assumed location survives route view changes but clears on changed day, plan, address, or membership", () => {
     const history = plan(), storage = memoryStorage();
     const selected = assumed.prepare(history, "google", "second", savedStops);
     assumed.confirm(storage, selected, history, "google", savedStops);
-    assert.equal(assumed.read(storage, history, "basic", savedStops), null);
+    assert.equal(assumed.read(storage, history, "basic", savedStops).stopId, "second");
 
     const differentPlan = plan();
     differentPlan.activePlan.planId = "plan-2";
@@ -97,12 +97,23 @@ test("assumed location disappears when current route day, plan, slot, address, o
     differentDate.activePlan.days[0].dayContext.routeDate = "2026-11-22";
     assert.equal(assumed.read(storage, differentDate, "google", savedStops), null);
 
-    const removedFromRoute = plan();
-    removedFromRoute.activePlan.days[0].google.routeIds = ["first"];
-    assert.equal(assumed.read(storage, removedFromRoute, "google", savedStops), null);
+    const removedFromGoogle = plan();
+    removedFromGoogle.activePlan.days[0].google.routeIds = ["first"];
+    assert.equal(assumed.read(storage, removedFromGoogle, "google", savedStops).stopId, "second");
+    removedFromGoogle.activePlan.days[0].basic.routeIds = ["first"];
+    assert.equal(assumed.read(storage, removedFromGoogle, "google", savedStops), null);
 
     assert.equal(assumed.read(storage, history, "google", savedStops.slice(0, 1)), null);
     assert.equal(storage.writes.length, 1, "invalidation performs no write");
+});
+
+test("Basic Route confirmation persists after Google Route becomes the default on refresh", () => {
+    const history = plan(), storage = memoryStorage();
+    const basic = assumed.prepare(history, "basic", "second", savedStops);
+    assumed.confirm(storage, basic, history, "basic", savedStops);
+    assert.equal(assumed.read(storage, history, "basic", savedStops).stopId, "second");
+    assert.equal(assumed.read(storage, history, "google", savedStops).stopId, "second");
+    assert.equal(storage.writes.length, 1);
 });
 
 test("Continue refuses stale or invalid selection without writing", () => {
