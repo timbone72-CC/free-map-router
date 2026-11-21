@@ -211,7 +211,7 @@ test("Continue and Cancel in the real app handler only persist confirmed selecti
     history = plan();
     history.activePlan.planId = "plan-next";
     ctx.routeHistory = history;
-    assert.equal(handlers["continue:click"](), undefined);
+    assert.equal(handlers["continue:click"](), false);
     assert.match(description.textContent, /route changed/i);
     assert.equal(storage.writes.length, 1);
     handlers["cancel:click"]();
