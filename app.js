@@ -1272,11 +1272,14 @@ function renderGoogleInsertionChoices() {
     if (!els.googleInsertStopChoice || !els.googleInsertStop) return;
     const select = els.googleInsertStopChoice;
     const selected = select.value;
-    const words = String(els.googleInsertStopSearch?.value || "")
-        .toLocaleLowerCase()
-        .trim()
-        .split(/\s+/)
-        .filter(Boolean);
+    const query = String(els.googleInsertStopSearch?.value || "").trim();
+    // A leading house number must match the start of the saved street address,
+    // never a digit in its street, town, ZIP code, label, or notes.
+    const houseNumberPrefix = /^\d+(?=\s|$)/.exec(query)?.[0] || "";
+    const textQuery = houseNumberPrefix
+        ? query.slice(houseNumberPrefix.length).trim()
+        : query;
+    const words = textQuery.toLocaleLowerCase().split(/\s+/).filter(Boolean);
     const filters = globalThis.FMRAddressFilters;
     const eligible = googleInsertionCandidates();
     // Use the same conservative city/county extraction as Saved Addresses.
@@ -1296,6 +1299,10 @@ function renderGoogleInsertionChoices() {
     const candidates = eligible.filter((candidate) => {
         if (city !== "All" && filters.townForStop(candidate) !== city) return false;
         if (county !== "All" && filters.countyForStop(candidate) !== county) return false;
+        if (houseNumberPrefix &&
+            !String(candidate.address || "").trimStart().startsWith(houseNumberPrefix)) {
+            return false;
+        }
         const searchable = [
             candidate.address, candidate.label, candidate.notes,
             filters.townForStop(candidate), filters.countyForStop(candidate),
@@ -1306,10 +1313,10 @@ function renderGoogleInsertionChoices() {
     const placeholder = document.createElement("option");
     placeholder.value = "";
     placeholder.textContent = candidates.length
-        ? (words.length
+        ? (query
             ? `${candidates.length} matching address${candidates.length === 1 ? "" : "es"} — choose one`
             : "Choose a saved address")
-        : (words.length ? "No matching saved addresses" : "No available saved addresses");
+        : (query ? "No matching saved addresses" : "No available saved addresses");
     select.appendChild(placeholder);
     for (const candidate of candidates) {
         const option = document.createElement("option");
