@@ -27,8 +27,8 @@ function approvedRecord(id = "street_rule_one") {
     return addStreetCorrectionRule(createCorrectionRecord([]), candidate, id);
 }
 
-test("previously saved street fixes seed 24 known errors without exposing properties", () => {
-    assert.equal(APPROVED_STREET_SEEDS.length, 24);
+test("verified street fixes seed 46 known errors without exposing properties", () => {
+    assert.equal(APPROVED_STREET_SEEDS.length, 46);
     const source = fs.readFileSync(path.join(__dirname, "../address-corrections.js"), "utf8");
     const blockStart = source.indexOf("const APPROVED_STREET_SEEDS");
     const blockEnd = source.indexOf("\\n        ]);", blockStart);
@@ -49,6 +49,7 @@ test("previously saved street fixes seed 24 known errors without exposing proper
         { address: "725 S OUTH SYCAMORE ST, Fletcher, OK 73541", orderIds: ["F-725"] },
         { address: "452 W E AVE, Cache, OK 73527", orderIds: ["C-452"] },
         { address: "401 NEGARDEN LN, Lawton, OK 73507", orderIds: ["L-401"] },
+        { address: "321SEELLSWORTH AVE, Lawton, OK 73501", orderIds: ["L-321"] },
     ] }, unchangedRecord);
     assert.deepEqual(applied.addresses.map(x => x.address), [
         "321 WHEAT RIDGE AVE, Geronimo, OK 73543",
@@ -56,9 +57,10 @@ test("previously saved street fixes seed 24 known errors without exposing proper
         "725 SOUTH SYCAMORE ST, Fletcher, OK 73541",
         "452 W E AVE, Cache, OK 73527",
         "401 NE GARDEN LN, Lawton, OK 73507",
+        "321 SE ELLSWORTH AVE, Lawton, OK 73501",
     ]);
     assert.deepEqual(applied.addresses.map(x => x.orderIds[0]), [
-        "G-321", "L-321", "F-725", "C-452", "L-401",
+        "G-321", "L-321", "F-725", "C-452", "L-401", "L-321",
     ]);
 });
 
