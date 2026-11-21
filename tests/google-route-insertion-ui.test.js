@@ -456,7 +456,7 @@ test("actual Send Route Order serializes the inserted address-only stop without 
     assert.deepEqual(handoff.gigs.map((item) => item.gigId), ["GIG-3"]);
     assert.match(status.textContent, /2 InspectorADE jobs/);
     assert.match(status.textContent, /1 manual gig/);
-    assert.match(status.textContent, /4 physical stops \\(1 address-only\\)/);
+    assert.match(status.textContent, /4 physical stops \(1 address-only\)/);
     assert.deepEqual(h.current().basic.routeIds, ["s3", "s2", "s1"]);
     assert.equal(h.current().pending, null);
     // The Drive stubs capture payloads in memory only; no shared handoff is written.
