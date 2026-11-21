@@ -31,7 +31,7 @@ test("verified street fixes seed 46 known errors without exposing properties", (
     assert.equal(APPROVED_STREET_SEEDS.length, 46);
     const source = fs.readFileSync(path.join(__dirname, "../address-corrections.js"), "utf8");
     const blockStart = source.indexOf("const APPROVED_STREET_SEEDS");
-    const blockEnd = source.indexOf("\\n        ]);", blockStart);
+    const blockEnd = source.indexOf("        ]);", blockStart);
     assert.ok(blockStart >= 0 && blockEnd > blockStart);
     const seedBlock = source.slice(blockStart, blockEnd);
     assert.doesNotMatch(seedBlock, /latitude|longitude|orderIds|pinStatus|sourceId/);
