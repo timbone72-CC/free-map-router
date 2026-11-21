@@ -1951,6 +1951,11 @@
             if (!google?.routeIds?.length || !stopId || google.routeIds.includes(stopId)) {
                 return false;
             }
+            if (plan.days.some((item) =>
+                item.completedStandaloneStops?.some((completed) => completed.stopId === stopId)
+            )) {
+                return false;
+            }
             // Work-backed stops need an exact-work assignment, never an address-only copy.
             if (plan.workItems.some((item) => item.stopId === stopId)) return false;
             const standalone = plan.standaloneStops.find((item) => item.stopId === stopId);
