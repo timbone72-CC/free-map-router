@@ -55,6 +55,17 @@ attaches the inbox's exact Order IDs to that stop's pending route entry. The
 raw address is not recreated as a second stop. Fuzzy, partial, coordinate,
 label, client, and inferred alias matching are prohibited.
 
+
+The sole street-name exception is a **separately operator-approved**, exact
+street-text rewrite recorded in FMR's own correction memory (version 2).
+A new workbook address with a numeric house, explicit town/state/ZIP, and the
+same old street text in the same town/state may reuse that written-street fix
+at another house number. It retains its original full address as an alias;
+the corrected record never inherits another house's pin, source, Order IDs,
+work items or route order. Conflicting learned rules fail closed and are
+shown with a ! marker for manual choice. The workbook exporter and handoff
+schema are unchanged, and no inferred compass-direction rules are authorized.
+
 ## Workbook-selected route planning date — 2026-11-19 companion
 
 The workbook's optional top-level `planningDate` in the existing version-1 **Free Map Router Address Inbox.json** carries the exact local `YYYY-MM-DD` selected under Print > Set Route Planning Date. It is export context, not a job start date, source timestamp, or permanent address property. Invalid explicit dates fail closed; older inboxes without this field remain supported.

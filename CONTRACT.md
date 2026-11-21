@@ -32,6 +32,23 @@ versions of one job route, and opens the selected version in Google Maps.
    address-correction record and never stores GIS/DCFS source or workbook Order
    IDs.
 
+9. An operator may explicitly approve a street-name spelling correction for
+   other house numbers in the same town and state. Only numbered, complete
+   addresses with an explicit town, two-letter state, and ZIP are eligible.
+   Matching uses the exact previously approved old street text; the app must
+   never infer or split compass letters on its own. Every application retains
+   the full incoming address as an alias and changes no other property's pin,
+   source, Order IDs, pay, work identity, or route membership.
+10. Street-name rules sync through the existing app-owned Address Corrections
+    Google Drive file. Its version-2 representation preserves exact-address
+    corrections and adds approved street rules plus tombstones for removed
+    rules. The app also reads version 1. Older app builds reject version 2
+    rather than overwriting rules; devices must update before using street
+    memory. Conflicting approved rules never auto-apply: show an address-card
+    ! marker and require the operator to select one. Removing a rule stops
+    future auto-corrections without rewriting past saved jobs.
+
+
 ## 3. Saved-data rules
 
 1. Stops and the home address remain saved in the current browser until the
