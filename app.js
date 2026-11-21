@@ -526,6 +526,8 @@ const els = {
     reverseRoute: document.getElementById("reverseRoute"),
     routeChoice: document.getElementById("routeChoice"),
     googleInsertStopSearch: document.getElementById("googleInsertStopSearch"),
+    googleInsertStopCity: document.getElementById("googleInsertStopCity"),
+    googleInsertStopCounty: document.getElementById("googleInsertStopCounty"),
     googleInsertStopChoice: document.getElementById("googleInsertStopChoice"),
     googleInsertStop: document.getElementById("googleInsertStop"),
     routePage: document.getElementById("routePage"),
@@ -1274,11 +1276,29 @@ function renderGoogleInsertionChoices() {
         .trim()
         .split(/\s+/)
         .filter(Boolean);
-    const candidates = googleInsertionCandidates().filter((candidate) => {
-        const searchable = [candidate.address, candidate.label, candidate.notes]
-            .map((value) => String(value || ""))
-            .join(" ")
-            .toLocaleLowerCase();
+    const filters = globalThis.FMRAddressFilters;
+    const eligible = googleInsertionCandidates();
+    // Use the same conservative city/county extraction as Saved Addresses.
+    const options = filters.availableFilters(filters.describeStops(eligible));
+    updateAddressFilterOptions(
+        els.googleInsertStopCity,
+        ["All", ...options.towns],
+        "All cities",
+    );
+    updateAddressFilterOptions(
+        els.googleInsertStopCounty,
+        ["All", ...options.counties],
+        "All counties",
+    );
+    const city = els.googleInsertStopCity?.value || "All";
+    const county = els.googleInsertStopCounty?.value || "All";
+    const candidates = eligible.filter((candidate) => {
+        if (city !== "All" && filters.townForStop(candidate) !== city) return false;
+        if (county !== "All" && filters.countyForStop(candidate) !== county) return false;
+        const searchable = [
+            candidate.address, candidate.label, candidate.notes,
+            filters.townForStop(candidate), filters.countyForStop(candidate),
+        ].map((value) => String(value || "")).join(" ").toLocaleLowerCase();
         return words.every((word) => searchable.includes(word));
     });
     select.textContent = "";
@@ -1506,13 +1526,22 @@ if (els.startNewRoute) {
     });
 }
 
-els.googleInsertStopSearch?.addEventListener("input", () => {
-    renderGoogleInsertionChoices();
-    // Preserve the Google sign-in state when a typed filter changes the selected option.
-    if (typeof Event === "function") {
-        els.googleInsertStopChoice?.dispatchEvent?.(new Event("change"));
-    }
-});
+for (const filter of [
+    els.googleInsertStopSearch,
+    els.googleInsertStopCity,
+    els.googleInsertStopCounty,
+]) {
+    filter?.addEventListener(
+        filter === els.googleInsertStopSearch ? "input" : "change",
+        () => {
+            renderGoogleInsertionChoices();
+            // Refresh the signed-in button if filtering removes the selected stop.
+            if (typeof Event === "function") {
+                els.googleInsertStopChoice?.dispatchEvent?.(new Event("change"));
+            }
+        },
+    );
+}
 
 for (const filter of [
     els.addressSearch,
