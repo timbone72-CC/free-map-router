@@ -621,6 +621,13 @@
             <section class="plannerSurface" aria-labelledby="plannerHeading">
                 <div class="inlineHeader plannerSurfaceHeader">
                     <h3 id="plannerHeading">Today's Route</h3>
+                    <button
+                        id="reverseRoute"
+                        type="button"
+                        class="btn btnSmall"
+                        title="Reverse stops in the selected route without changing Home or other days"
+                        disabled
+                    >Reverse Route</button>
                     <div id="plannerViewToggle" class="plannerViewToggle" aria-label="Planner view">
                         <button
                             type="button"
@@ -806,7 +813,7 @@
         <script src="route-work-controls.js?v=1.0.1"></script>
         <script src="planner-model.js?v=1.0.0"></script>
         <script src="route-plan-controls.js?v=1.0.0"></script>
-        <script src="app.js?v=3.34.12"></script>
+        <script src="app.js?v=3.34.13"></script>
         <script src="google-route-browser.js?v=1.9.1"></script>
         <script src="garmin-export-ui.js?v=1.1.0"></script>
     </body>
