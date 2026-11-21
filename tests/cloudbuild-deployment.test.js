@@ -92,7 +92,7 @@ function runShaGate(githubReply, commitSha) {
 
 test("Cloud Build SHA gate accepts an exact current-main SHA without Python", () => {
   assert.doesNotMatch(config, /python3/);
-  assert.match(config, /Accept: application\\/vnd\\.github\\.sha/);
+  assert.ok(config.includes("Accept: application/vnd.github.sha"));
   const sha = "a".repeat(40);
   const result = runShaGate(sha, sha);
   assert.equal(result.status, 0, result.stderr);
