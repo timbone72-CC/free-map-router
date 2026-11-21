@@ -705,6 +705,19 @@
                 </div>
             </dialog>
 
+            <dialog id="googleInsertionPreviewDialog" class="panel" aria-labelledby="googleInsertionPreviewTitle" aria-describedby="googleInsertionPreviewBacktrack" style="max-width: min(480px, 90vw); border-radius: 12px;">
+                <h3 id="googleInsertionPreviewTitle">Review new stop</h3>
+                <p id="googleInsertionPreviewAddress"></p>
+                <p id="googleInsertionPreviewPosition" class="tiny" style="white-space: pre-line;"></p>
+                <p id="googleInsertionPreviewMap" class="tiny"></p>
+                <p id="googleInsertionPreviewBacktrack" class="tiny" role="status" aria-live="polite"></p>
+                <p class="tiny muted">This is a proposed route position, not live GPS. Your saved route stays unchanged until Continue.</p>
+                <div class="btnRow">
+                    <button id="googleInsertionPreviewContinue" type="button" class="btn btnSmall">Continue</button>
+                    <button id="googleInsertionPreviewCancel" type="button" class="btn btnSmall">Cancel</button>
+                </div>
+            </dialog>
+
 
 
 
@@ -861,7 +874,7 @@
         <script src="route-plan-controls.js?v=1.0.0"></script>
         <script src="assumed-route-location.js?v=1.0.0"></script>
         <script src="app.js?v=3.34.18"></script>
-        <script src="google-route-browser.js?v=1.9.2"></script>
+        <script src="google-route-browser.js?v=1.9.3"></script>
         <script src="garmin-export-ui.js?v=1.1.0"></script>
     </body>
 </html>
