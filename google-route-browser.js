@@ -40,6 +40,61 @@
         return `browser-${stamp}-${random}`;
     }
 
+    function buildGoogleInsertionPreview(snapshot, orderedIds, newStopId, assumedStopId, routingApi) {
+        const originalIds = (snapshot?.stops || [])
+            .map((stop) => stop.id)
+            .filter((id) => id !== newStopId);
+        const proposedIds = Array.isArray(orderedIds) ? orderedIds : [];
+        const insertionIndex = proposedIds.indexOf(newStopId);
+        if (insertionIndex < 0 ||
+            proposedIds.filter((id) => id === newStopId).length !== 1 ||
+            !sameIds(proposedIds.filter((id) => id !== newStopId), originalIds)) {
+            throw new GoogleRouteBrowserError(
+                "INVALID_INSERTION",
+                "Google did not preserve the existing stop order. Nothing was inserted.",
+            );
+        }
+        const stopsById = new Map((snapshot.stops || []).map((stop) => [stop.id, stop]));
+        const proposedStops = proposedIds.map((id) => stopsById.get(id));
+        if (proposedStops.some((stop) => !stop)) {
+            throw new GoogleRouteBrowserError(
+                "INVALID_INSERTION",
+                "Google returned an unknown stop. Nothing was inserted.",
+            );
+        }
+        const newStop = stopsById.get(newStopId);
+        const before = insertionIndex === 0
+            ? snapshot.home
+            : proposedStops[insertionIndex - 1];
+        const after = insertionIndex === proposedStops.length - 1
+            ? snapshot.home
+            : proposedStops[insertionIndex + 1];
+        const sections = routingApi?.buildGoogleMapsRouteSections?.(
+            snapshot.home, proposedStops,
+        ) || [];
+        // A boundary stop may also be the following map's origin. Identify the
+        // map where the driver ARRIVES at the inserted stop, not the next one.
+        const section = sections.find((item) =>
+            item.destination?.id === newStopId ||
+            item.waypoints?.some((stop) => stop.id === newStopId),
+        );
+        const assumedIndex = proposedIds.indexOf(assumedStopId);
+        const backtracking = assumedIndex < 0 ? null : insertionIndex <= assumedIndex;
+        return {
+            address: newStop.address,
+            position: `After: ${before?.address || "Home"}\nBefore: ${after?.address || "Home"}`,
+            mapSection: section
+                ? `Proposed Map ${section.number} of ${section.total}`
+                : "Proposed map section unavailable",
+            backtrackingMessage: backtracking === null
+                ? "Backtracking check unavailable: select Heading Here on a Google-route stop to set your assumed position."
+                : backtracking
+                    ? "Possible backtracking: Google placed this stop before your Heading Here location in route order. This is not a GPS check."
+                    : "This stop is after your Heading Here location in route order. This is not a GPS check.",
+            backtracking,
+        };
+    }
+
     function coordinateKey(stop) {
         if (
             stop?.latitude === null ||
@@ -782,6 +837,57 @@
             }
         }
 
+        function reviewGoogleInsertion(preview) {
+            const dialog = document.getElementById("googleInsertionPreviewDialog");
+            const continueButton = document.getElementById("googleInsertionPreviewContinue");
+            const cancelButton = document.getElementById("googleInsertionPreviewCancel");
+            if (!dialog || !continueButton || !cancelButton ||
+                typeof dialog.showModal !== "function") {
+                throw new GoogleRouteBrowserError(
+                    "PREVIEW_UNAVAILABLE",
+                    "The new-stop preview is unavailable. Nothing was inserted. Refresh FMR.",
+                );
+            }
+            document.getElementById("googleInsertionPreviewAddress").textContent = preview.address;
+            document.getElementById("googleInsertionPreviewPosition").textContent = preview.position;
+            document.getElementById("googleInsertionPreviewMap").textContent = preview.mapSection;
+            const warning = document.getElementById("googleInsertionPreviewBacktrack");
+            warning.textContent = preview.backtrackingMessage;
+            warning.dataset.backtracking = preview.backtracking === true ? "yes" : "no";
+            return new Promise((resolve, reject) => {
+                let settled = false;
+                function cleanup() {
+                    continueButton.removeEventListener("click", accept);
+                    cancelButton.removeEventListener("click", cancel);
+                    dialog.removeEventListener("cancel", cancel);
+                    dialog.removeEventListener("close", cancel);
+                }
+                function finish(approved) {
+                    if (settled) return;
+                    settled = true;
+                    cleanup();
+                    if (dialog.open) dialog.close();
+                    resolve(approved);
+                }
+                function accept() { finish(true); }
+                function cancel(event) {
+                    event?.preventDefault?.();
+                    finish(false);
+                }
+                continueButton.addEventListener("click", accept);
+                cancelButton.addEventListener("click", cancel);
+                dialog.addEventListener("cancel", cancel);
+                dialog.addEventListener("close", cancel);
+                try {
+                    dialog.showModal();
+                } catch (error) {
+                    settled = true;
+                    cleanup();
+                    reject(error);
+                }
+            });
+        }
+
         function showSignInControl(show) {
             signInContainer.hidden = !show;
         }
@@ -1067,6 +1173,29 @@
                             routeIds,
                         );
                     }
+                    const validated = contract.validateBackendResponse(
+                        result.request, result.response,
+                    );
+                    const history = runtimeRoot.FMRRouteHistory?.readRouteHistory?.(
+                        runtimeRoot.localStorage,
+                    );
+                    const assumed = runtimeRoot.FMRAssumedRouteLocation?.read?.(
+                        runtimeRoot.localStorage, history, "google", prepared.snapshot.stops,
+                    );
+                    const preview = buildGoogleInsertionPreview(
+                        prepared.snapshot,
+                        validated.orderedStopIds,
+                        newStopId,
+                        expected.originalIds.includes(assumed?.stopId) ? assumed.stopId : "",
+                        runtimeRoot.FMRRouting,
+                    );
+                    setOptimizationStatus("Review the proposed map and stop order. Your route has not changed.");
+                    if (!await reviewGoogleInsertion(preview)) {
+                        setOptimizationStatus("New stop cancelled. Existing route unchanged.");
+                        return;
+                    }
+                    // Recheck the saved route on Continue; a stale preview must
+                    // never overwrite a route edited elsewhere while it was open.
                     bridge.applyGoogleInsertionResult({
                         expected,
                         request: result.request,
@@ -1117,6 +1246,7 @@
         GoogleRouteBrowserError,
         assertPreparedContextCurrent,
         buildBrowserRequest,
+        buildGoogleInsertionPreview,
         buildScheduleBasisKey,
         coordinateKey,
         duplicateCoordinateGroups,
