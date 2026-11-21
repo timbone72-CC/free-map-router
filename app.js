@@ -525,6 +525,7 @@ const els = {
     routeList: document.getElementById("routeList"),
     reverseRoute: document.getElementById("reverseRoute"),
     routeChoice: document.getElementById("routeChoice"),
+    googleInsertStopSearch: document.getElementById("googleInsertStopSearch"),
     googleInsertStopChoice: document.getElementById("googleInsertStopChoice"),
     googleInsertStop: document.getElementById("googleInsertStop"),
     routePage: document.getElementById("routePage"),
@@ -1256,20 +1257,38 @@ function googleInsertionCandidates() {
     const routeApi = globalThis.FMRRouteHistory;
     return jobs
         .filter((job) => routeApi.canInsertSavedStop(current, job.id))
-        .map((job) => ({ id: job.id, address: job.address }));
+        .map((job) => ({
+            id: job.id,
+            address: job.address,
+            label: job.label,
+            notes: job.notes,
+        }));
 }
 
 function renderGoogleInsertionChoices() {
     if (!els.googleInsertStopChoice || !els.googleInsertStop) return;
     const select = els.googleInsertStopChoice;
     const selected = select.value;
-    const candidates = googleInsertionCandidates();
+    const words = String(els.googleInsertStopSearch?.value || "")
+        .toLocaleLowerCase()
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
+    const candidates = googleInsertionCandidates().filter((candidate) => {
+        const searchable = [candidate.address, candidate.label, candidate.notes]
+            .map((value) => String(value || ""))
+            .join(" ")
+            .toLocaleLowerCase();
+        return words.every((word) => searchable.includes(word));
+    });
     select.textContent = "";
     const placeholder = document.createElement("option");
     placeholder.value = "";
     placeholder.textContent = candidates.length
-        ? "Choose a saved address"
-        : "No available saved addresses";
+        ? (words.length
+            ? `${candidates.length} matching address${candidates.length === 1 ? "" : "es"} — choose one`
+            : "Choose a saved address")
+        : (words.length ? "No matching saved addresses" : "No available saved addresses");
     select.appendChild(placeholder);
     for (const candidate of candidates) {
         const option = document.createElement("option");
@@ -1486,6 +1505,14 @@ if (els.startNewRoute) {
         }
     });
 }
+
+els.googleInsertStopSearch?.addEventListener("input", () => {
+    renderGoogleInsertionChoices();
+    // Preserve the Google sign-in state when a typed filter changes the selected option.
+    if (typeof Event === "function") {
+        els.googleInsertStopChoice?.dispatchEvent?.(new Event("change"));
+    }
+});
 
 for (const filter of [
     els.addressSearch,
