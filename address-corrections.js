@@ -21,6 +21,38 @@
         const CORRECTIONS_VERSION = 1;
         const STREET_CORRECTIONS_VERSION = 2;
 
+        // User-reviewed corrections already saved in FMR's Drive record on
+        // 2026-11-20; only the 24 exact street-text transformations with
+        // unchanged house, town, state and ZIP are reused here. No house
+        // numbers, pin coordinates or workbook identities ship in app code.
+        // Seeds are read-only defaults; removal stores a tombstone in Drive.
+        const APPROVED_STREET_SEEDS = Object.freeze([
+            { id: "seed_01", town: "Fletcher", state: "OK", originalStreet: "S OUTH SYCAMORE ST", correctedStreet: "SOUTH SYCAMORE ST" },
+            { id: "seed_02", town: "Geronimo", state: "OK", originalStreet: "W HEAT RIDGE AVE", correctedStreet: "WHEAT RIDGE AVE" },
+            { id: "seed_03", town: "Elk City", state: "OK", originalStreet: "W OODRIDGE DR", correctedStreet: "WOODRIDGE DR" },
+            { id: "seed_04", town: "Clinton", state: "OK", originalStreet: "S ANTA FE DRIVE", correctedStreet: "SANTA FE DRIVE" },
+            { id: "seed_05", town: "Clinton", state: "OK", originalStreet: "S HERWOOD RD", correctedStreet: "SHERWOOD RD" },
+            { id: "seed_06", town: "Weatherford", state: "OK", originalStreet: "E LMWOOD AVENUE", correctedStreet: "ELMWOOD AVENUE" },
+            { id: "seed_07", town: "Weatherford", state: "OK", originalStreet: "E LMWOOD AVE", correctedStreet: "ELMWOOD AVE" },
+            { id: "seed_08", town: "Weatherford", state: "OK", originalStreet: "S ABER LN", correctedStreet: "SABER LN" },
+            { id: "seed_09", town: "Clinton", state: "OK", originalStreet: "W ALTON RD", correctedStreet: "WALTON RD" },
+            { id: "seed_10", town: "Duncan", state: "OK", originalStreet: "W INDSOR DR", correctedStreet: "WINDSOR DR" },
+            { id: "seed_11", town: "Elk City", state: "OK", originalStreet: "S YCAMORE AVE", correctedStreet: "SYCAMORE AVE" },
+            { id: "seed_12", town: "Watonga", state: "OK", originalStreet: "N ORWOOD CT", correctedStreet: "NORWOOD CT" },
+            { id: "seed_13", town: "Lawton", state: "OK", originalStreet: "NEGARDEN LN", correctedStreet: "NE GARDEN LN" },
+            { id: "seed_14", town: "Lawton", state: "OK", originalStreet: "NETURTLE CREEK DR", correctedStreet: "NE TURTLE CREEK DR" },
+            { id: "seed_15", town: "Lawton", state: "OK", originalStreet: "N W ROBINHOOD DR", correctedStreet: "NW ROBINHOOD DR" },
+            { id: "seed_16", town: "Duncan", state: "OK", originalStreet: "S UE STREET", correctedStreet: "SUE STREET" },
+            { id: "seed_17", town: "Lawton", state: "OK", originalStreet: "S TATE HWY 58", correctedStreet: "STATE HWY 58" },
+            { id: "seed_18", town: "Cache", state: "OK", originalStreet: "W OODLAND CIR", correctedStreet: "WOODLAND CIR" },
+            { id: "seed_19", town: "Lawton", state: "OK", originalStreet: "SESUNNYMEADE DR", correctedStreet: "SE SUNNYMEADE DR" },
+            { id: "seed_20", town: "Cache", state: "OK", originalStreet: "S W POST OAK RD", correctedStreet: "SW POST OAK RD" },
+            { id: "seed_21", town: "Lawton", state: "OK", originalStreet: "N ORTHWEST GLENDALE DRIVE", correctedStreet: "NORTHWEST GLENDALE DRIVE" },
+            { id: "seed_22", town: "Cache", state: "OK", originalStreet: "S OUTHWEST DEYO MISSION ROAD -", correctedStreet: "SOUTHWEST DEYO MISSION ROAD -" },
+            { id: "seed_23", town: "Elk City", state: "OK", originalStreet: "W EST 10TH STREET -", correctedStreet: "WEST 10TH STREET -" },
+            { id: "seed_24", town: "Cordell", state: "OK", originalStreet: "W EST 10TH", correctedStreet: "WEST 10TH" },
+        ]);
+
         if (!contract) {
             throw new Error("Free Map Router contract failed to load.");
         }
@@ -111,6 +143,18 @@
             };
         }
 
+
+        function effectiveStreetRules(record) {
+            const state = normalizedStreetState(record);
+            const removed = new Set(state.removedStreetRuleIds);
+            const byId = new Map();
+            for (const candidate of [...APPROVED_STREET_SEEDS, ...state.streetRules]) {
+                const rule = normalizeStreetRule(candidate);
+                if (rule && !removed.has(rule.id)) byId.set(rule.id, rule);
+            }
+            return [...byId.values()].sort((a, b) => a.id.localeCompare(b.id));
+        }
+
         function recordWithStreetState(base, state) {
             const normalized = normalizedStreetState(state);
             const upgraded = Boolean(
@@ -151,7 +195,7 @@
             const current = normalizedStreetState(record);
             const removed = new Set(current.removedStreetRuleIds);
             for (const id of ids) {
-                if (current.streetRules.some((rule) => rule.id === id)) removed.add(id);
+                if (effectiveStreetRules(record).some((rule) => rule.id === id)) removed.add(id);
             }
             return recordWithStreetState(record, {
                 streetRules: current.streetRules,
@@ -162,7 +206,7 @@
         function streetDecisionForAddress(address, record) {
             const parts = streetParts(address);
             if (!parts) return null;
-            const matching = normalizedStreetState(record).streetRules.filter((rule) =>
+            const matching = effectiveStreetRules(record).filter((rule) =>
                 streetRuleKey(rule) === streetRuleKey({
                     town: parts.town, state: parts.state, originalStreet: parts.street,
                 }),
@@ -454,6 +498,8 @@
             CORRECTIONS_APP,
             CORRECTIONS_VERSION,
             STREET_CORRECTIONS_VERSION,
+            APPROVED_STREET_SEEDS,
+            effectiveStreetRules,
             addStreetCorrectionRule,
             removeStreetCorrectionRules,
             proposeStreetCorrection,
