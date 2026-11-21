@@ -136,6 +136,25 @@ test("city and county filters combine with search by street, label and notes", (
     assert.deepEqual(visible(), ["lawton"]);
 });
 
+test("a new saved Oklahoma town automatically adds its verified county without adding a statewide city list", () => {
+    const { stops, elements, render, visible } = setup();
+    render();
+    assert.equal(elements.googleInsertStopCity.options.some((option) => option.value === "Vici"), false);
+    assert.equal(elements.googleInsertStopCounty.options.some((option) => option.value === "Dewey"), false);
+
+    stops.push({ id: "vici-new", address: "255 Main St, Vici, OK 73859" });
+    render();
+    assert.equal(elements.googleInsertStopCity.options.some((option) => option.value === "Vici"), true);
+    assert.equal(elements.googleInsertStopCounty.options.some((option) => option.value === "Dewey"), true);
+
+    elements.googleInsertStopCounty.value = "Dewey";
+    render();
+    assert.deepEqual(visible(), ["vici-new"]);
+    elements.googleInsertStopCity.value = "Vici";
+    render();
+    assert.deepEqual(visible(), ["vici-new"]);
+});
+
 test("typing preserves a still-matching chosen stop, and clears it on a mismatch without changing routes", () => {
     const { elements, fixture, render } = setup();
     render();
