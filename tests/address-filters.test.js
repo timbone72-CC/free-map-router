@@ -50,7 +50,7 @@ test("towns are inferred only from clearly delimited city and state, and unknown
         "Elk City", "Lawton", "Unknown town", "Elk City",
     ]);
     assert.deepEqual(rows.map((row) => row.county), [
-        "Unknown county", "Unknown county", "Unknown county", "Unknown county",
+        "Beckham", "Comanche", "Unknown county", "Beckham",
     ]);
     assert.deepEqual(
         filters.filterRows(rows, { town: "Unknown town" }).map((row) => row.stop.id),
@@ -58,7 +58,7 @@ test("towns are inferred only from clearly delimited city and state, and unknown
     );
     assert.deepEqual(
         filters.filterRows(rows, { county: "Unknown county" }).map((row) => row.stop.id),
-        ["one", "two", "three", "four"],
+        ["three"],
     );
 });
 
@@ -70,7 +70,7 @@ test("search, company, town and county combine without modifying original data",
             query: "101 main",
             source: "GIS",
             town: "Elk City",
-            county: "Unknown county",
+            county: "Beckham",
         }).map((row) => row.stop.id),
         ["one"],
     );
@@ -83,6 +83,38 @@ test("search, company, town and county combine without modifying original data",
         [],
     );
     assert.equal(JSON.stringify({ stops, gigs }), saved);
+});
+
+test("known towns use their verified Oklahoma county, new saved cities appear automatically, and ambiguous cities are not guessed", () => {
+    const known = [
+        ["Elk City", "Beckham"],
+        ["Clinton", "Custer"],
+        ["Weatherford", "Custer"],
+        ["Watonga", "Blaine"],
+        ["Cordell", "Washita"],
+        ["Canute", "Washita"],
+        ["Walters", "Cotton"],
+        ["Vici", "Dewey"],
+        ["Lawton", "Comanche"],
+        ["Hobart", "Kiowa"],
+    ];
+    for (const [city, county] of known) {
+        assert.equal(
+            filters.countyForStop({ address: "123 Main St, " + city + ", OK 73644" }),
+            county,
+        );
+    }
+    const next = { id: "new-city", address: "789 Main St, Vici, OK" };
+    const rows = filters.describeStops([...stops, next]);
+    assert.ok(filters.availableFilters(rows).towns.includes("Vici"));
+    assert.ok(filters.availableFilters(rows).counties.includes("Dewey"));
+    assert.deepEqual(filters.filterRows(rows, { county: "Dewey" }).map((r) => r.stop.id), ["new-city"]);
+    assert.equal(filters.countyForStop({ address: "123 Main St, Geary, OK" }), "Unknown county");
+    assert.equal(filters.countyForStop({ address: "123 Main St, Elk City, TX" }), "Unknown county");
+    assert.equal(filters.countyForStop({ address: "123 Main St, New Town, OK" }), "Unknown county");
+    assert.equal(filters.countyForStop({
+        address: "123 Main St, New Town, TX", county: "Verified county",
+    }), "Verified county");
 });
 
 test("Saved Addresses UI connects four filters and starts at all addresses", () => {
@@ -100,7 +132,7 @@ test("Saved Addresses UI connects four filters and starts at all addresses", () 
     assert.match(savedPane[1], /<option value="All">All companies \/ sources<\/option>/);
     assert.match(savedPane[1], /<option value="All">All towns<\/option>/);
     assert.match(savedPane[1], /<option value="All">All counties<\/option>/);
-    assert.ok(html.indexOf("address-filters.js?v=1.0.0") < html.indexOf("app.js?v="));
+    assert.ok(html.indexOf("address-filters.js?v=1.0.1") < html.indexOf("app.js?v="));
     assert.doesNotMatch(savedPane[1], /localStorage|sessionStorage|onchange=/);
 });
 
