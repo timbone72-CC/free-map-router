@@ -36,7 +36,7 @@ test("verified street fixes seed 46 known errors without exposing properties", (
     const seedBlock = source.slice(blockStart, blockEnd);
     assert.doesNotMatch(seedBlock, /latitude|longitude|orderIds|pinStatus|sourceId/);
     for (const seed of APPROVED_STREET_SEEDS) {
-        assert.match(seed.id, /^seed_\\d{2}$/);
+        assert.match(seed.id, /^seed_[0-9]{2}$/);
         assert.equal(seed.state, "OK");
         assert.ok(seed.originalStreet);
         assert.ok(seed.correctedStreet);
