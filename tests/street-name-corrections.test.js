@@ -5,6 +5,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const {
+    APPROVED_STREET_SEEDS,
     addStreetCorrectionRule,
     applyCorrectionsToInbox,
     createCorrectionRecord,
@@ -25,6 +26,74 @@ const candidate = {
 function approvedRecord(id = "street_rule_one") {
     return addStreetCorrectionRule(createCorrectionRecord([]), candidate, id);
 }
+
+test("previously saved street fixes seed 24 known errors without exposing properties", () => {
+    assert.equal(APPROVED_STREET_SEEDS.length, 24);
+    const source = fs.readFileSync(path.join(__dirname, "../address-corrections.js"), "utf8");
+    const blockStart = source.indexOf("const APPROVED_STREET_SEEDS");
+    const blockEnd = source.indexOf("\\n        ]);", blockStart);
+    assert.ok(blockStart >= 0 && blockEnd > blockStart);
+    const seedBlock = source.slice(blockStart, blockEnd);
+    assert.doesNotMatch(seedBlock, /latitude|longitude|orderIds|pinStatus|sourceId/);
+    for (const seed of APPROVED_STREET_SEEDS) {
+        assert.match(seed.id, /^seed_\\d{2}$/);
+        assert.equal(seed.state, "OK");
+        assert.ok(seed.originalStreet);
+        assert.ok(seed.correctedStreet);
+    }
+    const unchangedRecord = createCorrectionRecord([]);
+    assert.equal(unchangedRecord.correctionsVersion, 1);
+    const applied = applyCorrectionsToInbox({ addresses: [
+        { address: "321 W HEAT RIDGE AVE, Geronimo, OK 73543", orderIds: ["G-321"] },
+        { address: "321 W HEAT RIDGE AVE, Lawton, OK 73501", orderIds: ["L-321"] },
+        { address: "725 S OUTH SYCAMORE ST, Fletcher, OK 73541", orderIds: ["F-725"] },
+        { address: "452 W E AVE, Cache, OK 73527", orderIds: ["C-452"] },
+        { address: "401 NEGARDEN LN, Lawton, OK 73507", orderIds: ["L-401"] },
+    ] }, unchangedRecord);
+    assert.deepEqual(applied.addresses.map(x => x.address), [
+        "321 WHEAT RIDGE AVE, Geronimo, OK 73543",
+        "321 W HEAT RIDGE AVE, Lawton, OK 73501",
+        "725 SOUTH SYCAMORE ST, Fletcher, OK 73541",
+        "452 W E AVE, Cache, OK 73527",
+        "401 NE GARDEN LN, Lawton, OK 73507",
+    ]);
+    assert.deepEqual(applied.addresses.map(x => x.orderIds[0]), [
+        "G-321", "L-321", "F-725", "C-452", "L-401",
+    ]);
+});
+
+test("removing a reviewed built-in street correction persists as a Drive tombstone", () => {
+    const initial = createCorrectionRecord([]);
+    const before = streetDecisionForAddress(
+        "321 W HEAT RIDGE AVE, Geronimo, OK 73543", initial,
+    );
+    assert.equal(before.status, "corrected");
+    const removed = removeStreetCorrectionRules(initial, ["seed_02"]);
+    assert.equal(removed.correctionsVersion, 2);
+    assert.deepEqual(removed.removedStreetRuleIds, ["seed_02"]);
+    const reloaded = parseCorrectionRecord(JSON.stringify(removed));
+    const later = mergeCorrectionRecords(createCorrectionRecord([]), reloaded);
+    assert.equal(
+        streetDecisionForAddress("321 W HEAT RIDGE AVE, Geronimo, OK 73543", later),
+        null,
+    );
+    assert.equal(
+        streetDecisionForAddress("725 S OUTH SYCAMORE ST, Fletcher, OK 73541", later).status,
+        "corrected",
+    );
+});
+
+test("new manual rule conflicting with a verified seed fails closed", () => {
+    const conflict = addStreetCorrectionRule(createCorrectionRecord([]), {
+        town: "Geronimo", state: "OK",
+        originalStreet: "W HEAT RIDGE AVE", correctedStreet: "W HEAT RD",
+    }, "street_other_1");
+    const result = applyCorrectionsToInbox({
+        addresses: [{ address: "321 W HEAT RIDGE AVE, Geronimo, OK 73543" }],
+    }, conflict);
+    assert.equal(result.addresses[0].address, "321 W HEAT RIDGE AVE, Geronimo, OK 73543");
+    assert.equal(result.addresses[0].streetCorrectionConflict.status, "conflict");
+});
 
 test("street learning requires a genuine before/after edit of the same numbered property", () => {
     assert.deepEqual(proposeStreetCorrection(wrong, fixed), candidate);
