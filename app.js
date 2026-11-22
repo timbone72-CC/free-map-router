@@ -967,7 +967,7 @@ function renderGoogleMapsActions() {
             link.href = section.url;
             link.target = "_blank";
             link.rel = "noopener";
-            link.textContent = "Map " + section.number + " of " + section.total;
+            link.textContent = `Map ${section.number} of ${section.total}`;
             controls.appendChild(link);
         }
 
