@@ -859,6 +859,75 @@ function renderRoutePaySummary() {
     els.routePaySummary.textContent = parts.join(" • ");
 }
 
+function mapSectionStopIds(section, currentHome, currentRouteIds) {
+    const activeIds = new Set(currentRouteIds);
+    const sectionIds = [];
+    // Each map's origin is either Home or the previous map's final stop.
+    // Only its waypoints and destination belong to this map's completion.
+    for (const stop of [...section.waypoints, section.destination]) {
+        if (stop === currentHome || !stop?.id || !activeIds.has(stop.id)) continue;
+        if (!sectionIds.includes(stop.id)) sectionIds.push(stop.id);
+    }
+    return sectionIds;
+}
+
+function markGoogleMapSectionComplete(sectionNumber, sectionStopIds, expected) {
+    if (!sectionStopIds.length) return;
+    if (routeOrderSendPromise) {
+        alert("A workbook route send is in progress. No map was completed.");
+        return;
+    }
+
+    const validIds = savedJobIds();
+    const latest = readRouteHistory(localStorage, validIds);
+    const plan = latest.activePlan;
+    const currentIds = latest[expected.slot]?.routeIds || [];
+    if (
+        !plan ||
+        plan.planId !== expected.planId ||
+        plan.revision !== expected.planRevision ||
+        plan.activeDayId !== expected.dayId ||
+        activeRouteSlot !== expected.slot ||
+        JSON.stringify(currentIds) !== JSON.stringify(expected.routeIds) ||
+        sectionStopIds.some((id) => !currentIds.includes(id))
+    ) {
+        alert("The route changed. Review the refreshed maps before marking one complete.");
+        renderRouteList();
+        return;
+    }
+
+    const stopCount = sectionStopIds.length;
+    const accepted = confirm(
+        "Mark Map " + sectionNumber + " complete?\n\n" +
+        "This marks all " + stopCount + " remaining stop" +
+        (stopCount === 1 ? "" : "s") +
+        " on this map complete and removes them from BOTH Google and Basic remaining routes.\n\n" +
+        "Saved addresses, job records, and workbook turn-in statuses are not changed. " +
+        "The remaining Google Maps sections will be renumbered."
+    );
+    if (!accepted) return;
+
+    try {
+        const completedAt = new Date().toISOString();
+        let next = latest;
+        for (const stopId of sectionStopIds) {
+            next = completeActivePlanStop(next, stopId, validIds, completedAt);
+        }
+        // One write for the entire map. Failed validation cannot partially complete it.
+        routeHistory = writeRouteHistory(localStorage, next, validIds);
+        routeIds = routeHistory[activeRouteSlot]?.routeIds.slice() || [];
+        renderAll();
+        if (els.routeStatus) {
+            els.routeStatus.textContent =
+                "Map " + sectionNumber + " completed (" + stopCount +
+                " stops). Remaining map sections were rebuilt from unfinished work.";
+        }
+    } catch (error) {
+        alert(error?.message || "The map could not be completed. No changes were saved.");
+        renderRouteList();
+    }
+}
+
 function renderGoogleMapsActions() {
     if (!els.exportRoute || !els.routeMapLinks) return;
 
@@ -869,25 +938,50 @@ function renderGoogleMapsActions() {
     if (!home || routeIds.length === 0) return;
 
     const sections = buildGoogleMapsRouteSections(home, selectedRouteJobs());
-    if (sections.length <= 1) return;
-
-    els.exportRoute.hidden = true;
+    if (!sections.length) return;
+    const multipleMaps = sections.length > 1;
+    els.exportRoute.hidden = multipleMaps;
     els.routeMapLinks.hidden = false;
 
-    const message = document.createElement("span");
-    message.className = "tiny muted";
-    message.textContent =
-        `Open these ${sections.length} map sections in order:`;
-    els.routeMapLinks.appendChild(message);
+    if (multipleMaps) {
+        const message = document.createElement("span");
+        message.className = "tiny muted";
+        message.textContent = "Open these " + sections.length + " map sections in order:";
+        els.routeMapLinks.appendChild(message);
+    }
 
+    const plan = routeHistory.activePlan;
+    const expected = {
+        planId: plan?.planId,
+        planRevision: plan?.revision,
+        dayId: plan?.activeDayId,
+        slot: activeRouteSlot,
+        routeIds: routeIds.slice(),
+    };
     for (const section of sections) {
-        const link = document.createElement("a");
-        link.className = "btn btnSmall";
-        link.href = section.url;
-        link.target = "_blank";
-        link.rel = "noopener";
-        link.textContent = `Map ${section.number} of ${section.total}`;
-        els.routeMapLinks.appendChild(link);
+        const controls = document.createElement("div");
+        controls.className = "btnRow";
+        if (multipleMaps) {
+            const link = document.createElement("a");
+            link.className = "btn btnSmall";
+            link.href = section.url;
+            link.target = "_blank";
+            link.rel = "noopener";
+            link.textContent = `Map ${section.number} of ${section.total}`;
+            controls.appendChild(link);
+        }
+
+        const stopIds = mapSectionStopIds(section, home, routeIds);
+        const completeButton = document.createElement("button");
+        completeButton.type = "button";
+        completeButton.className = "btn btnSmall";
+        completeButton.textContent = "Mark Map " + section.number + " Complete";
+        completeButton.disabled = !expected.planId || stopIds.length === 0;
+        completeButton.addEventListener("click", () =>
+            markGoogleMapSectionComplete(section.number, stopIds, expected),
+        );
+        controls.appendChild(completeButton);
+        els.routeMapLinks.appendChild(controls);
     }
 }
 
